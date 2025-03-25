@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from neuroconv.utils import load_dict_from_file, dict_deep_update
 
-from  import Zhai2025NWBConverter
+from surmeier_lab_to_nwb.zhai2025 import Zhai2025NWBConverter
 
 
 def session_to_nwb(data_dir_path: Union[str, Path], output_dir_path: Union[str, Path], stub_test: bool = False):
@@ -60,11 +60,8 @@ if __name__ == "__main__":
     output_dir_path = Path("~/conversion_nwb/")
     stub_test = False
 
-<<<<<<< HEAD:surmeier-lab-to-nwb/src/surmeier_lab_to_nwb/zhai2025/convert_session.py
-    session_to_nwb(data_dir_path=data_dir_path, output_dir_path=output_dir_path, stub_test=stub_test)
-=======
+
     session_to_nwb(data_dir_path=data_dir_path,
                     output_dir_path=output_dir_path,
                     stub_test=stub_test,
                     )
->>>>>>> main:surmeier-lab-to-nwb/src/surmeier_lab_to_nwb/zhai2025/zhai2025_convert_session.py

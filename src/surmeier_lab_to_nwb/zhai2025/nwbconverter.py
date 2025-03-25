@@ -5,7 +5,7 @@ from neuroconv.datainterfaces import (
     PhySortingInterface,
 )
 
-from .zhai2025 import Zhai2025BehaviorInterface
+from surmeier_lab_to_nwb.zhai2025 import Zhai2025BehaviorInterface
 
 
 class Zhai2025NWBConverter(NWBConverter):
