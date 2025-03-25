@@ -154,5 +154,7 @@ dmypy.json
 # NWB files
 **.nwb
 
-# PDF assets 
+# PDF assets
 src/surmeier_lab_to_nwb/zhai2025/assets/surmeier_article_bioarxiv.pdf
+# Communication
+email_communication.md
