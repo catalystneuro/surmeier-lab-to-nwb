@@ -9,22 +9,32 @@ https://docs.google.com/document/d/1ITmVEEOQ1TbBC8hvZvkdQ-VcdW9_ynUWFwfRxBBrAGQ/
 
 
 ### Some glossary for better reading the paper
+* **DLS** dorsolateral striatum
 * **levodopa** the treatment for Parkinson's disease
 * **levodopa-induced dyskinesia (LID)** a set of erratic movements induced by levodopa after long-term treatment
 * **rheobase** the minimal electric current required to excite a tissue (as nerve or muscle) given an indefinitely long time during which the current is applied,
 * **SPNs** spiny projection neurons
 * **dSPNs** direct pathway SPNs
 * **iSPNs** indirect pathway SPNs
+* ** AIM ** lower abnormal involuntary movement (AIM)
 * **M1Rs** Muscarinic acetylcholine receptors. M1 receptor activation occurs when acetylcholine (the natural neurotransmitter) or other muscarinic agonists (such as muscarine, which is where these receptors get their name).
 * **SCH** SCH23390, a pharmacological compound that acts as a selective antagonist at the dopamine D₁ receptor (D1R). In other words, SCH23390 blocks D1-type dopaminergic signaling in neurons.
 * **2PLSM** Two Photon Laser Scanning Microscopy
-* **SUL** sulpiride, a selective D2 dopamine receptor antagonist. By blocking D2-type receptors, sulpiride is used to test whether observed changes (in this case, decreased iSPN excitability in the on-state) depend on ongoing D2R signaling.
+* **SUL/sulpiride** sulpiride, a selective D2 dopamine receptor antagonist. By blocking D2-type receptors, sulpiride is used to test whether observed changes (in this case, decreased iSPN excitability in the on-state) depend on ongoing D2R signaling.
+* **Ex vivo** refers to a procedure or experiment performed on tissue taken from a living organism, but studied outside that organism’s normal biological context (for example, in a chamber or petri dish)
+* **oEPSC** optogenetically evoked postsynaptic current
+* **quinpirole or DA** D2R agonist(s) (
+* **GRABACh3.0** is a genetically encoded fluorescent sensor designed to detect acetylcholine (ACh) release. It is used to monitor ACh dynamics in real-time.
+* **AAV5-hSyn-GRAB** refers to an adeno‐associated virus (serotype 5) that uses the human synapsin promoter to drive neuronal expression of the genetically encoded acetylcholine sensor GRABACh3.0. The authors injected this viral vector into the dorsolateral striatum so that they could optically monitor acetylcholine release in brain slices. This tool was critical for assessing how cholinergic signaling changes under conditions of dopamine depletion and during levodopa-induced dyskinesia.
+
+* **Contralateral rotations** are a behavioral measure used in rodent models of Parkinson’s disease. When one side of the brain is lesioned (for example, with 6-OHDA), the imbalance in motor circuitry causes the animal to rotate predominantly toward the side opposite the lesion. By counting these rotations after a treatment like levodopa, researchers can assess changes in motor function and dyskinetic behavior.
+
+* **CDGI** stands for CalDAG-GEFI, a calcium-activated guanine nucleotide exchange factor that is highly expressed in the striatum. It plays a critical role in linking M1 muscarinic receptor activation to intracellular signaling pathways that regulate dendritic excitability and synaptic plasticity in indirect pathway spiny projection neurons (iSPNs). In the paper, disrupting CDGI was found to blunt the dendritic adaptations in iSPNs and reduce dyskinetic behaviors, suggesting its important role in the pathophysiology of levodopa-induced dyskinesia.
 
 Corroborate this:
-
 The STK metadata in this context likely refers to metadata extracted from a MetaMorph STK file, a format used in microscopy for storing image sequences. STK files are essentially TIFF files with additional MetaMorph-specific metadata embedded in the tags. This metadata typically contains acquisition parameters, calibration details, and channel information.
 
-These are taggs appearong in the dendritic experiments of the Figures 1 and 3.
+These are tags appearing in the dendritic experiments of the Figures 1 and 3.
 
 What is this Device:
  MultiClamp 700B
@@ -38,13 +48,13 @@ What is this Device:
 
 Build interfaces to convert the following data streams to NWB format:
 
-- Convert ABF format:
-- Convert Bruker optical sensor recordings with appropriate metadata
+- Convert ABF format: I have not found .abf data
+- Convert Bruker optical sensor recordings with appropriate metadata.
 - Convert electrophysiological data acquired with the Bruker system
-- Build an interface for manual segmentation data in Surmeier lab format
-- Integrate behavioral annotations from Surmeier lab custom format
-- Include behavioral video recordings
-- Include electrical stimulation signals and metadata
+- Build an interface for manual segmentation data in Surmeier lab format.
+- Integrate behavioral annotations from Surmeier lab custom format. Is this AIM scoring?
+- Include behavioral video recordings. Are those
+- Include electrical stimulation signals and metadata. I think this is on figure 5
 
 Each conversion will utilize compression for efficient storage and implement chunking strategies to optimize for cloud storage. Detailed documentation will be provided for the installation and usage of the conversion software, including scripts to handle data from various protocols:
 1. Ex-vivo brain slices with optogenetics: combine ABF recordings with optogenetic stimulus information.
@@ -54,8 +64,24 @@ Each conversion will utilize compression for efficient storage and implement chu
 
 The conversion of each protocol will handle the time alignment of data from each data stream.
 
+## Which figures are related to which streams:
+* Figure 1 contains recordings in xml data and the currents are on the folder organization. It also has some confocal imaging.
+* Figure 2 has optogenetics and image stacks but no segmentation data as far as I can tell.
+* Figure 3 also electrophysiology
+* Figure 4 like figure 2 but also has "confocal spine density" data.
+* Figure 5: should have fluoresence traces. This looks like it has two photon time
+* Figure
 
 # Data Organization - Raw data for Figs
+
+## Data Files
+
+1. **Word File**: [Zhai et al. SA_manuscript_finalv2] - Most recent version of the submitted manuscript to Science Advances (adv8224) on 8 JAN 2025.
+2. **PDF File**: [adv8224_SupplementalMaterial_v1] - Associated Supplemental Materials and Figures.
+3. **Excel File**: [Key resources table_Zhai_v1] - Key resources table for relevant software (incl. Notebooks), protocols, antibodies, viruses, animals, chemicals, and hardware.
+4. **Excel File**: [Data Connections] - Master sheets for raw data connections to panel figures, resources table, and some experiment metadata.
+5. **Folder**: [Tabular dataset Zhai et al. 2025] - Includes readme file inside folder; spreadsheets for each Figure with separate pages for each Figure panel’s data.
+6. **Folder**: [Raw data for Figs] - Folders arranged by Figure panels.
 
 ## Figure 1
 
@@ -133,7 +159,7 @@ Let's look at one of them:
 
 And they look like this:
 
-```
+```bash
 [256K]  .
 ├── [256K]  cell1-001
 │   ├── [3.7K]  cell1-001_Cycle00001_VoltageOutput_001.xml
@@ -226,7 +252,7 @@ LID on state
 And the tree:
 
 
-```
+```bash
  heberto  …  LID on-state  0706a  0706a1  1  tree -shL 2
 [256K]  .
 ├── [256K]  07062017_Cell1_dist1_trio-001
@@ -253,6 +279,7 @@ And the tree:
 │   ├── [286K]  07062017_Cell1_dist1_trio-002.env
 │   ├── [6.4K]  07062017_Cell1_dist1_trio-002.xml
 │   └── [256K]  References
+
 ```
 
 There are tiffs here.
@@ -262,7 +289,7 @@ The references are also tiff fies
 * Question: what are the references?
 
 checking the metadata for one channel
-```
+```bash
   <Pixels DimensionOrder="XYZCT" ID="Pixels:1" PhysicalSizeX="0.194576" PhysicalSizeY="0.194576" PhysicalSizeZ="1" SizeC="2" SizeT="1" SizeX="31" SizeY="2500" SizeZ="1" Type="uint16">
 ```
 
@@ -270,8 +297,172 @@ Indicates that the tiffs at the bottom level of the tree are not time series. Im
 
 Question: what is ht
 
+#### Figure 1 Someiatc Excitability Readme
+Somatic excitability data were generated by recording voltage changes in response to current injection steps that are 500 ms in duration.
+
+Each folder with format “XXXXXXXX_X” represents data from a cell.
+Within the cell, “cell*-00*” represents a voltage recording trace.
+“cell*-001”: injection of -120pA current…
+“cell*-006”: injection of -20pA current…
+“cell*-007”: injection of 20pA current… and so forth.
+
+
 ## Figure 2
 
+The data of figure 2
+```
+.
+├── Spine density
+│   ├── control dSPN
+│   ├── LID off-state dSPN
+│   ├── LID on-state dSPN
+│   └── PD dSPN  # PD most likely means Parkinson's disease
+└── Sr-oEPSC
+    ├── LID off-state
+    └── LID on-state
+
+### Spine Density
+This is data that counts the density of the spines and is presented as image stacks.
+
+```
+
+LID on-state dSPN:
+
+```bash
+0411a2019  05012019a  0706a  0707a  0719a  0720a
+04122019a  05032019a  0706b  0707b  0719b  0721a
+```
+Not clear why the folder have such a different name convention.
+
+Here the bottom are confocal stacks:
+
+```bash
+.
+├── 0411a2019
+│   └── Decon_20190411_Cell1_dist1
+├── 04122019a
+│   └── Decon_20190412_Cell1_prox12
+├── 05012019a
+│   └── Decon_20190501_Cell1_prox12
+├── 05032019a
+│   ├── Decon-20190503_Cell1_dist12-001
+│   └── Decon20190503_Cell1_Prox1-001
+├── 0706a
+│   ├── Decon_07062017_Cell1_dist1
+│   ├── Decon_07062017_Cell1_dist2
+│   ├── Decon_20170706_Cell1_prox12
+│   └── Decon_20170706_Cell1_prox2
+├── 0706b
+│   ├── Decon_20170706_Cell2_dist1
+│   ├── Decon_20170706_Cell2_dist2
+│   ├── Decon_20170706_Cell2_prox1
+│   └── Decon_20170706_Cell2_prox2
+├── 0707a
+│   ├── Decon_20170707_Cell1_dist1
+│   ├── Decon_20170707_Cell1_dist2
+│   ├── Decon_20170707_Cell1_prox1
+│   └── Decon_20170707_Cell1_prox23
+├── 0707b
+│   ├── Decon_20170707_Cell2_prox12
+│   └── Decon_20170707_Cell2_realprox12
+```
+
+Inside there seems to be stacks:
+
+```bash
+├── Decon_20170720_Cell1_dist1
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z001.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z002.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z003.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z004.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z005.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z006.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z007.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z008.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z009.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z010.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z011.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z012.tif
+│   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z013.tif
+
+```
+Some info on a specific stack
+```bash
+python -m tifffile 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z001.tif
+
+Reading TIFF header: 0.316915 s
+Reading image data: 0.000305 s
+Generating report:   0.004349 s
+
+TiffFile '20_ZSeries-20170720_Cell1_d…cle00001_Ch1_#.ome_Z001.tif'  129.46 KiB  mediacy
+
+TiffPageSeries 0  256x256  uint16  YX  uniform  1 Pages  @8
+
+TiffPage 0 @132276  256x256  uint16  minisblack memmappable  mediacy
+```
+
+### Sr-oEPSC
+
+Here is the Optical Stimulation data
+
+```bash
+.
+├── 07052023a
+│   ├── cell1_LED14-001
+│   ├── cell1_LED14-002
+│   ├── cell1_LED14-003
+│   ├── cell1_LED14-004
+│   ├── cell1_LED14-005
+│   ├── cell1_LED14-006
+│   ├── cell1_LED14-007
+│   ├── cell1_LED14-008
+│   ├── cell1_LED14-009
+│   └── cell1_LED14-010
+├── 07052023b
+│   ├── cell2_LED12-006
+│   ├── cell2_LED12-007
+│   ├── cell2_LED12-008
+│   ├── cell2_LED12-009
+│   ├── cell2_LED12-010
+│   ├── cell2_LED12-011
+│   ├── cell2_LED12-012
+│   ├── cell2_LED12-013
+│   ├── cell2_LED12-014
+│   └── cell2_LED12-015
+```
+
+And inside there
+
+```bash
+├── cell1_LED14-001
+│   ├── cell1_LED14-001_Cycle00001_VoltageOutput_001.xml
+│   ├── cell1_LED14-001_Cycle00001_VoltageRecording_001.csv
+│   ├── cell1_LED14-001_Cycle00001_VoltageRecording_001.xml
+│   ├── cell1_LED14-001.env
+│   ├── cell1_LED14-001.xml
+│   └── References
+├── cell1_LED14-002
+│   ├── cell1_LED14-002_Cycle00001_VoltageOutput_001.xml
+│   ├── cell1_LED14-002_Cycle00001_VoltageRecording_001.csv
+│   ├── cell1_LED14-002_Cycle00001_VoltageRecording_001.xml
+│   ├── cell1_LED14-002.env
+│   ├── cell1_LED14-002.xml
+```
+
+
+### File Descriptions for Optical Stimulation Data
+
+- **cell1_LED14-001_Cycle00001_VoltageOutput_001.xml**: XML file specifying the voltage output protocol for the experiment. It defines timing, amplitude, and waveforms for LED stimulation, current/voltage steps, or other output signals.
+
+- **cell1_LED14-001_Cycle00001_VoltageRecording_001.csv**: CSV file containing raw time-series data for the recorded signals, such as membrane currents/voltages or auxiliary signals captured during the experiment.
+
+- **cell1_LED14-001_Cycle00001_VoltageRecording_001.xml**: XML file describing metadata for the CSV recording, including sampling rates, scaling factors (e.g., pA, mV), channel mappings, and amplifier settings.
+
+- **cell1_LED14-001.env**: Environment/configuration file containing information about the microscope or acquisition system settings (e.g., laser powers, PMT gains, etc.).
+
+- **cell1_LED14-001.xml**: A higher-level XML file referencing the specific acquisition cycles and linking them to their respective output/recording metadata.
+
+- **References (directory)**: A folder possibly containing calibration data or other supplementary files that further document the experimental setup or parameters.
 
 ## Figure 3
 
@@ -290,76 +481,388 @@ Very similar, also for dendritic experiments we have this at the bottom:
  05232016_Cell1_dist1_trio-001_Cycle00001_VoltageRecording_001.xml
 ```
 
-### Data Files
+## Figure 4
 
-1. **Word File**: [Zhai et al. SA_manuscript_finalv2] - Most recent version of the submitted manuscript to Science Advances (adv8224) on 8 JAN 2025.
-2. **PDF File**: [adv8224_SupplementalMaterial_v1] - Associated Supplemental Materials and Figures.
-3. **Excel File**: [Key resources table_Zhai_v1] - Key resources table for relevant software (incl. Notebooks), protocols, antibodies, viruses, animals, chemicals, and hardware.
-4. **Excel File**: [Data Connections] - Master sheets for raw data connections to panel figures, resources table, and some experiment metadata.
-5. **Folder**: [Tabular dataset Zhai et al. 2025] - Includes readme file inside folder; spreadsheets for each Figure with separate pages for each Figure panel’s data.
-6. **Folder**: [Raw data for Figs] - Folders arranged by Figure panels.
-
-
-### Summary Information
-### Submission Overview
-
-The submission includes:
-- 8 Figures
-- 5 Supplemental Figures
-
-### Primary Experiment Threads
-1. **Somatic Excitability**:
-    - AP number & rheobase
-    - Electrophysiology
-
-2. **Dendritic Excitability**:
-    - Calcium imaging distal/proximal ratio along individual dendrites
-    - Electrophysiology and 2P imaging
-
-3. **Dendritic Spine Density**:
-    - Morphology via 2P and confocal imaging
-
-4. **Somatic EPSC Minis**:
-    - Optical stimulation and electrophysiology
-
-5. **LID AIM Behavior Scoring**
-
-### Experimental Details
-- **Non-behavior Experiments**:
-  - Performed on a single Bruker Ultima 2P system (S/N 4503) running Prairie View 5.x software
-  - Uses three different A-to-D cards to synchronize recorded images with protocol-defined experimental input and output voltages
-  - System configurations for dendritic excitability, somatic EPSC minis, and ACh BOT imaging from Fig 5 create .csv files during acquisition
-  - All instrument system setting metadata is included in the Prairie View raw data folders
-
-- **Confocal Spine Density Images**:
-  - Acquired on a Core Facility Nikon A1R confocal system
-
-- **AIM Behavior Scoring**:
-  - Scored manually in real-time by Dr. Zhai
-  - Videos provide potential refinement for later review
-
-### Brain Slice Regions
-- **Spiny Projection Neurons**:
-  - Direct, D1: Figs 1 & 2, td-tomato
-  - Indirect, D2: Figs 3 & 4, 6-8, eGFP
-
-### Main Animal Manipulations
-- **6-OHDA (PD) Lesioning**
-- **LevaDopa Treatments**:
-  - Different delays (LID OFF, ON)
+```bash
+.
+├── Confocal spine density
+│   ├── Fig 4H
+│   ├── Fig 4I
+│   └── Fig 4J and Suppl Fig 5
+├── Spine density (These are like figure 2)
+│   ├── control iSPN
+│   ├── LID off-state iSPN
+│   ├── LID on-state iSPN
+│   └── PD iSPN
+└── Sr-oEPSC (these are like figure 2)
+    ├── LID off-state
+    └── LID on-state
+```
 
 
-#### Figure 1 Someiatc Excitability Readme
-Somatic excitability data were generated by recording voltage changes in response to current injection steps that are 500 ms in duration.
+### Confocal spine density
 
-Each folder with format “XXXXXXXX_X” represents data from a cell.
-Within the cell, “cell*-00*” represents a voltage recording trace.
-“cell*-001”: injection of -120pA current…
-“cell*-006”: injection of -20pA current…
-“cell*-007”: injection of 20pA current… and so forth.
+```bash
+├── Fig 4H
+│   ├── processed
+│   └── raw
+├── Fig 4I
+│   ├── processed
+│   └── raw
+└── Fig 4J and Suppl Fig 5
+    ├── processed-not organized yet, see if needed-denoise-decon,ims,excel files,code,combined excel
+    ├── raw
+    └── Spine density plots for Fig 4J and Suppl Fig 5.pzfx
+```
+
+What is pzfx?
+Apparently [Graph Pad](https://www.graphpad.com/)
+
+This is a proprietary format for Prism, a software used for scientific graphing and statistical analysis. The .pzfx file format is a compressed file that contains data, graphs, and analysis results created in GraphPad Prism.
+
+```bash
+├── Fig 4H
+│   ├── processed
+│   │   ├── 5104-3 60x str_Cycle fused
+│   │   │   ├── Fused_5104-3 60x str_Cycle stitched.oif - C=0_Fused_5104-3 60x str_Cycle stitched.oif - C=0_Image_01_01_02_010000.tif
+│   │   │   ├── Fused_5104-3 60x str_Cycle stitched.oif - C=0_Fused_5104-3 60x str_Cycle stitched.oif - C=0_Image_01_01_02_010001.tif
+...
+...
+...
+│   │   ├── MAX_Fused_5104-3 60x str_Cycle stitched.jpg
+│   │   └── MAX_Fused_5104-3 60x str_Cycle stitched with scale bar.jpg
+│   └── raw
+│       └── 5104-3 60x str_Cycle
+│           ├── Image_01_01_01_01.oif
+│           ├── Image_01_01_01_01.oif.files
+│           ├── Image_01_01_02_01.oif
+│           ├── Image_01_01_02_01.oif.files
+│           ├── Image_01_01_03_01.oif
+│           ├── Image_01_01_03_01.oif.files
+│           ├── Image_01_01_04_01.oif
+│           ├── Image_01_01_04_01.oif.files
+│           ├── Image_01_01_05_01.oif
+│           ├── Image_01_01_05_01.oif.files
+│           ├── Image_01_01_06_01.oif
+│           ├── Image_01_01_06_01.oif.files
+│           ├── Image_01_01_07_01.oif
+│           ├── Image_01_01_07_01.oif.files
+│           ├── Image_01_01_08_01.oif
+│           ├── Image_01_01_08_01.oif.files
+│           ├── Image_01_01_09_01.oif
+│           ├── Image_01_01_09_01.oif.files
+│           ├── MATL_01_01.log
+│           └── TileConfiguration.txt
+├── Fig 4I
+│   ├── processed
+│   │   ├── 6-OHDA
+│   │   │   ├── 8040-slide 1-slice 2-cell 1 proxi - Denoised decon_2024-07-27T13-10-58.187.png
+│   │   │   ├── 8040-slide 1-slice 2-cell 1 proxi - Denoised decon.ims
+│   │   │   └── 8040-slide 1-slice 2-cell 1 proxi - Denoised decon.nd2
+│   │   ├── control
+│   │   │   ├── 3824-slide 2-slice 2-cell 2 proxi - Denoised decon_2024-11-15T13-58-34.120.png
+│   │   │   ├── 3824-slide 2-slice 2-cell 2 proxi - Denoised decon.ims
+│   │   │   └── 3824-slide 2-slice 2-cell 2 proxi - Denoised decon.nd2
+│   │   ├── off-state
+│   │   │   ├── 8041-slide 2-slice 3-cell 2 proxi - Denoised decon_2024-07-27T16-23-35.514.png
+│   │   │   ├── 8041-slide 2-slice 3-cell 2 proxi - Denoised decon.ims
+│   │   │   └── 8041-slide 2-slice 3-cell 2 proxi - Denoised decon.nd2
+│   │   └── on-state
+│   │       ├── 8939-slide 1-slice 3-cell 2 den2 proxi - Denoised decon_2024-07-28T13-53-52.753.png
+│   │       ├── 8939-slide 1-slice 3-cell 2 den2 proxi - Denoised decon.ims
+│   │       └── 8939-slide 1-slice 3-cell 2 den2 proxi - Denoised decon.nd2
+│   └── raw
+│       ├── 6-OHDA
+│       │   └── 8040-slide 1-slice 2-cell 1 proxi.nd2
+│       ├── control
+│       │   └── 3824-slide 2-slice 2-cell 2 proxi.nd2
+│       ├── off-state
+│       │   └── 8041-slide 2-slice 3-cell 2 proxi.nd2
+│       └── on-state
+│           └── 8939-slide 1-slice 3-cell 2 den2 proxi.nd2
+└── Fig 4J and Suppl Fig 5
+    ├── processed-not organized yet, see if needed-denoise-decon,ims,excel files,code,combined excel
+    │   ├── 6-OHDA
+    │   ├── control
+    │   ├── off-state
+    │   └── on-state
+    ├── raw
+    │   ├── 6-OHDA
+    │   │   ├── 3823-slide 2-slice 4-cell 2 proxi.nd2
+    │   │   ├── 3825-slide 2-slice 3-cell 1 proxi.nd2
+    │   │   ├── 3825-slide 2-slice 3-cell 3 proxi.nd2
+    │   │   ├── 8040-slide 1-slice 2-cell 1 proxi.nd2
+    │   │   ├── 8040-slide 1-slice 2-cell 2 proxi.nd2
+    │   │   ├── 8040-slide 1-slice 2-cell 3 proxi.nd2
+    │   │   ├── 8040-slide 1-slice 3-cell 1 proxi.nd2
+    │   │   ├── 8040-slide 1-slice 3-cell 2 den2 proxi.nd2
+    │   │   ├── 8040-slide 1-slice 3-cell 2 proxi.nd2
+    │   │   ├── 8941-slide 1-slice 2-cell 1 den 2 proxi.nd2
+    │   │   ├── 8941-slide 1-slice 2-cell 1 proxi.nd2
+    │   │   ├── 8941-slide 1-slice 3-cell 1 proxi.nd2
+    │   │   ├── 8941-slide 1-slice 3-cell 2 proxi.nd2
+    │   │   ├── 8941-slide 1-slice 3-cell 3 proxi.nd2
+    │   │   ├── 8941-slide 1-slice 3-cell 4 den2 proxi.nd2
+    │   │   ├── 8941-slide 1-slice 3-cell 4 proxi.nd2
+    │   │   ├── 8941-slide 2-slice 2-cell 1 proxi.nd2
+    │   │   ├── 8941-slide 2-slice 2-cell 2 proxi.nd2
+    │   │   ├── 8941-slide 2-slice 2-cell 3 proxi.nd2
+    │   │   ├── 8941-slide 2-slice 2-cell 4 proxi.nd2
+    │   │   ├── 8941-slide 2-slice 2-cell 5 den2 proxi.nd2
+    │   │   └── 8941-slide 2-slice 2-cell 5 proxi.nd2
+    │   ├── control
+    │   │   ├── 3824-slide 2-slice 2-cell 1 proxi.nd2
+    │   │   ├── 3824-slide 2-slice 2-cell 2 proxi.nd2
+    │   │   ├── 5104-slice 3-cell 1 proxi3.nd2
+    │   │   ├── 5104-slide 2-slice 2-cell 1 den 2 proxi.nd2
+    │   │   ├── 5104-slide 2-slice 2-cell 1 proxi.nd2
+    │   │   ├── 5104-slide 2-slice 2-cell 2 proxi.nd2
+    │   │   ├── 8038-slide 1-slice 2-cell 1 den2 proxi.nd2
+    │   │   ├── 8038-slide 1-slice 2-cell 1 proxi_0001.nd2
+    │   │   ├── 8038-slide 1-slice 2-cell 2 den2 proxi.nd2
+    │   │   ├── 8038-slide 1-slice 2-cell 2 proxi.nd2
+    │   │   ├── 8038-slide 1-slice 2-cell 3 proxi.nd2
+    │   │   ├── 8940-slide 1-slice 1-cell 1 den2 proxi.nd2
+    │   │   ├── 8940-slide 1-slice 1-cell 1 proxi.nd2
+    │   │   ├── 8940-slide 1-slice 2-cell 1 den2 proxi.nd2
+    │   │   ├── 8940-slide 1-slice 2-cell 1 proxi.nd2
+    │   │   ├── 8940-slide 1-slice 2-cell 2 den2 proxi.nd2
+    │   │   ├── 8940-slide 1-slice 2-cell 2 proxi.nd2
+    │   │   └── 8940-slide 1-slice 2-cell 3 proxi.nd2
+    │   ├── off-state
+    │   │   ├── 3826-slide 2-slice 3-cell 1 proxi.nd2
+    │   │   ├── 3826-slide 2-slice 3-cell 2 proxi.nd2
+    │   │   ├── 5105-slice 3-cell 1 proxi3.nd2
+    │   │   ├── 5105-slice 3-cell 2 den2 proxi.nd2
+    │   │   ├── 5105-slice 3-cell 2 proxi.nd2
+    │   │   ├── 5105-slide 2-slice 2-cell 1 den 2 proxi.nd2
+    │   │   ├── 5105-slide 2-slice 2-cell 1 proxi.nd2
+    │   │   ├── 5105-slide 2-slice 3-cell 1 proxi.nd2
+    │   │   ├── 5105-slide 2-slice 3-cell 2 den 2 proxi.nd2
+    │   │   ├── 5105-slide 2-slice 3-cell 2 proxi.nd2
+    │   │   ├── 5105-slide 2-slice 3-cell 3 proxi.nd2
+    │   │   ├── 8041-slide 1-slice 4-cell 1 proxi.nd2
+    │   │   ├── 8041-slide 2-slice 2-cell 1 proxi.nd2
+    │   │   ├── 8041-slide 2-slice 3-cell 1den2 proxi.nd2
+    │   │   ├── 8041-slide 2-slice 3-cell 1 proxi.nd2
+    │   │   ├── 8041-slide 2-slice 3-cell 2 proxi.nd2
+    │   │   ├── 8041-slide 3-slice 3-cell 1 proxi.nd2
+    │   │   ├── 8041-slide 3-slice 3-cell 3 proxi.nd2
+    │   │   ├── 8041-slide 3-slice 3-cell 4 den2 proxi.nd2
+    │   │   ├── 8041-slide 4-slice 3-cell 2 proxi.nd2
+    │   │   ├── 8943-slide 1-slice 1-cell 1 den2 proxi.nd2
+    │   │   ├── 8943-slide 1-slice 1-cell 1 proxi.nd2
+    │   │   ├── 8943-slide 1-slice 1-cell 2 proxi.nd2
+    │   │   ├── 8943-slide 1-slice 2-cell 1 den2 proxi.nd2
+    │   │   └── 8943-slide 1-slice 2-cell 1 proxi.nd2
+    │   └── on-state
+    │       ├── 5107-slide 2-slice 2-cell 1 den 2 proxi.nd2
+    │       ├── 5107-slide 2-slice 2-cell 1 proxi.nd2
+    │       ├── 5107-slide 2-slice 2-cell 2 proxi.nd2
+    │       ├── 5107-slide 2-slice 3-cell 3 proxi.nd2
+    │       ├── 5108-slice 2-cell 1 den2 proxi.nd2
+    │       ├── 5108-slice 2-cell 1 den3 proxi.nd2
+    │       ├── 5108-slice 2-cell 1 proxi.nd2
+    │       ├── 5108-slide 2-slice 1-cell 1 den2 proxi.nd2
+    │       ├── 5108-slide 2-slice 1-cell 1 proxi.nd2
+    │       ├── 5108-slide 2-slice 1-cell 2 proxi.nd2
+    │       ├── 5108-slide 2-slice 2-cell 1 den 2 proxi.nd2
+    │       ├── 8042-slide 1-slice 2-cell 1 proxi.nd2
+    │       ├── 8042-slide 1-slice 2-cell 2 den2 proxi.nd2
+    │       ├── 8042-slide 1-slice 2-cell 2 proxi.nd2
+    │       ├── 8042-slide 1-slice 2-cell 3 proxi.nd2
+    │       ├── 8042-slide 1-slice 2-cell 4 proxi.nd2
+    │       ├── 8939-slide 1-slice 2-cell 1 den2 proxi.nd2
+    │       ├── 8939-slide 1-slice 2-cell 1 proxi.nd2
+    │       ├── 8939-slide 1-slice 2-cell 2 proxi.nd2
+    │       ├── 8939-slide 1-slice 3-cell 1 proxi.nd2
+    │       ├── 8939-slide 1-slice 3-cell 2 den2 proxi.nd2
+    │       └── 8939-slide 1-slice 3-cell 2 proxi.nd2
+    └── Spine density plots for Fig 4J and Suppl Fig 5.pzfx
+```
+
+What are:
+* nd2 files:
+* ims files:
+* oif files:
+* tiff files:
 
 
-### Data Connections
+## Figure 5
+
+```bash
+.
+├── LID off (Figure 5 E)
+├── PD (6-OHDA) (Figure 5 D)
+└── UL control (Figure 5 C)
+```
+Note that each of them correspond to a paper figure
+
+• Quinpirole is a D2 receptor agonist. When applied, it activates D2 receptors on cholinergic interneurons, leading to a suppression of ACh release.
+
+• +DA indicates the bath application of dopamine. Adding dopamine mimics the natural ligand's effect—activating dopamine receptors (primarily D2 receptors on ChIs) and thus inhibiting ACh release.
+
+• +Sulpiride refers to the application of a D2 receptor antagonist. By blocking D2 receptors, sulpiride prevents dopamine from exerting its inhibitory effect on ACh release, resulting in an increased evoked ACh signal.
+
+
+```bash
+.
+├── LID off
+│   ├── 05242024slice1
+│   ├── 05242024slice2
+│   ├── 05292024slice1
+│   ├── 05292024slice2
+│   ├── 05312024slice1
+│   ├── 05312024slice2
+│   ├── 06032024slice1
+│   ├── 06042024slice1
+│   ├── 06042024slice2
+│   ├── 06042024slice3
+│   └── 06042024slice4
+├── PD
+│   ├── 04122024slice1ROI1
+│   ├── 04122024slice1ROI2
+│   ├── 04122024slice2ROI1
+│   ├── 04122024slice2ROI2
+│   ├── 04162024slice1ROI1
+│   ├── 04162024slice1ROI2
+│   ├── 04162024slice2ROI1
+│   ├── 04162024slice2ROI2
+│   ├── 05092024slice1
+│   └── 05092024slice2
+└── UL control
+    ├── 04022024slice1ROI1
+    ├── 04022024slice1ROI2
+    ├── 04022024slice2ROI1
+    ├── 04022024slice2ROI2
+    ├── 04022024slice3ROI1
+    ├── 04022024slice3ROI2
+    ├── 04052024slice1ROI1
+    ├── 04052024slice1ROI2
+    ├── 04052024slice2ROI1
+    ├── 04102024slice1ROI1
+    ├── 04102024slice1ROI2
+    ├── 04102024slice2ROI1
+    └── 04102024slice2ROI2
+```
+
+These folders contain what looks like Two Photon time series data:
+
+```bash
+├── BOT_04122024_slice1ROI1_sul_single-002
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001-botData.csv
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000001.ome.tif
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000002.ome.tif
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000003.ome.tif
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000004.ome.tif
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000005.ome.tif
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000006.ome.tif
+│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000007.ome.tif
+```
+
+## Figure 6
+
+```bash
+ heberto  (e) work  …  LID_paper_Zhai_2025  Raw data for Figs  Figure 6  1  tree -L 2
+.
+├── Dendritic excitability
+│   ├── control
+│   └── M1R antagonist
+├── Somatic excitability
+│   ├── control
+│   └── M1R antagonist
+└── Spine density
+    ├── control
+    └── M1R antagonist
+
+```
+
+## Figure 7
+
+```bash
+
+.
+├── AIM rating
+│   └── AIM testing_CDGI KO.xlsx  # This is an excel file
+├── contralateral rotations
+│   └── CDGI KO videos  # These are the videos
+├── KO DE on vs off
+│   ├── KO off-state
+│   └── KO on-state
+├── KO SE on vs off
+│   ├── KO off-state
+│   └── KO on-state
+├── KO spine density
+│   ├── KO off
+│   └── KO on
+└── oxoM on DE
+    ├── KO
+    ├── ReadMe.rtf
+    └── WT
+```
+How does the excel looks like:
+
+![aim score](./assets/aim_score.png)
+
+## Figure 8
+
+```bash
+ heberto  (e) work  …  LID_paper_Zhai_2025  Raw data for Figs  Figure 8  1  tree -L 2
+.
+├── M1R CRISPR AIMs
+│   └── AIM raw score_M1R CRISPR.xlsx
+├── M1R CRISPR SE
+│   ├── interleaved control
+│   └── M1R CRISPR
+└── M1R CRISPR spine density
+    ├── control
+    └── M1R CRISPR
+```
+
+
+## Supplementary Figure 3
+
+This seems to contain a lot of videos:
+
+
+```bash
+.
+└── M1R CRISPR videos
+    ├── 01172024-
+    │   ├── 1st session
+    │   ├── 2nd session
+    │   ├── 3rd session
+    │   ├── 4th session
+    │   └── 5th session
+    ├── 02232024-
+    │   ├── 1st session
+    │   ├── 2nd session
+    │   ├── 3rd session
+    │   ├── 4th session
+    │   └── 5th session
+    ├── 05032024-
+    │   ├── 1st session
+    │   ├── 2nd session
+    │   ├── 3rd session
+    │   ├── 4th session
+    │   └── 5th session
+    ├── 09272023-
+    │   ├── 1st session
+    │   ├── 2nd session
+    │   ├── 3rd session
+    │   ├── 4th session
+    │   └── 5th session
+    └── 12082023-
+        ├── 1st session
+        ├── 2nd session
+        ├── 3rd session
+        ├── 4th session
+        └── 5th session
+```
+
+# Data Connections
+This is a table shared by the authors:
+
 | TECHNIQUE                   | FIG     | CONT      | PD        | LID OFF   | LID OFF  | LID ON    | ON + agon | OXO     | OXO     | MSN    | MOUSE           | Age     | Virus Inj  | Ldopa   | Slicing | Patching  | Imaging  | Stimulation                     | Analysis               | Analysis        | Analysis       | Analysis       | Analysis         |
 |-----------------------------|---------|-----------|-----------|-----------|----------|-----------|-----------|---------|---------|--------|----------------|---------|------------|---------|---------|-----------|----------|--------------------------------|------------------------|----------------|---------------|---------------|-----------------|
 | Somatic Excitability        | 1F      | -         | -         | 15(8)8    | -        | 15(10)10  | 10(5)5    | -       | -       | D1     | tdTomato       | 7-12 wks | -          | -       | I Clamp | 2P GEI    | Neg120 to 300pA, 0.5s | pA separate traces       | 14145776       | RMP [5, 195]ms | [200, 700]ms   | #APs in 0.5s     |
@@ -386,24 +889,6 @@ find . -type f \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.avi" -o -iname "
 ls -R | rg ".MP4"
 ```
 
-## First Email:
+###  Acquisition
 
-  Hi, everyone
-
-  I reviewed the data that has been transferred so far and here is what we are missing in terms of the scope of work that we agreed on. We have now imaging voltage and Line profiles from the Bruker systems corresponding to figures 1 and 3.
-
-  Going from the organizations that that the team of the Dr Surmeier has provided we are missing data from the following figures: 2, 4, 5, 6, 7 and 8.
-
-  Going from the Scope of Work we are missing data for the following streams:
-  - Bruker optical sensor recordings with appropriate metadata
-  - ABFs from Axon
-  - Behavioral video recordings
-  - Electrical stimulation signals and metadata
-  - Manual segmentation data for ROIs.
-
-  Feel free to set up a meeting so we can check together why there might be a bottleneck
-
-
-
-* tiff imaging files for the experiments described on figures 1 and 3.
-* LineProfile data from Bruker that I think corresponds to the Fluoresence traces
+> All the electrophysiological recordings were made using a MultiClamp 700B amplifier (Axon Instrument, USA), and signals were filtered at 2 kHz and digitized at 10 kHz. Voltage protocols and data acquisition were performed by PraireView 5.3 (Bruker). The amplifier command voltage and all light source shutter and modulator signals were sent via the PCI-NI6713 analog-to-digital converter card (National Instruments, Austin, TX).
