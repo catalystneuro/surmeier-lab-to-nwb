@@ -10,14 +10,16 @@ https://docs.google.com/document/d/1ITmVEEOQ1TbBC8hvZvkdQ-VcdW9_ynUWFwfRxBBrAGQ/
 
 ### Some glossary for better reading the paper
 * **DLS** dorsolateral striatum
+* **6-OHDA** 6-hydroxydopamine, a neurotoxin used to induce Parkinson's disease-like symptoms in animal models by selectively destroying dopaminergic neurons.
 * **levodopa** the treatment for Parkinson's disease
 * **levodopa-induced dyskinesia (LID)** a set of erratic movements induced by levodopa after long-term treatment
 * **rheobase** the minimal electric current required to excite a tissue (as nerve or muscle) given an indefinitely long time during which the current is applied,
 * **SPNs** spiny projection neurons
 * **dSPNs** direct pathway SPNs
 * **iSPNs** indirect pathway SPNs
-* ** AIM ** lower abnormal involuntary movement (AIM)
-* **M1Rs** Muscarinic acetylcholine receptors. M1 receptor activation occurs when acetylcholine (the natural neurotransmitter) or other muscarinic agonists (such as muscarine, which is where these receptors get their name).
+* **AIM** lower abnormal involuntary movement (AIM)
+* **Contralateral rotations** are a behavioral measure used in rodent models of Parkinson’s disease. When one side of the brain is lesioned (for example, with 6-OHDA), the imbalance in motor circuitry causes the animal to rotate predominantly toward the side opposite the lesion. By counting these rotations after a treatment like levodopa, researchers can assess changes in motor function and dyskinetic behavior.
+* **M1Rs** Muscarinic acetylcholine receptors. M1 receptor activation occurs when acetylcholine (the natural neurotr(Frederick Haer Companyansmitter) or other muscarinic agonists (such as muscarine, which is where these receptors get their name).
 * **SCH** SCH23390, a pharmacological compound that acts as a selective antagonist at the dopamine D₁ receptor (D1R). In other words, SCH23390 blocks D1-type dopaminergic signaling in neurons.
 * **2PLSM** Two Photon Laser Scanning Microscopy
 * **SUL/sulpiride** sulpiride, a selective D2 dopamine receptor antagonist. By blocking D2-type receptors, sulpiride is used to test whether observed changes (in this case, decreased iSPN excitability in the on-state) depend on ongoing D2R signaling.
@@ -26,9 +28,6 @@ https://docs.google.com/document/d/1ITmVEEOQ1TbBC8hvZvkdQ-VcdW9_ynUWFwfRxBBrAGQ/
 * **quinpirole or DA** D2R agonist(s) (
 * **GRABACh3.0** is a genetically encoded fluorescent sensor designed to detect acetylcholine (ACh) release. It is used to monitor ACh dynamics in real-time.
 * **AAV5-hSyn-GRAB** refers to an adeno‐associated virus (serotype 5) that uses the human synapsin promoter to drive neuronal expression of the genetically encoded acetylcholine sensor GRABACh3.0. The authors injected this viral vector into the dorsolateral striatum so that they could optically monitor acetylcholine release in brain slices. This tool was critical for assessing how cholinergic signaling changes under conditions of dopamine depletion and during levodopa-induced dyskinesia.
-
-* **Contralateral rotations** are a behavioral measure used in rodent models of Parkinson’s disease. When one side of the brain is lesioned (for example, with 6-OHDA), the imbalance in motor circuitry causes the animal to rotate predominantly toward the side opposite the lesion. By counting these rotations after a treatment like levodopa, researchers can assess changes in motor function and dyskinetic behavior.
-
 * **CDGI** stands for CalDAG-GEFI, a calcium-activated guanine nucleotide exchange factor that is highly expressed in the striatum. It plays a critical role in linking M1 muscarinic receptor activation to intracellular signaling pathways that regulate dendritic excitability and synaptic plasticity in indirect pathway spiny projection neurons (iSPNs). In the paper, disrupting CDGI was found to blunt the dendritic adaptations in iSPNs and reduce dyskinetic behaviors, suggesting its important role in the pathophysiology of levodopa-induced dyskinesia.
 
 Corroborate this:
@@ -674,7 +673,7 @@ This is a proprietary format for Prism, a software used for scientific graphing 
     │   │   ├── 3824-slide 2-slice 2-cell 1 proxi.nd2
     │   │   ├── 3824-slide 2-slice 2-cell 2 proxi.nd2
     │   │   ├── 5104-slice 3-cell 1 proxi3.nd2
-    │   │   ├── 5104-slide 2-slice 2-cell 1 den 2 proxi.nd2
+    │   │   ├── 510(Frederick Haer Company4-slide 2-slice 2-cell 1 den 2 proxi.nd2
     │   │   ├── 5104-slide 2-slice 2-cell 1 proxi.nd2
     │   │   ├── 5104-slide 2-slice 2-cell 2 proxi.nd2
     │   │   ├── 8038-slide 1-slice 2-cell 1 den2 proxi.nd2
@@ -867,7 +866,7 @@ How does the excel looks like:
 ## Figure 8
 
 ```bash
- heberto  (e) work  …  LID_paper_Zhai_2025  Raw data for Figs  Figure 8  1  tree -L 2
+tree -L 2
 .
 ├── M1R CRISPR AIMs
 │   └── AIM raw score_M1R CRISPR.xlsx
@@ -1056,12 +1055,38 @@ ls -R | rg ".MP4"
 Microscope system](https://www.bruker.com/en/products-and-solutions/fluorescence-microscopy/multiphoton-microscopes/ultima-in-vitro.html)
 
 
+### Stimuli Figure 5
+
+> Time series images of the GRABACh3.0 were acquired with 0.388 μm × 0.388 μm pixels, 8-μs dwell time and a frame rate of 21.26 fps. After 3-s baseline acquisition, synchronous ACh release was evoked by delivering a single (1 ms x 0.3 mA) or a train of 20 electrical stimuli (1 ms x 0.3 mA at 20 Hz) by a concentric bipolar electrode (CBAPD75, FHC)
+
+Here is the webpage:
+https://www.fh-co.com/product/concentric-bipolar/
+
+But I can't find the model number: CBAPD75 there
+
+
 #### Spine Density Calculation
 
-> For assessment of dendritic spine density, images of dendritic segments (proximal: ~40 μm from soma; distal: > 80 μm from soma) were acquired with 0.15 μm pixels with 0.3 μm z-steps.
-Images were deconvolved in AutoQuant X3.0.4 (MediaCybernetics, Rockville, MD) and semi-automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai School of Medicine, New York). On average, two proximal and two distal dendrites were imaged and analyzed per neuron.
+Two algorithms were used:
 
-But then there is also this section
+##### Two‐Photon Microscopy + NeuronStudio Segmentation
+- **Image Acquisition**: Dendritic segments are imaged using two‐photon microscopy with a pixel resolution of 0.15 μm and z-steps of 0.3 μm.
+- **Image Processing**: Raw images are deconvolved using AutoQuant software to enhance image quality.
+- **Segmentation and Spine Counting**: A semi-automated algorithm in NeuronStudio is used for 3D reconstruction and spine counting. This method applies intensity thresholding and morphological criteria to automatically segment and count spines, which are then manually curated if necessary.
+
+From this section of the paper
+> For assessment of dendritic spine density, images of dendritic segments (proximal: ~40 μm from soma; distal: > 80 μm from soma) were acquired with 0.15 μm pixels with 0.3 μm z-steps. Images were deconvolved in AutoQuant X3.0.4 (MediaCybernetics, Rockville, MD) and semi-automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai School of Medicine, New York). On average, two proximal and two distal dendrites were imaged and analyzed per neuron.
+
+
+##### High-Resolution Confocal + Imaris Segmentation
+- **Image Acquisition**: High-resolution confocal images are captured from fixed brain sections using a 60× oil immersion objective (NA = 1.49), with z-steps of 0.125 μm and a pixel size of 0.09 μm.
+- **Image Processing**: Images are de-noised and deconvolved using Nikon NIS-Elements software.
+- **Segmentation Workflow**:
+    - A “Surface” object is created in Imaris using Labkit for pixel classification, a supervised learning tool that isolates the dendritic segment from the background.
+    - A “Filament” is generated to trace the dendrite, followed by spine detection using preset parameters (e.g., minimum spine head size, maximum spine length, no branched spines allowed).
+    - The segmentation is refined and manually corrected as needed.
+
+
 
 #### High resolution confocal microscopy of sparsely labeled neurons
 
@@ -1069,8 +1094,11 @@ A Nikon AXR confocal laser microscope from the Center for Advanced Microscopy & 
 
 Dendritic segments (~30 μm in length, located ~30 μm from the soma) were analyzed for spine density using Imaris 10.0.0 software (Oxford Instruments). The dendrite of interest was isolated by creating a new Surface. The ‘Labkit for pixel classification’ tool was used to train signal detection over noise, creating a tight surface. This surface was further refined to include only the dendritic segment of interest. A Filament for the dendritic segment was generated with the aid of an embedded supervised learning function. Spine detection was performed with the following parameters: thinnest spine head set at 0.188 μm, maximum spine length set at 5 μm, and no branched spines allowed. Spines were further refined using an embedded supervised learning function and manually corrected if necessary.
 
+### Optogenetics
 
-### Amplitudes of Sr2-oEPSC
+> To selectively activate corticostriatal synapses, an adeno-associated virus (AAV) carrying a channelrhodopsin 2 (ChR2) expression construct (AAV5-hSyn-hChR2(H134R)-EYFP) was injected into the motor cortex ipsilateral to the 6-OHDA lesion (Fig. 2D). In brain slices from off- and on- state Drd1-Tdtomato mice, dSPNs were patched with a Cs+-containing intracellular solution and voltage-clamped. To measure unitary synaptic strength, the extracellular Ca2+ was replaced with Sr2+ (3 mM), cortical fibers were stimulated with blue LED pulses and asynchronous, excitatory postsynaptic currents (Sr2+-oEPSCs) were recorded (Fig. 2, E-F)
+
+#### Amplitudes of Sr2-oEPSC
 > Amplitudes of Sr2-oEPSCs were
 analyzed automatically using TaroTools Event Detection in Igor Pro 8 (WaveMetrics, Portland,
 Oregon) followed by visual verification. Events were measured between 40 ms to 400 ms after
@@ -1078,6 +1106,28 @@ Oregon) followed by visual verification. Events were measured between 40 ms to 4
 
 https://www.wavemetrics.com/forum/general/igorpro-neuromatic-event-detection
 
-### Microscope
+### Devices
 
-> Fluorescence was imaged using an Ultima In Vitro Multiphoton Microscope system (Bruker, Billerica, MA) with an Olympus 60x/0.9 NA water-immersion objective lens and a Hamamatsu H7422P-40 GaAsP PMT (490 nm to 560 nm, Hamamatsu Photonics,
+#### Bruker Ultima In Vitro Multiphoton Microscope System:
+
+Two-photon imaging of ACh sensor
+
+> ACh release was assessed by imaging GRABACh3.0, a genetically encoded fluorescent sensor of ACh 72, using 2PLSM. Acute slices with striatal expression of GRABACh3.0 were prepared as described above, transferred to a recording chamber, and continuously perfused with normal ACSF at 32–34°C. A two-photon laser (Chameleon Ultra II, Coherent, Santa Clara, CA) tuned to 920 nm was used to excite GRABACh3.0. Fluorescence was imaged using an Ultima In Vitro Multiphoton Microscope system (Bruker, Billerica, MA) with an Olympus 60x/0.9 NA water-immersion objective lens and a Hamamatsu H7422P-40 GaAsP PMT (490 nm to 560 nm, Hamamatsu Photonics, Japan). Time series images of the GRABACh3.0 were acquired with 0.388 μm × 0.388 μm pixels, 8-μs dwell time and a frame rate of 21.26 fps
+
+### Chameleon Ultra II Laser (Coherent)
+
+Slice electrophysiology (is on this section)
+
+> The recorded SPN was visualized using 810 nm excitation laser (Chameleon Ultra II, Coherent, Santa Clara, USA). Dendritic structure was visualized by the red signal of Alexa Fluor 568 detected by a Hamamatsu R3982 side-on photomultiplier tube (PMT, 580-620 nm). Calcium transients, as signals in the green channel, were detected by a Hamamatsu H7422P-40 GaAsP PMT (490-560 nm, Hamamatsu Photonics, Japan). Signals from both channels were background subtracted before analysis. Line scan signals were acquired with 128 pixels per line resolution and 10 μs/pixel dwell time along a dendritic segment. Ca2+ signals were quantified as
+
+
+### Nikon AXR Confocal Laser Microscope
+### Software
+
+AutoQuant X3.0.4: For deconvolving two-photon images.
+
+Nikon NIS-Elements AR 5.41.02: For de-noising and deconvolving high-resolution confocal images.
+
+NeuronStudio: For semi-automated 3D reconstruction and spine counting from two-photon images.
+
+Imaris 10.0.0: For detailed segmentation and 3D reconstruction of dendritic spines in confocal datasets using tools like Labkit for pixel classification and filament tracing.
