@@ -7,9 +7,9 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 from lxml import etree
-
-# Import pynwb
-from pynwb import NWBHDF5IO, NWBFile
+from neuroconv.tools import configure_and_write_nwbfile
+from pynwb import NWBFile
+from pynwb.device import Device
 from pynwb.icephys import CurrentClampSeries, CurrentClampStimulusSeries
 
 
@@ -81,27 +81,11 @@ def parse_xml(filename):
     return file_attr
 
 
-def read_voltage_data_as_data_frame(file_path) -> pd.DataFrame:
-    """Read the voltage data from CSV file"""
-    # Adjust column specifications based on your actual data format
-    df = pd.read_csv(file_path, header=0)
-    return df
+def add_cell_F_I_protcol(nwbfile: NWBFile, cell_folder_path: Path, amplifier_device: Device) -> list:
+    """Add cell F-I protocol data to the NWB file"""
 
-
-def convert_to_nwb(cell_folder_path: str | Path, output_file: str | Path):
-    """
-    Convert all recordings to NWB format
-
-    Parameters:
-    -----------
-    cell_folder_path : Path
-        Path to the directory containing the cell recordings
-    output_file : Path
-        Name of the output NWB file
-
-    """
     # Input current values for each recording
-    file_termination_to_current = {
+    protocol_step_to_current = {
         "001": -120,  # pA
         "002": -100,  # pA
         "003": -80,  # pA
@@ -125,38 +109,10 @@ def convert_to_nwb(cell_folder_path: str | Path, output_file: str | Path):
         "021": 300,  # pA
     }
 
-    # Create a new NWB file
-    session_id = "CellRecording"
-    session_start_time = datetime.now(ZoneInfo("America/Chicago"))
-    experiment_description = "State-dependent modulation of spiny projection neurons in LID model (Figure 1)"
+    cell_id = cell_folder_path.name
 
-    nwbfile = NWBFile(
-        session_description="Experiment on spiny projection neurons",
-        identifier=str(uuid4()),
-        session_start_time=session_start_time,
-        experimenter="Zahi et al.",
-        lab="Surmeier Lab",
-        institution="Northwestern University",
-        experiment_description=experiment_description,
-        session_id=session_id,
-    )
-
-    # Add devices
-    amplifier_device = nwbfile.create_device(
-        name="MultiClamp 700B",
-        description="MultiClamp 700B amplifier (Axon Instruments/Molecular Devices) with PCI-NI6713 analog-to-digital converter, signals filtered at 2 kHz and digitized at 10 kHz",
-        manufacturer="Axon Instruments/Molecular Devices",
-    )
-
-    digitizer_device = nwbfile.create_device(
-        name="PCI-NI6713",
-        description="Analog-to-digital converter card, digitizing at 10 kHz",
-        manufacturer="National Instruments",
-    )
-
-    # Create electrode
-    cell_id = cell_folder_path.stem
-    name = f"IntracellularElectrode{cell_id}"
+    # Create electrode for this cell
+    name = f"IntracellularElectrodeCell{cell_id}"
     electrode_description = "Recording from dSPN in the dorsolateral striatum"
     electrode = nwbfile.create_icephys_electrode(
         name=name,
@@ -165,17 +121,16 @@ def convert_to_nwb(cell_folder_path: str | Path, output_file: str | Path):
         cell_id=cell_id,
     )
 
-    # Process each recording
-    recording_indices = []
-    for recording_num, input_current in file_termination_to_current.items():
+    # Process each recording (current step) for this cell
+    recording_indices = []  # Store indices for IntracellularRecordingsTable
+    recording_folder_path_list = [f for f in cell_folder_path.iterdir() if f.is_dir()]
+    for recording_folder_path in recording_folder_path_list:
+        cell_name, protocol_step = recording_folder_path.stem.split("-")
+        current_in_pA = protocol_step_to_current[protocol_step]
         # Form the folder path for this recording
-        recording_folder = cell_folder_path / f"cell1-{recording_num}"
-
-        if not recording_folder.exists():
-            raise FileNotFoundError(f"Recording folder {recording_folder} does not exist.")
 
         # XML file path
-        xml_file = recording_folder / f"cell1-{recording_num}_Cycle00001_VoltageRecording_001.xml"
+        xml_file = recording_folder_path / f"{recording_folder_path.stem}_Cycle00001_VoltageRecording_001.xml"
 
         if not xml_file.exists():
             raise FileNotFoundError(f"XML file {xml_file} does not exist.")
@@ -187,53 +142,144 @@ def convert_to_nwb(cell_folder_path: str | Path, output_file: str | Path):
         voltage_csv_stem = metadata["voltage recording file"]
         if voltage_csv_stem is None:
             voltage_csv_stem = xml_file.stem
-        csv_file_path = recording_folder / f"{voltage_csv_stem}.csv"
+        csv_file_path = recording_folder_path / f"{voltage_csv_stem}.csv"
+
         if not csv_file_path.exists():
             raise FileNotFoundError(f"CSV file {csv_file_path} does not exist.")
 
         # Read voltage recording data
-        voltage_df = read_voltage_data_as_data_frame(csv_file_path)
+        voltage_df = pd.read_csv(csv_file_path, header=0)
 
         # Get sampling rate
         sampling_rate = metadata["sampling"]
 
         # Create stimulus series (current injection)
-        constant_current_data = voltage_df.shape[0] * [input_current]  # Create a constant current array
+        stimulus_name = f"CurrentClampStimulusSeries{cell_id}{current_in_pA}pA"
+        constant_current_data = np.ones(voltage_df.shape[0]) * current_in_pA
         stimulus = CurrentClampStimulusSeries(
-            name=f"current_stimulus_{recording_num}",
-            data=constant_current_data,  # Use the constant current array
+            name=stimulus_name,
+            data=constant_current_data,
             rate=sampling_rate,
             electrode=electrode,
             starting_time=np.nan,
         )
+
+        # Get voltage data
         voltage_data = voltage_df[" Primary"].values
+        response_name = f"CurrentClampSeries{cell_id}{current_in_pA}pA"
+
         # Create response series (recorded voltage)
         response = CurrentClampSeries(
-            name=f"voltage_response_{recording_num}",
-            data=voltage_data,  # Use the updated voltage data
+            name=response_name,
+            data=voltage_data,
             rate=sampling_rate,
             electrode=electrode,
             starting_time=np.nan,
         )
 
-        # Add to NWB file
-        nwbfile.add_stimulus(stimulus)
-        nwbfile.add_acquisition(response)
-
-        # Add an intracellular recording entry
+        # Add an intracellular recording entry with a unique ID
         recording_index = nwbfile.add_intracellular_recording(
-            electrode=electrode, stimulus=stimulus, response=response, id=int(recording_num)
+            electrode=electrode,
+            response=response,
+            stimulus_current_pA=current_in_pA,
         )
 
         recording_indices.append(recording_index)
-        print(f"Added recording {recording_num} with current {input_current} pA")
+        print(f"  Added recording step {protocol_step} with current {current_in_pA} pA")
+
+    return recording_indices
+
+
+def convert_condition_to_nwb(condition_folder: Path, nwbfile_path: Path, condition_name: str):
+    """
+    Convert all cells from a condition to NWB format, with proper organizational structure
+
+    Parameters:
+    -----------
+    condition_folder : Path
+        Path to the directory containing all cell recordings for a condition
+    nwbfile_path : Path
+        Path to the output NWB file
+    condition_name : str
+        Name of the experimental condition (e.g., "LID on-state")
+    """
+
+    # Create a new NWB file
+    session_id = f"SomaticExcitability_{condition_name}"
+    session_start_time = datetime.now(ZoneInfo("America/Chicago"))
+    experiment_description = (
+        f"State-dependent modulation of spiny projection neurons in LID model (Figure 1) - {condition_name}"
+    )
+
+    nwbfile = NWBFile(
+        session_description=f"Somatic excitability recordings in {condition_name}",
+        identifier=str(uuid4()),
+        session_start_time=session_start_time,
+        experimenter="Zhai et al.",
+        lab="Surmeier Lab",
+        institution="Northwestern University",
+        experiment_description=experiment_description,
+        session_id=session_id,
+    )
+
+    # Add devices
+    amplifier_device = nwbfile.create_device(
+        name="MultiClamp 700B",
+        description="MultiClamp 700B amplifier (Axon Instruments/Molecular Devices) with signals filtered at 2 kHz and digitized at 10 kHz",
+        manufacturer="Axon Instruments/Molecular Devices",
+    )
+
+    # Find all cell folders in the condition directory
+    cell_folders = [f for f in condition_folder.iterdir() if f.is_dir()]
+
+    if not cell_folders:
+        raise ValueError(f"No cell folders found in {condition_folder}")
+
+    print(f"Found {len(cell_folders)} cells in {condition_name} condition")
+
+    # Add a stimulus column to the NWB file
+    intracellular_recording_table = nwbfile.get_intracellular_recordings()
+    intracellular_recording_table.add_column(
+        name="stimulus_current_pA",
+        description="The current stimulus applied during the recording in picoamps",
+    )
+
+    # Process each cell (each cell is a repetition of the protocol)
+    sequential_recording_indices = []
+    for cell_folder_path in sorted(cell_folders):
+        cell_id = cell_folder_path.name
+        print(f"\nProcessing cell {cell_id}...")
+
+        recording_indices = add_cell_F_I_protcol(
+            nwbfile=nwbfile,
+            cell_folder_path=cell_folder_path,
+            amplifier_device=amplifier_device,
+        )
+
+        # Add a simultaneous recording entry (in this case, just one recording per simultaneous recording)
+        # There a no simultaneous recordings in this dataset, but we need to add this entry for the NWB structure
+        simultaneous_recording_indices = []
+        for recording_index in recording_indices:
+            simultaneous_index = nwbfile.add_icephys_simultaneous_recording(recordings=[recording_index])
+            simultaneous_recording_indices.append(simultaneous_index)
+
+        # Add a sequential recording entry for this cell (grouping all current steps)
+        sequential_index = nwbfile.add_icephys_sequential_recording(
+            simultaneous_recordings=simultaneous_recording_indices,
+            stimulus_type="current_steps",
+        )
+
+        sequential_recording_indices.append(sequential_index)
+        print(f"  Added sequential recording for cell {cell_id}")
+
+    # Add this cell as a repetition
+    repetition_index = nwbfile.add_icephys_repetition(sequential_recordings=sequential_recording_indices)
 
     # Write NWB file
-    with NWBHDF5IO(output_file, "w") as io:
-        io.write(nwbfile)
+    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=nwbfile_path)
 
-    print(f"NWB file written to {output_file}")
-    return output_file
+    print(f"NWB file written to {nwbfile_path}")
+    return
 
 
 if __name__ == "__main__":
@@ -242,15 +288,19 @@ if __name__ == "__main__":
         "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 1"
     )
     somatic_excitability_folder = figure_1_folder / "Somatic excitability"
+
+    # Process just one condition as requested
     condition: Literal["LID on-state", "LID off-state", "LID on-state with SCH"] = "LID on-state"
-    condition_folder = somatic_excitability_folder / f"{condition}"
-    cell_id = "04112019_1"
-    cell_folder_path = condition_folder / f"{cell_id}"
+    condition_folder = somatic_excitability_folder / condition
 
     # Make sure the path exists
-    if not cell_folder_path.exists():
-        raise FileNotFoundError(f"Base path {cell_folder_path} does not exist.")
+    if not condition_folder.exists():
+        raise FileNotFoundError(f"Condition folder {condition_folder} does not exist.")
+
+    # Define output file
+    nwbfile_path = Path("figure1_somatic_excitability_LID_on_state.nwb").resolve()
 
     # Convert data to NWB
-    output_file = Path("LID_on_state_cell1_dSPN.nwb").resolve()
-    convert_to_nwb(cell_folder_path, output_file)
+    print(f"\nProcessing condition: {condition}")
+    convert_condition_to_nwb(condition_folder, nwbfile_path, condition)
+    print(f"Completed conversion for {condition}")
