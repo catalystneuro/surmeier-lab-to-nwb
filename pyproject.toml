@@ -72,9 +72,10 @@ reverse_relative = true
 known_first-party = ["surmeier_lab_to_nwb"]
 
 [tool.codespell]
-skip = '.git*,*.pdf,*.css'
+skip = '*.git*,*.pdf,*.css, *.ipynb'
 check-hidden = true
 ignore-words-list = 'assertin'
+
 
 [tool.ruff]
 
