@@ -6,26 +6,23 @@ readme = "README.md"
 authors = [{ name = "CatalystNeuro", email = "ben.dichter@catalystneuro.com" }]
 maintainers = [{ name = "CatalystNeuro", email = "ben.dichter@catalystneuro.com" }]
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
-  "neuroconv",
+  "neuroconv==0.7.3",
   "nwbinspector",
+  "lxml",
 ]
 
 [project.urls]
 Repository="https://github.com/catalystneuro/surmeier-lab-to-nwb"
 
 [project.optional-dependencies]
-zhai2025 = [
-  "neuroconv==0.7.0"   # Pinned dependencies to specific versions
-]
 
 [build-system]
 requires = ["hatchling"]
@@ -66,10 +63,6 @@ extend-exclude = '''
 )/
 '''
 
-[tool.isort]
-profile = "black"
-reverse_relative = true
-known_first-party = ["surmeier_lab_to_nwb"]
 
 [tool.codespell]
 skip = '*.git*,*.pdf,*.css, *.ipynb'
@@ -88,7 +81,8 @@ fixable = ["ALL"]
 
 [tool.ruff.lint.isort]
 relative-imports-order = "closest-to-furthest"
-known-first-party = ["neuroconv"]
+known-first-party = ["surmeier_lab_to_nwb"]
+
 
 [dependency-groups]
 dev = [

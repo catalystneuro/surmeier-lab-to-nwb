@@ -19,7 +19,7 @@ https://docs.google.com/document/d/1ITmVEEOQ1TbBC8hvZvkdQ-VcdW9_ynUWFwfRxBBrAGQ/
 * **iSPNs** indirect pathway SPNs
 * **AIM** lower abnormal involuntary movement (AIM)
 * **Contralateral rotations** are a behavioral measure used in rodent models of Parkinson’s disease. When one side of the brain is lesioned (for example, with 6-OHDA), the imbalance in motor circuitry causes the animal to rotate predominantly toward the side opposite the lesion. By counting these rotations after a treatment like levodopa, researchers can assess changes in motor function and dyskinetic behavior.
-* **M1Rs** Muscarinic acetylcholine receptors. M1 receptor activation occurs when acetylcholine (the natural neurotr(Frederick Haer Companyansmitter) or other muscarinic agonists (such as muscarine, which is where these receptors get their name).
+* **M1Rs**: Muscarinic acetylcholine receptors type 1. M1 receptor activation occurs when acetylcholine (the natural neurotransmitter) or other muscarinic agonists (such as muscarine, which is where these receptors get their name) bind to the receptor. M1Rs are G-protein coupled receptors that primarily signal through the Gq/11 pathway, leading to increased neuronal excitability in many cell types including striatal indirect pathway spiny projection neurons.
 * **SCH** SCH23390, a pharmacological compound that acts as a selective antagonist at the dopamine D₁ receptor (D1R). In other words, SCH23390 blocks D1-type dopaminergic signaling in neurons.
 * **2PLSM** Two Photon Laser Scanning Microscopy
 * **SUL/sulpiride** sulpiride, a selective D2 dopamine receptor antagonist. By blocking D2-type receptors, sulpiride is used to test whether observed changes (in this case, decreased iSPN excitability in the on-state) depend on ongoing D2R signaling.
@@ -82,10 +82,11 @@ The conversion of each protocol will handle the time alignment of data from each
 
 ## Figure 1
 
+
 ```
 [256K]  .
 ├── [256K]  Dendritic excitability
-│   ├── [256K]  LID off-state
+│   ├── [256K]  LID off-state -organize by condition
 │   ├── [256K]  LID on-state
 │   └── [256K]  LID on-state with SCH
 ├── [256K]  Immunostaining images (Fig. 1B) confocal images
