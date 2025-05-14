@@ -55,6 +55,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             raise FileNotFoundError(f"Line scan profile data file not found: {self.profile_csv_data_file_path}")
 
         # Fetch source and raw line scan data file paths
+        frame_metadata = sequence_metadata["Frame"]
         file_metadata = frame_metadata["File"]
         source_data_file_names_dict = {file["@channelName"]: file["@source"] for file in file_metadata}
         line_scan_data_raw_data_file_names_dict = {file["@channelName"]: file["@source"] for file in file_metadata}
@@ -99,24 +100,41 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         """
 
         # Create two-photon imaging device
-        if "Bruker Ultima" in nwbfile.devices:
-            two_photon_device = nwbfile.devices["Bruker Ultima"]
+        microscope_name = "BrukerUltima"
+        if microscope_name in nwbfile.devices:
+            two_photon_device = nwbfile.devices[microscope_name]
         else:
             two_photon_device = nwbfile.create_device(
-                name="Bruker Ultima", description="Bruker two-photon microscope", manufacturer="Bruker"
+                name=microscope_name,
+                description="Bruker two-photon microscope",
             )
 
         # Create optical channel
-        optical_channel = OpticalChannel(name="GaAsP", description="GaAsP PMT", emission_lambda=525.0)
+        optical_channel = OpticalChannel(
+            name="GaAsP",
+            description="GaAsP PMT",
+            emission_lambda=np.nan,
+        )
 
         # Create imaging plane
+        prairie_view_metadata = self.xml_general_metadata_dict["PVScan"]
+        prairie_view_state_metadata_list = prairie_view_metadata["PVStateShard"]["PVStateValue"]
+        microns_per_pixel = next(
+            (item for item in prairie_view_state_metadata_list if item["@key"] == "micronsPerPixel"), None
+        )
+        microns_per_pixel_dict = {value["@index"]: value["@value"] for value in microns_per_pixel["IndexedValue"]}
+        imaging_plane_name = "dSPN_dendrite_plane"
+        grid_spacing = [float(microns_per_pixel_dict["XAxis"]), float(microns_per_pixel_dict["YAxis"])]
+        grid_spacing_unit = "microns"
         imaging_plane = nwbfile.create_imaging_plane(
-            name="dSPN_dendrite_plane",
+            name=imaging_plane_name,
             description="",
             optical_channel=optical_channel,
-            excitation_lambda=920.0,
+            excitation_lambda=np.nan,
             indicator="Fluo-4",
             location="dorsolateral striatum",
+            grid_spacing=grid_spacing,
+            grid_spacing_unit=grid_spacing_unit,
             device=two_photon_device,
         )
 
@@ -245,7 +263,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             nwbfile.add_acquisition(raw_line_scan_data_series)
 
 
-class PraireViewIntracellularRecordingInterface(BaseDataInterface):
+class PrairieViewIntracellularRecordingInterface(BaseDataInterface):
     """Interface for Prairie View intracellular recording data."""
 
     keywords = ["intracellular", "recording", "prairie view"]
@@ -340,7 +358,7 @@ class PraireViewIntracellularRecordingInterface(BaseDataInterface):
 
         return metadata
 
-    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: dict, electrode=None):
+    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None, electrode=None):
         """
         Add the recording data to the NWB file.
 
