@@ -10,8 +10,8 @@ from lxml import etree
 from neuroconv.tools import configure_and_write_nwbfile
 from pynwb import NWBFile
 from pynwb.device import Device
+from pynwb.file import Subject
 from pynwb.icephys import CurrentClampSeries, CurrentClampStimulusSeries
-from pynwb.subject import Subject
 
 
 def _get_ephys_vals(element):
@@ -113,7 +113,7 @@ def add_cell_F_I_protcol(
         "019": 260,  # pA
         "020": 280,  # pA
         "021": 300,  # pA
-        "022": 320,  # pA  - some cells like  /LID off-state/02022017_1 have more than
+        "022": 320,  # pA  - some cells like  /LID off-state/02022017_1 go further than 300 pA
         "023": 340,  # pA
         "024": 360,  # pA
         "025": 380,  # pA

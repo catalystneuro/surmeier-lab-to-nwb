@@ -1,2 +1,4 @@
-from .behaviorinterface import Zhai2025BehaviorInterface
-from .nwbconverter import Zhai2025NWBConverter
+from .interfaces import (
+    PraireViewIntracellularRecordingInterface,  # noqa: F401
+    PrairieViewLineScanInterface,  # noqa: F401
+)

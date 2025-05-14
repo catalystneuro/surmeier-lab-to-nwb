@@ -29,6 +29,8 @@ https://docs.google.com/document/d/1ITmVEEOQ1TbBC8hvZvkdQ-VcdW9_ynUWFwfRxBBrAGQ/
 * **GRABACh3.0** is a genetically encoded fluorescent sensor designed to detect acetylcholine (ACh) release. It is used to monitor ACh dynamics in real-time.
 * **AAV5-hSyn-GRAB** refers to an adeno‐associated virus (serotype 5) that uses the human synapsin promoter to drive neuronal expression of the genetically encoded acetylcholine sensor GRABACh3.0. The authors injected this viral vector into the dorsolateral striatum so that they could optically monitor acetylcholine release in brain slices. This tool was critical for assessing how cholinergic signaling changes under conditions of dopamine depletion and during levodopa-induced dyskinesia.
 * **CDGI** stands for CalDAG-GEFI, a calcium-activated guanine nucleotide exchange factor that is highly expressed in the striatum. It plays a critical role in linking M1 muscarinic receptor activation to intracellular signaling pathways that regulate dendritic excitability and synaptic plasticity in indirect pathway spiny projection neurons (iSPNs). In the paper, disrupting CDGI was found to blunt the dendritic adaptations in iSPNs and reduce dyskinetic behaviors, suggesting its important role in the pathophysiology of levodopa-induced dyskinesia.
+* **D1**: Direct pathway spiny projection neurons (dSPNs) that express dopamine D1 receptors
+* **D2**: Indirect pathway spiny projection neurons (iSPNs) that express dopamine D2 receptors
 
 Corroborate this:
 The STK metadata in this context likely refers to metadata extracted from a MetaMorph STK file, a format used in microscopy for storing image sequences. STK files are essentially TIFF files with additional MetaMorph-specific metadata embedded in the tags. This metadata typically contains acquisition parameters, calibration details, and channel information.
@@ -204,14 +206,16 @@ LID-off-state seems have the same structure.
 
 ### Protocol:
 
+Intracellular Electrophysiology
 
-> To assess dSPN dendritic excitability in on- and off-states, a combination of patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM) was used. Specifically, dSPNs in ex vivo brain slices from off- or on-state mice were patch clamped, filled with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568 (to visualize dendrites), and injected with brief current steps (three 2 nA injections, 2 ms each, at 50 Hz). These somatically delivered steps evoked spikes that back-propagated into SPN dendrites. To assess the spread of back-propagating action potentials (bAPs), 2PLSM was used to determine evoked changes in Fluo-4 fluorescence along dendrites produced by transient opening of voltage-dependent Ca2+ channels. The magnitudes of the Ca2+ signals at proximal (~40 μm from soma) and distal (~90 μm from soma) dendritic locations served as a surrogate estimate of the extent of dendritic depolarization produced by the bAPs (Fig. 1G, H). To generate an estimate of bAP invasion that was independent of dye concentration, laser intensity, and other experimental variables, the bAP-evoked Ca2+ signal in a distal dendritic segment was normalized by the bAP-evoked Ca2+ signal in the proximal region of the same dendrite. This index of dendritic excitability was significantly greater in on-state dSPNs than in off-state dSPNs (p = 0.0115) (Fig. 1I).
+> To assess dSPN dendritic excitability in on- and off-states, a combination of patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM) was used. Specifically, dSPNs in ex vivo brain slices from off- or on-state mice were patch clamped, filled with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568 (to visualize dendrites), **and injected with brief current steps (three 2 nA injections, 2 ms each, at 50 Hz)**. These somatically delivered steps evoked spikes that back-propagated into SPN dendrites. To assess the spread of back-propagating action potentials (bAPs), 2PLSM was used to determine evoked changes in Fluo-4 fluorescence along dendrites produced by transient opening of voltage-dependent Ca2+ channels. The magnitudes of the Ca2+ signals at proximal (~40 μm from soma) and distal (~90 μm from soma) dendritic locations served as a surrogate estimate of the extent of dendritic depolarization produced by the bAPs (Fig. 1G, H). To generate an estimate of bAP invasion that was independent of dye concentration, laser intensity, and other experimental variables, the bAP-evoked Ca2+ signal in a distal dendritic segment was normalized by the bAP-evoked Ca2+ signal in the proximal region of the same dendrite. This index of dendritic excitability was significantly greater in on-state dSPNs than in off-state dSPNs (p = 0.0115) (Fig. 1I).
 ```
-  2|   ___      ___      ___
-   |  |   |    |   |    |   |
-  0|__|   |____|   |____|   |____
-  <-2ms->    <-2ms->    <-2ms->
-  <---20ms--><---20ms--->
+Current (nA)
+  2 |   ___      ___      ___
+    |  |   |    |   |    |   |
+  0 |__|   |____|   |____|   |____
+      <-2ms->    <-2ms->    <-2ms->
+      <---20ms--><---20ms--->
 ```
 
 #### Data organization
@@ -230,7 +234,7 @@ LID on state
 ├── 0706a
 │   ├── 0706a1 # I think those are dates July the 06th
 │   └── 0706a2
-├── 0706b
+├── 0706b   # Why is there a b though?
 │   └── 0706b1
 ├── 0707a
 │   ├── 0707a1
@@ -260,12 +264,18 @@ LID on state
     ├── 0721b1
     └── 0721b2
 ```
-And the tree:
 
+### Structure of the folder (hypothesis)
+| "a" and "b" represent different animals (biological replicates) tested on the same day, with the second level numbers (1, 2) possibly representing different brain slices or recording locations from each animal
 
+And the directories for each cell look like this, with a proximal and a distal measurement:
+
+With 1 and 2 being different dendritic branch
 
 ```bash
- heberto  …  LID on-state  0706a  0706a1  1  tree -shL 2
+[256K]  .
+
+```bash
 [256K]  .
 ├── [256K]  07062017_Cell1_dist1_trio-001
 │   ├── [156K]  07062017_Cell1_dist1_trio-001_Cycle00001_Ch1_000001.ome.tif
@@ -296,21 +306,144 @@ And the tree:
 Here the format seems to be
  [date]_Cell[cell number]_[location][location number]_trio-[trial number]
 
-
-There are tiffs here.
-
-The references are also tiff fies
-
-* Question: what are the references?
+I think that trio is a typo for trial? or trio because there are three stimulus?
 
 checking the metadata for one channel
 ```bash
   <Pixels DimensionOrder="XYZCT" ID="Pixels:1" PhysicalSizeX="0.194576" PhysicalSizeY="0.194576" PhysicalSizeZ="1" SizeC="2" SizeT="1" SizeX="31" SizeY="2500" SizeZ="1" Type="uint16">
 ```
 
-Indicates that the tiffs at the bottom level of the tree are not time series. Images with two channels.
 
-Question: what is ht
+
+## Prairie View Line Scan Files
+
+The dendritic excitability experiments in Figures 1 and 3 use Prairie View line scan recordings. Understanding the structure and content of these files is crucial for proper conversion to NWB format.
+
+### Line Scan File Bundle Structure
+
+Each line scan experiment is organized in a folder with the following naming pattern:
+`[date]_Cell[cell number]_[location][location number]_trio-[trial number]`
+
+For example: `07062017_Cell1_dist1_trio-001`
+
+A complete line scan bundle contains these files:
+
+| File | Description | Purpose |
+|------|-------------|---------|
+| `*_Cycle00001_Ch1_000001.ome.tif`<br>`*_Cycle00001_Ch2_000001.ome.tif` | Raw kymograph TIFF files (one per channel) | Contains the raw spatiotemporal fluorescence data with dimensions (C, T, X) where C=channels, T=time/lines, X=pixels along scan line |
+| `*-Cycle00001_Ch1Source.tif`<br>`*-Cycle00001_Ch2Source.tif` | Full field-of-view snapshots | Shows where the line scan was positioned on the cell with the scan line overlay |
+| `*_Cycle00001_LineProfileData.csv` | Averaged fluorescence traces | Contains the mean intensity of the scan line segment for each channel over time |
+| `*_Cycle00001_VoltageOutput_001.xml` | Stimulus protocol definition | Defines timing, amplitude, and waveforms for stimulation |
+| `*_Cycle00001_VoltageRecording_001.csv` | Raw electrophysiology data | Contains the recorded voltage/current signals |
+| `*_Cycle00001_VoltageRecording_001.xml` | Recording metadata | Describes sampling rates, scaling factors, channel mappings for the CSV data |
+| `*.env` | Environment configuration | Contains all microscope settings, scan geometry, and profile definitions |
+| `*.xml` | Master experiment file | Links to all cycle files and provides high-level experiment metadata |
+| `References/` | Reference directory | Contains calibration or supplementary files |
+
+### Understanding the Kymograph Structure
+
+The OME-TIFF kymograph files (`*_Cycle00001_Ch#_000001.ome.tif`) have a 3D structure with dimensions:
+- First dimension (C): Channels (typically 2 - one for each PMT detector)
+- Second dimension (T): Time/line index (number of consecutive line scans, e.g., 2500)
+- Third dimension (X): Pixels along the scan line (e.g., 64 pixels)
+
+The kymograph is essentially a stack of line scans over time, where:
+- Each row represents one sweep of the laser along the defined line
+- The X-axis represents position along the scan line
+- The intensity at each pixel represents fluorescence at that position and time
+
+### Key Metadata in .env Files
+
+The `.env` file contains critical information for interpreting the line scan data:
+
+1. **Scan Line Geometry**:
+   ```xml
+   <LineScanController>
+     <StraightLine XStart="0.3047" XStop="0.8000" Y="0.6328"/>
+   </LineScanController>
+   ```
+   These are normalized coordinates (0-1) defining the start and end points of the scan line in the field of view.
+
+2. **Profile Window Definition**:
+   ```xml
+   <LineScanProfiles DataFile="..._LineProfileData.csv">
+     <Profile number="1" channel="1" x0="0" x1="16"/>
+     <Profile number="2" channel="2" x0="0" x1="16"/>
+   </LineScanProfiles>
+   ```
+   Defines the logical window (x0 to x1) used for each channel's profile.
+
+3. **Optional Caliper Settings**:
+   ```xml
+   <LineProfileController active="True">
+     <CaliperLeft value="0.25"/>
+     <CaliperRight value="0.75"/>
+   </LineProfileController>
+   ```
+   If present and active="True", these define what fraction of the profile window is used for averaging in the CSV trace.
+
+4. **Raster Dimensions**:
+   ```xml
+   <PVStateValue key="pixelsPerLine" value="64"/>
+   <PVStateValue key="linesPerFrame" value="1"/>
+   ```
+   Defines the physical sampling resolution.
+
+### Stimuli specification in VoltageOutput XML
+
+```json
+                "WaveformComponent_PulseTrain": [
+                    {
+                        "Name": "Waveform Component #1",
+                        "PulseCount": "1",
+                        "PulseWidth": "100",
+                        "PulseSpacing": "10",
+                        "PulsePotentialStart": "0",
+                        "PulsePotentialDelta": "0",
+                        "RestPotential": "0",
+                        "FirstPulseDelay": "0",
+                        "Repetitions": "1",
+                        "DelayBetweenReps": "0"
+                    },
+                    {
+                        "Name": "Theta burst",
+                        "PulseCount": "3",
+                        "PulseWidth": "2",
+                        "PulseSpacing": "18",
+                        "PulsePotentialStart": "5",
+                        "PulsePotentialDelta": "0",
+                        "RestPotential": "0",
+                        "FirstPulseDelay": "900",
+                        "Repetitions": "1",
+                        "DelayBetweenReps": "158"
+                    },
+                    {
+                        "Name": "Waveform Component #2",
+                        "PulseCount": "1",
+                        "PulseWidth": "10",
+                        "PulseSpacing": "10",
+                        "PulsePotentialStart": "0",
+                        "PulsePotentialDelta": "0",
+                        "RestPotential": "0",
+                        "FirstPulseDelay": "100",
+                        "Repetitions": "1",
+                        "DelayBetweenReps": "0"
+                    }
+                ]
+```
+
+| Experiment narrative          | Where it appears in the JSON (`Waveform[0]`, “700B”)                                      | Notes                                                                                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| *“three 2 nA injections”*     | `"PulseCount": "3"` (inside **Theta burst**)                                              | Three pulses will be synthesised.                                                                                            |
+| *“2 ms each”*                 | `"PulseWidth": "2"`                                                                       | Time units are **milliseconds** because the AO update rate is 10 kHz (one point every 0.1 ms).                               |
+| *“at 50 Hz”*                  | `"PulseSpacing": "18"`                                                                    | Pulse period = width + gap = 2 ms + 16 ms ≈ 18 ms → **55 Hz** (Prairie rounds to the nearest integer).                       |
+| *Amplitude = 2 nA*            | `"PulsePotentialStart": "5"` together with `"UnitScaleFactor": "400"` and `"Units": "pA"` | Command amplitude in user units = 5 pA → 5 pA × 400 = **2000 pA = 2 nA** delivered to the Axon 700B current‑injection input. |
+| *Baseline before/after train* | `"RestPotential": "0"`                                                                    | Holds the command at 0 pA outside the three pulses.                                                                          |
+| *Start 900 ms after t = 0*    | `"FirstPulseDelay": "900"`                                                                | Gives the patch clamp time to stabilise before the burst.                                                                    |
+| *Only one burst*              | `"Repetitions": "1"`                                                                      | The full three‑pulse block is performed once in this cycle.                                                                  |
+
+
+
 
 
 ## Figure 2
