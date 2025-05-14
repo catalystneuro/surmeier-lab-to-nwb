@@ -109,16 +109,26 @@ class PrairieViewLineScanInterface(BaseDataInterface):
                 description="Bruker two-photon microscope",
             )
 
-        # Create optical channel
-        optical_channel = OpticalChannel(
-            name="GaAsP",
-            description="GaAsP PMT",
-            emission_lambda=np.nan,
+        # Create optical channels - separate channels for Fluo-4 and Alexa 568
+        optical_channel_fluo4 = OpticalChannel(
+            name="GaAsPFluo4",
+            description="GaAsP PMT for Fluo-4 calcium indicator",
+            emission_lambda=525.0,  # Center of 490-560 nm range
         )
 
-        # Create imaging plane
+        optical_channel_alexa568 = OpticalChannel(
+            name="PMTAlexa568",
+            description="Side-on PMT for Alexa Fluor 568 structural dye",
+            emission_lambda=600.0,  # Center of 580-620 nm range
+        )
+
+        optical_channels = [optical_channel_fluo4, optical_channel_alexa568]
+
+        # Extract laser wavelength from metadata if available
         prairie_view_metadata = self.xml_general_metadata_dict["PVScan"]
         prairie_view_state_metadata_list = prairie_view_metadata["PVStateShard"]["PVStateValue"]
+
+        # Create imaging plane
         microns_per_pixel = next(
             (item for item in prairie_view_state_metadata_list if item["@key"] == "micronsPerPixel"), None
         )
@@ -126,11 +136,18 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         imaging_plane_name = "dSPN_dendrite_plane"
         grid_spacing = [float(microns_per_pixel_dict["XAxis"]), float(microns_per_pixel_dict["YAxis"])]
         grid_spacing_unit = "microns"
+
+        # Get objective lens info
+        objective_lens = next(
+            (item["@value"] for item in prairie_view_state_metadata_list if item["@key"] == "objectiveLens"),
+            "Olympus 60X",
+        )
+        excitation_lambda = 810.0  # Chameleon Ultra II
         imaging_plane = nwbfile.create_imaging_plane(
             name=imaging_plane_name,
-            description="",
-            optical_channel=optical_channel,
-            excitation_lambda=np.nan,
+            description=f"Line scan imaging of dendrite using {objective_lens} objective",
+            optical_channel=optical_channels,
+            excitation_lambda=excitation_lambda,
             indicator="Fluo-4",
             location="dorsolateral striatum",
             grid_spacing=grid_spacing,
@@ -141,9 +158,10 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         # Load line scan profile data
         line_scan_data_df = pd.read_csv(self.profile_csv_data_file_path)
 
-        # Extract line scan profiles
-        line_scan_profile_channel1 = line_scan_data_df[" Prof 1"].to_numpy()
-        line_scan_profile_channel2 = line_scan_data_df[" Prof 2"].to_numpy()
+        # Extract and clearly label line scan profiles
+        # Based on our analysis: Channel 1 is Alexa 568, Channel 2 is Fluo-4
+        alexa568_profile = line_scan_data_df[" Prof 1"].to_numpy()  # Structural reference
+        fluo4_profile = line_scan_data_df[" Prof 2"].to_numpy()  # Calcium indicator
         timestamps = line_scan_data_df["Prof 1 Time(ms)"].to_numpy(dtype=float) / 1000.0  # Convert to seconds
 
         # Create ophys processing module if it doesn't exist
@@ -158,29 +176,30 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         image_segmentation = ImageSegmentation()
         ophys_module.add(image_segmentation)
 
-        # Create plane segmentation
-        plane_segmentation = image_segmentation.create_plane_segmentation(
-            name="PlaneSegmentation",
-            description="output from segmenting my favorite imaging plane",
-            imaging_plane=imaging_plane,
-        )
-
-        # Create pixel mask (list of [x, y, weight] for each pixel in the ROI)
-        # Extract line coordinates
-        # Extract line scan metadata
-        prairie_view_metadata = self.xml_general_metadata_dict["PVScan"]
+        # Add the line scan data as metadata
         sequence_metadata = prairie_view_metadata["Sequence"]
         line_scan_definition_metadata = sequence_metadata["PVLinescanDefinition"]
-
-        # Extract source image dimensions
-        source_pixels_per_line = int(line_scan_definition_metadata["@SourcePixelsPerLine"])
-        source_lines_per_frame = int(line_scan_definition_metadata["@SourceLinesPerFrame"])
         line_metadata = line_scan_definition_metadata["Line"]
         start_pixel_y = int(line_metadata["@startPixelY"])
         start_pixel_x = int(line_metadata["@startPixelX"])
         stop_pixel_x = int(line_metadata["@stopPixelX"])
         line_length = float(line_metadata["@lineLength"])
 
+        # Add additional metadata to the plane segmentation description
+        segmentation_description = (
+            f"Line scan ROI from pixel ({start_pixel_x},{start_pixel_y}) to ({stop_pixel_x},{start_pixel_y}), "
+            f"length: {line_length} microns. Line scan used to measure calcium dynamics during "
+            f"back-propagating action potentials in striatal spiny projection neurons."
+        )
+
+        # Create plane segmentation with better description
+        plane_segmentation = image_segmentation.create_plane_segmentation(
+            name="PlaneSegmentation",
+            description=segmentation_description,
+            imaging_plane=imaging_plane,
+        )
+
+        # Create pixel mask (list of [x, y, weight] for each pixel in the ROI)
         pixel_mask = []
         for x in range(start_pixel_x, stop_pixel_x + 1):
             pixel_mask.append([x, start_pixel_y, 1.0])
@@ -192,73 +211,102 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             pixel_mask=pixel_mask,
         )
 
-        # Create ROI table region
-        roi_table_region = plane_segmentation.create_roi_table_region(region=[0], description="the first of two ROIs")
+        # Create ROI table region with better description
+        roi_table_region = plane_segmentation.create_roi_table_region(
+            region=[0], description="Dendritic segment for calcium imaging"
+        )
 
-        # Create ROI response series
-        roi_resp_series1 = RoiResponseSeries(
-            name="LineScanChannel1RoiResponseSeries",
-            description="Fluorescence responses for ROI",
-            data=line_scan_profile_channel1,
+        # Create ROI response series with better names and descriptions
+        alexa568_series = RoiResponseSeries(
+            name="Alexa568StructuralDyeResponseSeries",
+            description="Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM)",
+            data=alexa568_profile,
             rois=roi_table_region,
-            unit="n.a",
+            unit="a.u.",  # Arbitrary units for fluorescence
             timestamps=timestamps,
         )
 
-        roi_resp_series2 = RoiResponseSeries(
-            name="LineScanChannel2RoiResponseSeries",
-            description="Fluorescence responses for ROI",
-            data=line_scan_profile_channel2,
+        fluo4_series = RoiResponseSeries(
+            name="Fluo4CalciumIndicatorResponseSeries",
+            description="Calcium indicator fluorescence from Fluo-4 (100 μM)",
+            data=fluo4_profile,
             rois=roi_table_region,
-            unit="n.a",
+            unit="a.u.",  # Arbitrary units for fluorescence
             timestamps=timestamps,
         )
 
         # Create fluorescence container
         fluorescence = Fluorescence()
-        fluorescence.add_roi_response_series(roi_resp_series1)
-        fluorescence.add_roi_response_series(roi_resp_series2)
+        fluorescence.add_roi_response_series(alexa568_series)
+        fluorescence.add_roi_response_series(fluo4_series)
 
         # Add fluorescence to ophys module
         ophys_module.add(fluorescence)
 
-        # Load source image files
-        frame_metadata = sequence_metadata["Frame"]
-        file_metadata = frame_metadata["File"]
+        # Add source images with better labels
+        # Define source image metadata dictionary
+        source_image_metadata = {
+            "Ch1": {
+                "name": "Alexa568StructuralDyeSourceImage",
+                "description": "Source image for Alexa Fluor 568 structural reference",
+            },
+            "Ch2": {
+                "name": "Fluo4CalciumIndicatorSourceImage",
+                "description": "Source image for Fluo-4 calcium indicator",
+            },
+        }
 
-        # Load source images
         source_images = []
         for channel_name, source_data_file_path in self.source_data_file_paths_dict.items():
             source_data = tifffile.imread(source_data_file_path)
-            source_image = Image(name=f"LineScanChannel{channel_name}SourceImage", data=source_data)
+
+            name = source_image_metadata[channel_name]["name"]
+            description = source_image_metadata[channel_name]["description"]
+            source_image = Image(name=name, data=source_data, description=description)
             source_images.append(source_image)
 
-        # Create image container and add to ophys module
         image_container = Images(name="SourceImages", images=source_images)
-        ophys_module.add(image_container)
-
-        frame_metadata = sequence_metadata["Frame"]
-        configuration_metadata = frame_metadata["PVStateShard"]["PVStateValue"]
-        configuration_metadata
-        scan_line_period = next((item for item in configuration_metadata if item["@key"] == "scanLinePeriod"), None)
-        scan_line_period = float(scan_line_period["@value"]) if scan_line_period else None
-
-        rate = 1.0 / scan_line_period
+        nwbfile.add_acquisition(image_container)
 
         # Add raw line scan data
+        frame_metadata = sequence_metadata["Frame"]
+        configuration_metadata = frame_metadata["PVStateShard"]["PVStateValue"]
+        scan_line_period = next((item for item in configuration_metadata if item["@key"] == "scanLinePeriod"), None)
+        scan_line_period = float(scan_line_period["@value"]) if scan_line_period else None
+        lines_per_frame = next((item for item in configuration_metadata if item["@key"] == "linesPerFrame"), None)
+        lines_per_frame = int(lines_per_frame["@value"]) if lines_per_frame else None
+        pixels_per_line = next((item for item in configuration_metadata if item["@key"] == "pixelsPerLine"), None)
+        pixels_per_line = int(pixels_per_line["@value"]) if pixels_per_line else None
+
+        # Calculate scanning parameters
+        rate = 1.0 / scan_line_period if scan_line_period else None
+
+        # Define channel metadata dictionary
+        channel_metadata = {
+            "Ch1": {
+                "name": "Alexa568StructuralDyeLineScan",
+                "description": "Line scan raw data for Alexa Fluor 568 structural reference",
+            },
+            "Ch2": {
+                "name": "Fluo4CalciumIndicatorLineScan",
+                "description": "Line scan raw data for Fluo-4 calcium indicator",
+            },
+        }
+
+        # Add raw line scan data with better labels
         for channel_name, raw_line_scan_data_file_path in self.line_scan_raw_data_file_paths_dict.items():
             raw_line_scan_data = tifffile.imread(raw_line_scan_data_file_path)
+
+            name = channel_metadata[channel_name]["name"]
+            description = channel_metadata[channel_name]["description"]
             raw_line_scan_data_series = TwoPhotonSeries(
-                name=f"LineScanRawDataChannel{channel_name}TimeSeries",
+                name=metadata["name"],
+                description=metadata["description"],
                 data=raw_line_scan_data,
                 imaging_plane=imaging_plane,
                 unit="a.u.",
                 rate=rate,
-                starting_frame=0,
-                format="raw",
-                dimension=[source_pixels_per_line, source_lines_per_frame],
-                field_of_view=[line_length, source_lines_per_frame],
-                timestamps=timestamps,
+                dimension=[pixels_per_line, lines_per_frame],
             )
             nwbfile.add_acquisition(raw_line_scan_data_series)
 

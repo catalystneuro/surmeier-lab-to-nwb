@@ -1253,6 +1253,16 @@ Imaris 10.0.0: For detailed segmentation and 3D reconstruction of dendritic spin
 ### Somatic excitability
 
 
+### Which channel is which:
+
+"Calcium transients, as signals in the green channel, were detected by a Hamamatsu H7422P-40 GaAsP PMT (490-560 nm)"
+"Dendritic structure was visualized by the red signal of Alexa Fluor 568 detected by a Hamamatsu R3982 side-on PMT (580-620 nm)"
+
+
+Fluo-4 calcium-sensitive dye (green, 490-560 nm)
+Alexa Fluor 568 structural dye (red, 580-620 nm)
+
+
 ### Find video files
 
 How to look for files:
