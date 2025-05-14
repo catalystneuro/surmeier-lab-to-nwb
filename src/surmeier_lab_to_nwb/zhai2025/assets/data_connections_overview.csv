@@ -1,0 +1,33 @@
+"Zhai, et al. ScienceAdvances 8224",,KEY,cells,(animals),exp days,,,,dend/,cells,,,,,,,,,,,,,,,
+Master Metadata Connections,,,,drug,HISTOR, ,,,,drug,, ,,,stereotax,6-OHDA,Leica,p-Clamp,Bruker,,,zenodo,protocol,,
+Figure Panel Data,,,VEHICLE,6-OHDA,CDGI ko,M1R ant,CDGI ko,,WT,CDGI ko,, ,,,protocol,protocol,protocol,protocol,protocol,methods,protocol,software,before,after,OUTPUT
+TECHNIQUE,FIG,,CONT,PD,LID OFF,LID OFF,LID ON,ON + agon,OXO,OXO,,MSN,MOUSE,age,virus inj,Ldopa,slicing,patching,imaging,stimulation,analysis,analysis,analysis,analysis,analysis
+Somatic Excitability,1F,,,,15(8)8,,15(10)10,10(5)5,,,,D1,tdTomato,7-12 wks,,,,I Clamp,2P GEI,"Neg120 to 300pA, 0.5s",pA separate traces,"14,145,776","RMP [5, 195]ms","[200, 700]ms",#APs in 0.5s
+,3D,,,,12(5)5,,11(8)8,7(4)4,,,,D2,eGFP,7-12 wks,,,,I Clamp,2P GEI,"Neg120 to 300pA, 0.5s", ,"14,145,776",not shown,,#APs in 0.5s
+VEHICLE CONTROL FOR FIG6,6C,,8(4)4,,12(5)5,10(5)5,,,,,,D2,eGFP,7-12 wks,M1R ant,,,I Clamp,2P GEI,"Neg120 to 300pA, 0.5s", ,"14,145,776",,,#APs in 0.5s
+,7C,,,,13(5)5,,8(4)4,,,,,D2,CDGIko X eGFP,~8 wks,,,,I Clamp,2P GEI,"Neg120 to 300pA, 0.5s", ,"14,145,776",,,#APs in 0.5s
+VEHICLE CONTROL FOR FIG8,8D,,6(3)2,,,8(4)3,,,,,,D2,Adora2-Cre,~8 wks,3 viruses,,,I Clamp,2P GEI,"Neg120 to 300pA, 0.5s", ,"14,145,776",,,#APs in 0.5s
+,,SF4,,,,,,,7(3)3,6(3)3,,D2,Adora2-Cre,~8 wks,3 viruses,,,I Clamp,2P GEI,"Neg120 to 300pA, 0.5s", ,"14,145,776",,,#APs in 0.5s
+,,,,,,,,,,,,,,,,,,,,,,,,,
+Dendritic Excitability,1I,,,,10(7)7,,10(5)5,9(9)5,,,,D1,tdTomato,7-12 wks,,,,I Clamp,2P Fluo-4,"2nA, 2ms X3 @50Hz",4r3I294nqv1y/v1,"14,163,502","F0 [0.5, 0.95]s","F [1.0, 1.5]s",(G-G0)/G0R0 AUC
+,3F,,,,10(5)5,,10(5)5,8(6)6,,,,D2,eGFP,7-12 wks,,,,I Clamp,2P Fluo-4,"2nA, 2ms X3 @50Hz",4r3I294nqv1y/v1,"14,163,502",Dist/Prox,same dendrite,(G-G0)/G0R0 AUC
+"ADD 25 apr 24, REM PT 25 FEB 20",6D,,9(5)5,,,7(4)4,,,,,,D2,eGFP,7-12 wks,M1R ant,,,I Clamp,2P Fluo-4,"2nA, 2ms X3 @50Hz",4r3I294nqv1y/v1,"14,163,502",G0/R0 ratio,,(G-G0)/G0R0 AUC
+,7E,,,,,,,,10/5(3)2,12/6(3)3,,D2,CDGIko X eGFP,~8 wks,,,,I Clamp,2P Fluo-4,"2nA, 2ms X3 @50Hz",4r3I294nqv1y/v1,"14,163,502",not shown,,(G-G0)/G0R0 AUC
+,7F(3F),,,,10(5)5,,10(5)5,,,,,D2,eGFP,~8 wks,,,,I Clamp,2P Fluo-4,"2nA, 2ms X3 @50Hz",4r3I294nqv1y/v1,"14,163,502", ,,(G-G0)/G0R0 AUC
+,7F,,,,11(5)5,,8(5)5,,,,,D2,CDGIko X eGFP,~8 wks,,,,I Clamp,2P Fluo-4,"2nA, 2ms X3 @50Hz",4r3I294nqv1y/v1,"14,163,502", ,,(G-G0)/G0R0 AUC
+,,,,,,,,,,,,,,,,,,,,,,,,,
+Spine Density,2BC,,10(6)6,11(5)5,13(8)8,,8(5)5,"10d, 11p",,,,D1,tdTomato,7-12 wks,,,,V Clamp,2P Alexa,fluor feature morph,,Autoquant,,,#spines/um
+,4BC,,15(9)9,11(6)6,9(5)5,,9(5)5,,,,,D2,eGFP,7-12 wks,,,,V Clamp,2P Alexa,fluor feature morph,,Autoquant,,,#spines/um
+,4J,SF5,18/11(4)4,22/17(4)4,25/18(4)4,,22/14(4)4,,,,,D2,Adora2-Cre,8 wks,WPRE-eGFP,,,,CF GEI,fluor feature morph,bp2I6dn7rvqe/v1,Elements,bp2I6zpr1Iqe/v1,proximal only,#spines/um
+VEHICLE CONTROL FOR FIG6,6F,,8(4)4,,,9(5)5,,,,,,D2,eGFP,7-12 wks,M1R ant,,,V Clamp,2P Alexa,fluor feature morph,,Autoquant,,,#spines/um
+,7H,,,,8(4)4,,11(6)6,,,,,D2,CDGIko X eGFP,~8 wks,,,,V Clamp,2P Alexa,fluor feature morph,,Autoquant,,,#spines/um
+VEHICLE CONTROL FOR FIG8,8F,,6(3)2,,,10(4)3,,,,,,D2,Adora2-Cre,~8 wks,3 viruses,,,V Clamp,2P Alexa,fluor feature morph,,Autoquant,,,#spines/um
+,,,,,,,,,,,,,,,,,,,,,,,,,
+Presynaptic Excitability,2H,SF1A,,,10(4)3,,8(4)4,,,,,D1,tdTomato,7-12 wks,ChR2-eYFP,,,V Clamp,2P GEI,"?%, 0.3ms (LED), 10 runs",5qpvokx914o/v1,TaroTools,"V0 [0, 20]ms",40 to 400ms,EPSCs >5 stdev
+,4G,SF1B,,,7(4)3,,8(4)4,,,,,D2,eGFP,7-12 wks,ChR2-eYFP,,,V Clamp,2P GEI,"?%, 0.3ms (LED), 10 runs",5qpvokx914o/v1,TaroTools,Neg70mV,"1s total, 50ms Ra",EPSCs >5 stdev
+,,,,,,,,,,,,,,,,,,,,,,,,not shown,
+Ach Dynamics (BOT),5F,SF2,13/7(3)3,10/6(3)3,11/11(5)5,,,,,,,D1 & D2,C57bl/6J,~8 wks,ACh3.0,,,,2P GEI,"0.3mA, 1ms (electrode)",21fps,"14,163,731","F0 [9,10]s","F[10,12]s",(G-G0)/G0 AUC
+,,,ROIs/,slices,,,,,,,,,,,,,,,,,,,,,[Fmax - Fmin ]
+,,,,,,,,,,,,,,,,,,,,,,,,,
+AIM Score,7I [7J],SF3A,(8)  [10],,,,,,,(9)  [11],,D2,CDGIko X eGFP,~8 wks,,,,,,,5jy18dm8rg2w/v1,spreadsheet,,,AIM scores
+,8G,SF3B,(11),,,(10),,,,,,D2,Adora2-Cre,~8 wks,3 viruses,,,,,,5jy18dm8rg2w/v1,spreadsheet,,,AIM scores
