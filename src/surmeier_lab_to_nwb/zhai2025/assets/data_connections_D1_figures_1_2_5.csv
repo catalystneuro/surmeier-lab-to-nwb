@@ -1,0 +1,59 @@
+,,,,,,,,,,,,prox only,,,,,,,,,,
+,,,,,,,,,add SUL,add SUL,SF1B,SF5,,,,,,,CELL/ROI,M1R CRSPR,,
+,,,D2,ANIMALS,,FIG,FIG,FIG,FIG,FIG,FIG,FIG,,,,D2,ANIMALS,,FIG,FIG,FIG,
+,,,,,,3D,3F,4BC,3D,3F,4G,4J,,,,,,,6C,6D,6F,
+MOUSE,YEAR,MONTH,DAY,ANIMAL,Category,Soma Ex,Dend Ex,Spine Dens,Soma Ex,Dend Ex,Minis,CF spine,,YEAR,MONTH,DAY,ANIMAL,Category,Soma Ex,Dend Ex,Spine Dens,
+,"2,015",NOV,19,eGFP,CONT,,,"1,2",,,,,,"2,020",FEB,17,eGFP,CONT,"1,2","1,2","1,2",
+,"2,015",NOV,23,eGFP,CONT,,,3,,,,,,"2,020",FEB,25,eGFP,CONT,"1,2,3","1,2","1,2,3",
+,"2,015",DEC,16,eGFP,CONT,,,"1,2",,,,,,"2,020",AUG,11,eGFP,CONT,1,1,1,
+,"2,015",DEC,17,eGFP,CONT,,,"1,2",,,,,,"2,020",AUG,12,eGFP,CONT,"1,2","1,2","1,2",
+,"2,015",DEC,22,eGFP,CONT,,,2,,,,,,"2,024",APR,25,eGFP,CONT,,"1,2",,
+,"2,016",JAN,8,eGFP,CONT,,,"1,2",,,,,,"2,020",FEB,18,eGFP,M1R ant,"2,3","2,3","1,3",
+,"2,016",FEB,16,eGFP,CONT,,,"2,3",,,,,,"2,020",FEB,20,eGFP,M1R ant,"1,3",3,3,
+,"2,016",MAY,19,eGFP,CONT,,,1,,,,,,"2,020",MAR,12,eGFP,M1R ant,"1,2","1,2","1,2",
+,"2,016",NOV,17,eGFP,CONT,,,"1,2",,,,,,"2,020",JUL,21,eGFP,M1R ant,"1,2,3",,"1,2,3",
+,"2,015",NOV,24,eGFP,6-OHDA,,,"1,2",,,,,,"2,020",JUL,22,eGFP,M1R ant,2,,2,
+,"2,015",DEC,2,eGFP,6-OHDA,,,"1,2",,,,,,"2,024",APR,3,eGFP,M1R ant,,"1,2",,
+,"2,015",DEC,22,eGFP,6-OHDA,,,1,,,,,,,,,,,,,,
+,"2,016",FEB,15,eGFP,6-OHDA,,,"1,2",,,,,,,,,,,FIG,FIG,FIG,add OXO
+,"2,016",FEB,18,eGFP,6-OHDA,,,"1,3",,,,,,,,,,,7C,7F,7H,7E
+,"2,016",MAY,2,eGFP,6-OHDA,,,"2,3",,,,,,YEAR,MONTH,DAY,ANIMAL,Category,Soma Ex,Dend Ex,Spine Dens,Dend Ex
+,"2,016",MAY,23,eGFP,LID OFF,"1,2,3,4","1,2,3,4","1,2",,,,,,"2,016",MAY,25,CDGIko X eGFP,LID ON,"1,2,3","1,2,3","1,3",
+,"2,016",MAY,24,eGFP,LID OFF,"1,2,4","1,2,3","1,2",,,,,,"2,016",MAY,26,CDGIko X eGFP,LID ON,"1,2,3","1,2,3","1,3",
+,"2,016",NOV,16,eGFP,LID OFF,1,1,1,,,,,,"2,016",MAY,27,CDGIko X eGFP,LID ON,"1,2,3","1,2","1,2",
+,"2,017",MAY,25,eGFP,LID OFF,2,2,2,,,,,,"2,016",JUN,16,CDGIko X eGFP,LID ON,"1,2",1,"1,2",
+,"2,017",MAY,26,eGFP,LID OFF,"1,2,3",2,"1,2,3",,,,,,"2,016",JUN,19,CDGIko X eGFP,LID ON,"1,2","2,3","2,3",
+,"2,016",JUN,8,eGFP,LID ON,,"1,2,3","1,2",,,,,,"2,016",SEP,12,CDGIko X eGFP,LID ON,,,4,
+,"2,016",JUN,9,eGFP,LID ON,"1,2","1,2","1,2",,,,,,"2,016",AUG,16,CDGIko X eGFP,LID OFF,"1,2","1,2","1,2",
+,"2,016",JUL,17,eGFP,LID ON,"1,2",,,,,,,,"2,016",SEP,1,CDGIko X eGFP,LID OFF,1,1,,
+,"2,016",JUL,18,eGFP,LID ON,,"1,2","1,2",,,,,,"2,016",SEP,2,CDGIko X eGFP,LID OFF,"2,3,4","2,3,4","1,2,3,4",
+,"2,016",JUL,19,eGFP,LID ON,"1,2","1,2","1,2",,,,,,"2,016",SEP,13,CDGIko X eGFP,LID OFF,"1,2","1,2","1,2",
+,"2,019",APR,8,eGFP,LID ON,1,1,,,1,,,,"2,018",FEB,21,eGFP,LID ON: WT,,,,"1AB, 2AB"
+,"2,019",APR,9,eGFP,LID ON,1,,,,1,,,,"2,018",MAR,5,eGFP,LID ON: WT,,,,"1AB, 2AB, 3AB"
+,"2,019",APR,26,eGFP,LID ON,2,,1,"2,3","1,4",,,,"2,018",FEB,28,CDGIko X eGFP,LID ON,,,,"1AB, 2AB"
+,"2,019",APR,29,eGFP,LID ON,1,,,"1,2,3","1,3",,,,"2,018",MAR,1,CDGIko X eGFP,LID ON,,,,"1AB, 2AB"
+,"2,019",MAY,8,eGFP,LID ON,2,,,3,3,,,,"2,018",MAR,14,CDGIko X eGFP,LID ON,,,,"1AB, 2AB"
+,"2,019",MAY,9,eGFP,LID ON,,,,2,2,,,,,,,,,,,,
+,"2,023",FEB,22,eGFP,LID OFF,,,,,,"1,2",,,,,,,,FIG,,FIG,add OXO
+,"2,023",MAR,30,eGFP,LID OFF,,,,,,"1,2",,,,,,,LID OFF,8D,Fusion Red,8F,SF4
+,"2,023",APR,6,eGFP,LID OFF,,,,,,"1,2,3",,,YEAR,MONTH,DAY,ANIMAL,Category,Soma Ex,Dend Ex,Spine Dens,Soma Ex
+,"2,023",FEB,28,eGFP,LID ON,,,,,,"1,2",,,"2,022",OCT,12,Adora2-Cre,CONT,"1,2,3",,"1,2,3",
+,"2,023",MAR,1,eGFP,LID ON,,,,,,"1,2",,,"2,022",NOV,30,Adora2-Cre,CONT,"1,2,3",,"1,2,3",
+,"2,023",MAR,31,eGFP,LID ON,,,,,,"1,2",,,"2,022",OCT,4,Adora2-Cre,M1R CRSPR,"2,3",,"1,2,3,4",
+,"2,023",APR,5,eGFP,LID ON,,,,,,"1,2",,,"2,022",OCT,5,Adora2-Cre,M1R CRSPR,"1,2,4",,"1,2,3",
+"5,104","2,023",AUG,20,Adora2-Cre,CONT,,,,,,,4,,"2,022",NOV,29,Adora2-Cre,M1R CRSPR,"1,2,3",,"1,2,3",
+"3,824","2,023",OCT,22,Adora2-Cre,CONT,,,,,,,2,,"2,021",SEP,7,Adora2-Cre,CONT,,,,"1,2"
+"8,038","2,024",JAN,16,Adora2-Cre,CONT,,,,,,,5,,"2,021",SEP,14,Adora2-Cre,CONT,,,,"1,2,3"
+"8,940","2,024",MAR,3,Adora2-Cre,CONT,,,,,,,7,,"2,021",SEP,20,Adora2-Cre,CONT,,,,"1,2"
+"3,825","2,023",OCT,22,Adora2-Cre,6-OHDA,,,,,,,2,,"2,021",SEP,8,Adora2-Cre,M1R CRSPR,,,,"1,2"
+"3,823","2,023",OCT,26,Adora2-Cre,6-OHDA,,,,,,,1,,"2,021",SEP,13,Adora2-Cre,M1R CRSPR,,,,"1,2"
+"8,040","2,023",DEC,11,Adora2-Cre,6-OHDA,,,,,,,6,,"2,021",SEP,15,Adora2-Cre,M1R CRSPR,,,,"1,2"
+"8,941","2,024",FEB,18,Adora2-Cre,6-OHDA,,,,,,,13,,,,,,,,,,
+"5,105","2,023",AUG,20,Adora2-Cre,LID OFF,,,,,,,9,,,,,,,,,,
+"3,826","2,023",OCT,29,Adora2-Cre,LID OFF,,,,,,,2,,,,,,,,,,
+"8,041","2,023",DEC,17,Adora2-Cre,LID OFF,,,,,,,9,,,,,,,,,,
+"8,943","2,024",FEB,27,Adora2-Cre,LID OFF,,,,,,,5,,,,,,,,,,
+"5,108","2,023",SEP,1,Adora2-Cre,LID ON,,,,,,,7,,,,,,,,,,
+"5,107","2,023",SEP,11,Adora2-Cre,LID ON,,,,,,,4,,,,,,,,,,
+"8,042","2,024",JAN,12,Adora2-Cre,LID ON,,,,,,,5,,,,,,,,,,
+"8,939","2,024",FEB,22,Adora2-Cre,LID ON,,,,,,,6,,,,,,,,,,

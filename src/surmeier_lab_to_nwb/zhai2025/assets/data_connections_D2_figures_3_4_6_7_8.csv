@@ -1,0 +1,51 @@
+,,,,,CONT,,,,,
+,,,,,10,SF3A,,,,
+,,,D2,ANIMALS,knock out,FIG,,,,
+,,,,,9,7 [J],,,,
+MOUSE,YEAR,MONTH,DAY,ANIMAL,Category,session 1,session 2,session 3,session 4,session 5
+465,"2,017",DEC,15,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+466,"2,017",DEC,15,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+467,"2,017",DEC,15,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+549,"2,017",DEC,15,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"1,590","2,018",FEB,23,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+"1,944","2,018",FEB,23,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"1,945","2,018",FEB,23,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"2,586","2,018",MAR,20,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+"2,587","2,018",MAR,20,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+"2,636","2,018",APR,12,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+"2,638","2,018",APR,12,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+"2,828","2,018",APR,12,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"5,871","2,018",JUL,18,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+"5,940","2,018",SEP,5,eGFP,CONT,session 1,session 2,session 3,session 4,session 5
+"6,571","2,018",SEP,5,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"6,572","2,018",SEP,5,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"2,516","2,020",NOV,3,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"2,517","2,020",NOV,3,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+"2,519","2,020",NOV,3,CDGIko X eGFP,ko,session 1,session 2,session 3,session 4,session 5
+,,,,,,,,,,
+,,,,,CONT,,,,,
+,,,,,11,,,,,
+,,,,,knock down,SF3B,,,,
+,,,,,10,FIG,,,,
+MOUSE,YEAR,MONTH,DAY,ANIMAL,Category,8G,,,,
+"5,844","2,023",SEP,27,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"5,845","2,023",SEP,27,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"5,846","2,023",SEP,27,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"7,629","2,023",DEC,8,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"7,630","2,023",DEC,8,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"7,829","2,023",DEC,8,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"7,830","2,023",DEC,8,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"7,831","2,023",DEC,8,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"8,592","2,024",JAN,17,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"8,594","2,024",JAN,17,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"4,790","2,024",FEB,23,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"4,793","2,024",FEB,23,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"9,366","2,024",FEB,23,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"9,367","2,024",FEB,23,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"9,368","2,024",FEB,23,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"2,421","2,024",MAY,3,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"2,422","2,024",MAY,3,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
+"2,423","2,024",MAY,3,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"2,424","2,024",MAY,3,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"2,425","2,024",MAY,3,Adora2-Cre,M1R CRSPR,session 1,session 2,session 3,session 4,session 5
+"8,240","2,024",MAY,3,Adora2-Cre,CONT,session 1,session 2,session 3,session 4,session 5
