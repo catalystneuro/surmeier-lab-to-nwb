@@ -266,6 +266,9 @@ LID on state
 ```
 
 ### Structure of the folder (hypothesis)
+
+Ask this in an email to the authors
+
 | "a" and "b" represent different animals (biological replicates) tested on the same day, with the second level numbers (1, 2) possibly representing different brain slices or recording locations from each animal
 
 And the directories for each cell look like this, with a proximal and a distal measurement:
@@ -317,7 +320,7 @@ checking the metadata for one channel
 
 ## Prairie View Line Scan Files
 
-The dendritic excitability experiments in Figures 1 and 3 use Prairie View line scan recordings. Understanding the structure and content of these files is crucial for proper conversion to NWB format.
+The dendritic excitability experiments in Figures 1 and 3 use Prairie View line scan recordings.
 
 ### Line Scan File Bundle Structure
 
@@ -340,21 +343,25 @@ A complete line scan bundle contains these files:
 | `*.xml` | Master experiment file | Links to all cycle files and provides high-level experiment metadata |
 | `References/` | Reference directory | Contains calibration or supplementary files |
 
-### Understanding the Kymograph Structure
+### Understanding the Raw Data for LineScans
 
 The OME-TIFF kymograph files (`*_Cycle00001_Ch#_000001.ome.tif`) have a 3D structure with dimensions:
 - First dimension (C): Channels (typically 2 - one for each PMT detector)
 - Second dimension (T): Time/line index (number of consecutive line scans, e.g., 2500)
 - Third dimension (X): Pixels along the scan line (e.g., 64 pixels)
 
-The kymograph is essentially a stack of line scans over time, where:
+The data is essentially a stack of line scans over time, where:
 - Each row represents one sweep of the laser along the defined line
 - The X-axis represents position along the scan line
 - The intensity at each pixel represents fluorescence at that position and time
 
+Very importantly, the line scans oversample pixels of the source image so it is not straightforward to map it.
+
+
 ### Key Metadata in .env Files
 
-The `.env` file contains critical information for interpreting the line scan data:
+This data is used to freeze the status of the microscope when doing the experiments.
+
 
 1. **Scan Line Geometry**:
    ```xml
@@ -442,13 +449,22 @@ The `.env` file contains critical information for interpreting the line scan dat
 | *Start 900 ms after t = 0*    | `"FirstPulseDelay": "900"`                                                                | Gives the patch clamp time to stabilise before the burst.                                                                    |
 | *Only one burst*              | `"Repetitions": "1"`                                                                      | The full three‑pulse block is performed once in this cycle.                                                                  |
 
-
-
-
-
 ## Figure 2
 
 The data of figure 2
+
+Relevant section from the methods:
+
+> For assessment of dendritic spine density, images of dendritic segments (proximal: ~40 μm
+> from soma; distal: > 80 μm from soma) were acquired with 0.15 μm pixels with 0.3 μm z-steps.
+> Images were deconvolved in AutoQuant X3.0.4 (MediaCybernetics, Rockville, MD) and semi-
+> automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount
+> Sinai School of Medicine, New York). On average, two proximal and two distal dendrites were
+> imaged and analyzed per neuron.
+
+It does not seem that the segmentation data is available but the confocal stacks are
+
+
 ```
 .
 ├── Spine density
