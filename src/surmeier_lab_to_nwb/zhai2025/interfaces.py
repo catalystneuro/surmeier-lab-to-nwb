@@ -32,7 +32,8 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         xml_metadata_file_path: str | Path,
         cell_id: str = "CellID",
         trial_id: str = "",
-        position: Literal["Proximal", "Distal"] = "Proximal",
+        position: Literal["", "Proximal", "Distal"] = "",
+        condition: Literal["", "LIDOffState", "LIDOnState", "LIDOnStateWithSCH"] = "",
     ):
         """
         Initialize the interface with path to the XML metadata file.
@@ -46,6 +47,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         self.cell_id = cell_id
         self.trial_id = trial_id
         self.position = position
+        self.condition = condition
 
         parent_folder = self.xml_metadata_file_path.parent
         # Load XML metadata
@@ -152,7 +154,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             "Olympus 60X",
         )
         excitation_lambda = 810.0  # Chameleon Ultra II
-        imaging_plane_name = f"dSPNImagingPlaneCell{self.cell_id}{self.position}"
+        imaging_plane_name = f"dSPNImagingPlaneCondition{self.condition}Cell{self.cell_id}{self.position}"
         available_imaging_planes = nwbfile.imaging_planes
         if imaging_plane_name in available_imaging_planes:
             imaging_plane = available_imaging_planes[imaging_plane_name]
@@ -188,7 +190,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             ophys_module = nwbfile.processing["ophys"]
 
         # Create image segmentation
-        image_segmentation_name = f"ImageSegmentationCell{self.cell_id}{self.position}"
+        image_segmentation_name = f"ImageSegmentationCondition{self.condition}Cell{self.cell_id}{self.position}"
         if image_segmentation_name in ophys_module.data_interfaces:
             image_segmentation = ophys_module.data_interfaces[image_segmentation_name]
         else:
@@ -212,7 +214,9 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         )
 
         # Create plane segmentation with better description
-        plane_segmentation_name = f"PlaneSegmentationCell{self.cell_id}{self.position}Trial{self.trial_id}"
+        plane_segmentation_name = (
+            f"PlaneSegmentationCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}"
+        )
         available_plane_segmentations = image_segmentation.plane_segmentations
         if plane_segmentation_name in available_plane_segmentations:
             plane_segmentation = available_plane_segmentations[plane_segmentation_name]
@@ -242,7 +246,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
 
         # Create ROI response series with better names and descriptions
         alexa568_series = RoiResponseSeries(
-            name=f"Alexa568StructuralDyeResponseSeriesCell{self.cell_id}{self.position}Trial{self.trial_id}",
+            name=f"Alexa568StructuralDyeResponseSeriesCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}",
             description="Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM)",
             data=alexa568_profile,
             rois=roi_table_region,
@@ -251,7 +255,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         )
 
         fluo4_series = RoiResponseSeries(
-            name=f"Fluo4CalciumIndicatorResponseSeriesCell{self.cell_id}{self.position}Trial{self.trial_id}",
+            name=f"Fluo4CalciumIndicatorResponseSeriesCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}",
             description="Calcium indicator fluorescence from Fluo-4 (100 μM)",
             data=fluo4_profile,
             rois=roi_table_region,
@@ -260,7 +264,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         )
 
         # Create fluorescence container
-        name = f"FluorescenceContainerCell{self.cell_id}{self.position}"
+        name = f"FluorescenceContainerCondition{self.condition}Cell{self.cell_id}{self.position}"
         if name in ophys_module.data_interfaces:
             fluorescence = ophys_module.data_interfaces[name]
         else:
@@ -276,23 +280,26 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         # Define source image metadata dictionary
         source_image_metadata = {
             "Ch1": {
-                "name": f"Alexa568StructuralDyeSourceImageCell{self.cell_id}{self.position}Trial{self.trial_id}",
+                "name": f"Alexa568StructuralDyeSourceImageCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}",
                 "description": "Source image for Alexa Fluor 568 structural reference",
             },
             "Ch2": {
-                "name": f"Fluo4CalciumIndicatorSourceImageCell{self.cell_id}{self.position}Trial{self.trial_id}",
+                "name": f"Fluo4CalciumIndicatorSourceImageCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}",
                 "description": "Source image for Fluo-4 calcium indicator",
             },
         }
 
-        name = f"SourceImagesContainerCell{self.cell_id}"
+        name = f"SourceImagesContainerCondition{self.condition}Cell{self.cell_id}"
         if name in nwbfile.acquisition:
             image_container = nwbfile.acquisition[name]
         else:
             image_container = Images(name=name)
             nwbfile.add_acquisition(image_container)
 
+        invalid_channels = ["Dodt"]  # TODO: figure out what this channel is
         for channel_name, source_data_file_path in self.source_data_file_paths_dict.items():
+            if channel_name in invalid_channels:
+                continue
             source_data = tifffile.imread(source_data_file_path)
 
             name = source_image_metadata[channel_name]["name"]
@@ -316,11 +323,11 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         # Define channel metadata dictionary
         channel_metadata = {
             "Ch1": {
-                "name": f"Alexa568StructuralDyeLineScanCell{self.cell_id}{self.position}Trial{self.trial_id}",
+                "name": f"Alexa568StructuralDyeLineScanCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}",
                 "description": "Line scan raw data for Alexa Fluor 568 structural reference",
             },
             "Ch2": {
-                "name": f"Fluo4CalciumIndicatorLineScanCell{self.cell_id}{self.position}Trial{self.trial_id}",
+                "name": f"Fluo4CalciumIndicatorLineScanCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}",
                 "description": "Line scan raw data for Fluo-4 calcium indicator",
             },
         }
@@ -346,7 +353,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
 class PrairieViewIntracellularRecordingInterface(BaseDataInterface):
     """Interface for Prairie View intracellular recording data."""
 
-    keywords = ["intracellular", "recording", "prairie view"]
+    keywords = ("intracellular", "recording", "prairie view")
 
     def __init__(
         self,
@@ -354,7 +361,8 @@ class PrairieViewIntracellularRecordingInterface(BaseDataInterface):
         recording_csv_file_path: Optional[str | Path] = None,
         cell_id: str = "CellID",
         trial_id: str = "",
-        position: Literal["Proximal", "Distal"] = "Proximal",
+        position: Literal["", "Proximal", "Distal"] = "",
+        condition: Literal["", "LIDOffState", "LIDOnState", "LIDOnStateWithSCH"] = "",
     ):
         """
         Initialize the interface with paths to the XML and CSV files.
@@ -370,6 +378,7 @@ class PrairieViewIntracellularRecordingInterface(BaseDataInterface):
         self.cell_id = cell_id
         self.trial_id = trial_id
         self.position = position
+        self.condition = condition
 
         # Load XML data
         with open(self.xml_file_path, "r") as xml_file:
@@ -481,6 +490,7 @@ class PrairieViewIntracellularRecordingInterface(BaseDataInterface):
         )
         timestamps = recording_data_df["Time(ms)"] / 1_000.0  # Convert to seconds
         voltage_mV = recording_data_df[" Primary"] * multiplier / divisor
+        voltage_volts = voltage_mV.values / 1_000.0  # Convert mV to volts
 
         # Create or get device
         device_name = "MultiClamp 700B"
@@ -491,7 +501,7 @@ class PrairieViewIntracellularRecordingInterface(BaseDataInterface):
             device = nwbfile.create_device(name=device_name, description=device_description)
 
         # Create or use provided electrode
-        electrode_name = f"IntracellularElectrodeCell{self.cell_id}{self.position}"
+        electrode_name = f"IntracellularElectrodeCondition{self.condition}Cell{self.cell_id}{self.position}"
         available_electrodes = nwbfile.icephys_electrodes
         if electrode_name in available_electrodes:
             electrode = available_electrodes[electrode_name]
@@ -503,14 +513,13 @@ class PrairieViewIntracellularRecordingInterface(BaseDataInterface):
             )
 
         # Create current clamp series
-        name = f"CurrentClampSeriesCell{self.cell_id}{self.position}Trial{self.trial_id}"
+        name = f"CurrentClampSeriesCondition{self.condition}Cell{self.cell_id}{self.position}Trial{self.trial_id}"
         current_clamp_series = CurrentClampSeries(
             name=name,
             description=f"Intracellular recording from {device_name}",
-            data=voltage_mV.values,
+            data=voltage_volts,
             timestamps=timestamps.values,
             electrode=electrode,
-            unit=unit,
         )
 
         # Add current clamp series to acquisition
