@@ -3,14 +3,14 @@ import re
 import warnings
 from pathlib import Path
 
-logging.getLogger("tifffile").setLevel(logging.ERROR)
+from neuroconv.tools import configure_and_write_nwbfile
 
 # Suppress specific warnings from pynwb or tifffile
 # warnings.filterwarnings("ignore", message=".*Unit 'mV' for CurrentClampSeries.*")
 warnings.filterwarnings("ignore", message="invalid value encountered in divide")
 warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
+logging.getLogger("tifffile").setLevel(logging.ERROR)
 
-from neuroconv.tools import configure_and_write_nwbfile
 
 from surmeier_lab_to_nwb.zhai2025 import (
     PrairieViewIntracellularRecordingInterface,
