@@ -434,7 +434,7 @@ If I do the same trick for the whole collection of LID-on-state, I get the follo
 | 07/21/2017 | 16:59:04 | 0721b/0721b2/07212017_Cell2_dist2_trio-001 |
 | 07/21/2017 | 16:59:19 | 0721b/0721b2/07212017_Cell2_dist2_trio-002 |
 | 07/21/2017 | 16:59:29 | 0721b/0721b2/07212017_Cell2_dist2_trio-003 |
-```
+
 This indicates that the top level is different cells but it seems that the second level is the same cell and future trials.
 
 
@@ -570,20 +570,7 @@ This data is used to freeze the status of the microscope when doing the experime
 | *Only one burst*              | `"Repetitions": "1"`                                                                      | The full three‑pulse block is performed once in this cycle.                                                                  |
 
 ## Figure 2
-
 The data of figure 2
-
-Relevant section from the methods:
-
-> For assessment of dendritic spine density, images of dendritic segments (proximal: ~40 μm
-> from soma; distal: > 80 μm from soma) were acquired with 0.15 μm pixels with 0.3 μm z-steps.
-> Images were deconvolved in AutoQuant X3.0.4 (MediaCybernetics, Rockville, MD) and semi-
-> automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount
-> Sinai School of Medicine, New York). On average, two proximal and two distal dendrites were
-> imaged and analyzed per neuron.
-
-It does not seem that the segmentation data is available but the confocal stacks are
-
 
 ```
 .
@@ -595,11 +582,24 @@ It does not seem that the segmentation data is available but the confocal stacks
 └── Sr-oEPSC
     ├── LID off-state
     └── LID on-state
+```
 
 ### Spine Density
-This is data that counts the density of the spines and is presented as image stacks.
 
-```
+
+Relevant section from the methods:
+
+> For assessment of dendritic spine density, images of dendritic segments (proximal: ~40 μm
+> from soma; distal: > 80 μm from soma) were acquired with 0.15 μm pixels with 0.3 μm z-steps.
+> Images were deconvolved in AutoQuant X3.0.4 (MediaCybernetics, Rockville, MD) and semi-
+> automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount
+> Sinai School of Medicine, New York). On average, two proximal and two distal dendrites were
+> imaged and analyzed per neuron.
+
+
+This is data that counts the density of the spines and is presented as image stacks.It does not seem that the segmentation data is available but the confocal stacks are
+
+
 
 LID on-state dSPN:
 
@@ -661,23 +661,91 @@ Inside there seems to be stacks:
 │   ├── 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z013.tif
 
 ```
-Some info on a specific stack
-```bash
-python -m tifffile 20_ZSeries-20170720_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z001.tif
 
-Reading TIFF header: 0.316915 s
-Reading image data: 0.000305 s
-Generating report:   0.004349 s
-
-TiffFile '20_ZSeries-20170720_Cell1_d…cle00001_Ch1_#.ome_Z001.tif'  129.46 KiB  mediacy
-
-TiffPageSeries 0  256x256  uint16  YX  uniform  1 Pages  @8
-
-TiffPage 0 @132276  256x256  uint16  minisblack memmappable  mediacy
-```
+There is only one image per file.
 
 ### Sr-oEPSC
 
+I think this is the sectio of the methods that describes the Sr-oEPSC experiments:
+
+> For Sr2+-oEPSC experiments, patch pipettes (3-4 MΩ resistance) were loaded with 120 CsMeSO3, 5 NaCl, 0.25 EGTA, 10 HEPES, 4 Mg-ATP, 0.3 Na-GTP, 10 TEA, 5 QX-314 (pH 7.25,osmolarity 280-290 mOsm/L). SPNs were held at -70 mV in the voltage-clamp configuration. After patching, recording solution was changed to Ca2+-free ACSF containing 3 mM SrCl2 and 10 μM gabazine (10 μM, to suppress GABAA-mediated currents). Slices were incubated with this Ca2+-free solution for 25 min before recording. EPSCs were evoked every 30 s by whole-field LED illumination (single 0.3-ms pulses)
+
+Importantly, these are **voltage clamp** experiments.
+
+
+### Stimuli
+
+From the above
+> EPSCs were evoked every 30 s by whole-field LED illumination (single 0.3-ms pulses).
+
+This matches what can be found in the output xml files:
+
+```json
+"Name": "LED",
+"Enabled": "true",
+"AOLine": "2",
+"Units": "V",
+"UnitScaleFactor": "1",
+"UnitVoltageOffset": "0",
+"UnitScaleOffset": "0",
+"PlotColor": "-38476",
+"WaveformComponent_PulseTrain": {
+    "Name": "Waveform Component #1",
+    "PulseCount": "1",
+    "PulseWidth": "0.3",
+    "PulseSpacing": "49.7",
+    "PulsePotentialStart": "5",
+    "PulsePotentialDelta": "0",
+    "RestPotential": "0",
+    "FirstPulseDelay": "20",
+    "Repetitions": "1",
+    "DelayBetweenReps": "2000"
+}
+
+```
+
+Explanation:
+
+
+| Parameter             | Value     | Description                                                   |
+| --------------------- | --------- | ------------------------------------------------------------- |
+| `PulseCount`          | `1`       | Only **one pulse** is delivered                               |
+| `PulseWidth`          | `0.3 ms`  | The LED is turned on for **0.3 milliseconds**                 |
+| `PulseSpacing`        | `49.7 ms` | Spacing between pulses (not relevant here since only 1 pulse) |
+| `PulsePotentialStart` | `5 V`     | The **pulse voltage level** is 5 volts                        |
+| `RestPotential`       | `0 V`     | The baseline voltage outside the pulse is 0                   |
+| `FirstPulseDelay`     | `20 ms`   | The pulse begins **20 ms after the start of the trial**       |
+| `Repetitions`         | `1`       | Only a single repetition of this pulse train                  |
+| `DelayBetweenReps`    | `2000 ms` | Not used here (only 1 repetition)                             |
+
+For NWB we will probably need to create an Optogenetic stimulus site and then add the stimulus to the `OptogeneticStimulusSeries` object.
+
+```python
+from pynwb.device import Device
+from pynwb.ogen import OptogeneticStimulusSite
+
+# Device
+led_device = nwbfile.create_device(name="Blue LED Driver")
+
+# Stimulus site
+ogen_site = OptogeneticStimulusSite(
+    name="cortical_afferents",
+    device=led_device,
+    description="Stimulation of ChR2-expressing corticostriatal terminals",
+    excitation_lambda=470.0,  # nm, for blue LED
+    location="dorsal striatum"
+)
+nwbfile.add_ogen_site(ogen_site)
+```
+
+not sure it is worth adding an `OptogeneticSeries` maybe take a look at the ;[ndx-optogenetics](https://github.com/rly/ndx-optogenetics
+) extension:
+
+
+
+
+
+#### Data structure
 Here is the Optical Stimulation data
 
 ```bash
@@ -1408,3 +1476,10 @@ find . -type f \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.avi" -o -iname "
 ```bash
 ls -R | rg ".MP4"
 ```
+
+
+# Things that would ben nice to do:
+- Extract the times of the intracelluar events so we can write a single time series instead of many.
+- Add an extension for line scan data
+- Add an extension for image stacks that keeps the metadata of the microscopy
+- Separate the nwbfiles per subject
