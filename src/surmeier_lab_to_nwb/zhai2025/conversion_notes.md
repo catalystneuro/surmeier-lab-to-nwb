@@ -65,11 +65,13 @@ The conversion of each protocol will handle the time alignment of data from each
 
 ## Which figures are related to which streams:
 * Figure 1 contains recordings in xml data and the currents are on the folder organization. It also has some confocal imaging.
-* Figure 2 has optogenetics and image stacks but no segmentation data as far as I can tell.
-* Figure 3 also electrophysiology
+* Figure 2 has optogenetics and image stacks
+* Figure 3 also intracellular electrophysiology
 * Figure 4 like figure 2 but also has "confocal spine density" data.
 * Figure 5: should have fluoresence traces. This looks like it has two photon time
-* Figure
+* Figure 6
+* Figure 7
+* Figure 8
 
 # Data Organization - Raw data for Figs
 
@@ -438,7 +440,7 @@ If I do the same trick for the whole collection of LID-on-state, I get the follo
 This indicates that the top level is different cells but it seems that the second level is the same cell and future trials.
 
 
-## Prairie View Line Scan Files
+### Prairie View Line Scan Files
 
 The dendritic excitability experiments in Figures 1 and 3 use Prairie View line scan recordings.
 
@@ -809,20 +811,9 @@ And inside there
 
 ## Figure 3
 
-Very similar, also for dendritic experiments we have this at the bottom:
+These are like the experiments of figure 1
 
-```bash
- 05232016_Cell1_dist1_trio-001-Cycle00001_Ch1Source.tif              References
- 05232016_Cell1_dist1_trio-001-Cycle00001_Ch2Source.tif
- 05232016_Cell1_dist1_trio-001.env
- 05232016_Cell1_dist1_trio-001.xml
- 05232016_Cell1_dist1_trio-001_Cycle00001_Ch1_000001.ome.tif
- 05232016_Cell1_dist1_trio-001_Cycle00001_Ch2_000001.ome.tif
- 05232016_Cell1_dist1_trio-001_Cycle00001_LineProfileData.csv
- 05232016_Cell1_dist1_trio-001_Cycle00001_VoltageOutput_001.xml
- 05232016_Cell1_dist1_trio-001_Cycle00001_VoltageRecording_001.csv
- 05232016_Cell1_dist1_trio-001_Cycle00001_VoltageRecording_001.xml
-```
+
 
 ## Figure 4
 
@@ -845,7 +836,7 @@ Very similar, also for dendritic experiments we have this at the bottom:
 Extensions found in this figure are the most varied:
 
 ```
- find . -type f -name "*.*" | rev | cut -d. -f1 | rev | sort | uniq
+find . -type f -name "*.*" | rev | cut -d. -f1 | rev | sort | uniq
 bmp
 csv
 env
@@ -863,6 +854,12 @@ swc
 tif
 txt
 xml
+```
+
+To find the specific files that has each of the formats use the command:
+
+```bash
+find . -type f -name "*.xml"
 ```
 
 
@@ -918,175 +915,195 @@ The only files are xml env and csv
     └── Spine density plots for Fig 4J and Suppl Fig 5.pzfx
 ```
 
+
+#### Figure 4H
+
+My reading above is that processed data contains the processed images which are the images in raw after some image processing. Let's focus on this part of the conversion.
+
+```bash
+[256K]  .
+└── [256K]  5104-3 60x str_Cycle
+    ├── [ 11K]  Image_01_01_01_01.oif
+    ├── [256K]  Image_01_01_01_01.oif.files
+    ├── [ 11K]  Image_01_01_02_01.oif
+    ├── [256K]  Image_01_01_02_01.oif.files
+    ├── [ 11K]  Image_01_01_03_01.oif
+    ├── [256K]  Image_01_01_03_01.oif.files
+    ├── [ 11K]  Image_01_01_04_01.oif
+    ├── [256K]  Image_01_01_04_01.oif.files
+    ├── [ 11K]  Image_01_01_05_01.oif
+    ├── [256K]  Image_01_01_05_01.oif.files
+    ├── [ 11K]  Image_01_01_06_01.oif
+    ├── [256K]  Image_01_01_06_01.oif.files
+    ├── [ 11K]  Image_01_01_07_01.oif
+    ├── [256K]  Image_01_01_07_01.oif.files
+    ├── [ 11K]  Image_01_01_08_01.oif
+    ├── [256K]  Image_01_01_08_01.oif.files
+    ├── [ 11K]  Image_01_01_09_01.oif
+    ├── [256K]  Image_01_01_09_01.oif.files
+    ├── [2.4K]  MATL_01_01.log
+    └── [   0]  TileConfiguration.txt
+
+```
+
+the raw folder contains a single folder and each of them as oif files folder. I think these correspond to 9 locations within the same tissue.
+
+note that the oif files are plan text files that contain metadata. Here an example:
+
+```
+───────┬────────────────────────────────────────────────────────────────────────────────
+       │ File: Image_01_01_01_01.oif   <UTF-16LE>
+───────┼────────────────────────────────────────────────────────────────────────────────
+   1   │ [Acquisition Parameters Common]
+   2   │ AFAE Coefficient=1.0
+   3   │ Acquisition Device="FV10i"
+   4   │ AcquisitionMode=1
+   5   │ Cycle Interval=0
+   6   │ Cycle Repeat Number=1
+   7   │ FindMode=4
+   8   │ ImageCaputreDate='2024-09-28 12:53:12'
+   9   │ ImageCaputreDate+MilliSec=446
+  10   │ IntegrationCount=4
+  11   │ IntegrationType="Line Kalman"
+  12   │ LaserTransmissivity01=3.5
+  13   │ LaserWavelength01=473
+  14   │ Number of Acquisition Channel=1
+  15   │ Number of use Laser=1
+  16   │ PinholeCoefficient_10X=2.5
+  17   │ PinholeCoefficient_60X=2.0
+  18   │ PinholeDiameter=107000
+  19   │ RegionMode="None"
+  20   │ RevolverPosition=1
+
+  ...
+```
+
+An example of this file can be found in `src/surmeier_lab_to_nwb/zhai2025/assets/Image_01_01_01_01.oif`
+
+
+Inside some of the files we have the following structure:
+
+```bash
+s_238358488-1826303.roi  s_C001Z009.tif  s_C001Z018.tif  s_C001Z027.tif  s_C001Z036.tif
+s_C001Z001.pty           s_C001Z010.pty  s_C001Z019.pty  s_C001Z028.pty  s_C001Z037.pty
+s_C001Z001.tif           s_C001Z010.tif  s_C001Z019.tif  s_C001Z028.tif  s_C001Z037.tif
+...
+```
+
+The pty files are plain text and can be read directly. Here some lines:
+
+```bash
+       │ File: s_C001Z001.pty   <UTF-16LE>
+───────┼────────────────────────────────────────────────────────────────────────────────
+   1   │ [Acquisition Parameters Common]
+   2   │ Confocal="ON"
+   3   │ Magnification=60.0
+   4   │ ObjectiveLens NAValue=1.35
+   5   │ ObjectiveLens Name="UPLSAP60xO"
+   6   │ ObjectiveLens WDValue=150000.0
+   7   │ Observation Mode="LSM"
+   8   │ PMTDetectingMode="Analog"
+   9   │ PMTVoltage=599
+  10   │ PinholeDiameter=214000
+  11   │ PinholeScale=1
+  ...
+
+```
+There is no metadata about the roi locations. The file with the `.roi` extension is mostly empty. I think Imaris software was used on the peprocessed data to estimat the dendritic spine density. A full example file can be found in `src/surmeier_lab_to_nwb/zhai2025/assets/example_pth_file.pty`.
+
+#### Figure 4I
+
+```bash
+.
+├── processed
+│   ├── 6-OHDA
+│   ├── control
+│   ├── off-state
+│   └── on-state
+└── raw
+    ├── 6-OHDA
+    ├── control
+    ├── off-state
+    └── on-state
+```
+
+Let's focus on the raw data:
+
+```
+.
+├── 6-OHDA
+│   └── 8040-slide 1-slice 2-cell 1 proxi.nd2
+├── control
+│   └── 3824-slide 2-slice 2-cell 2 proxi.nd2
+├── off-state
+│   └── 8041-slide 2-slice 3-cell 2 proxi.nd2
+└── on-state
+    └── 8939-slide 1-slice 3-cell 2 den2 proxi.nd2
+
+5 directories, 4 files
+```
+
+
+Two Python libraries are available for reading ND2 files:
+
+### [pims_nd2](https://github.com/soft-matter/pims_nd2/tree/master)
+- Relies on Nikon's proprietary SDK (it bundles it)
+- More compatible with a variety of ND2 file versions
+- Potentially more robust for complex or older files
+- May require additional installation steps due to SDK dependency
+- Used by pims
+
+### [nd2reader](https://github.com/Open-Science-Tools/nd2reader)
+- Pure Python implementation
+- Easier to install and use in restricted environments
+- May not handle all ND2 variants
+- Less robust for edge cases compared to pims_nd2
+- No longer maintained
+
+### [nd2 tlambert03](https://talleylambert.com/nd2/)
+- Uses a pure python implementation of the Nikon ND2 file format
+- Handles all the variants with the "legacy" extra flag with pip installation
+- has lazy loading through memmap usage
+- Is used by the https://github.com/bioio-devs/bioio library that Szonja shared with me. I could use the later but the documentation of nd2 is more clear in how to access the metadata which is what we care for here.
+
+
+I am going with `nd2 tlambert03` as it is the most robust and the most complete in the extraction of metadata. There is also the bioformats reader but that requires java which complicates the distribution and installation of the package.
+
+### Processed data in Figure 4I
+
+Both ims nad ims Imari software data are contained. How to read this in python?
+
+
+
+## Figure 4J and Suppl Fig 5
+Figure 4J showed confocal detects more spines, but Supplemental Figure 5 proved WHY and validated the central hypothesis that spine size changes, not spine number changes, drive the apparent 2PLSM oscillations. Without this validation, the spine size hypothesis would remain speculative rather than proven. But they both contain the same data.
+
+```bash
+.
+├── processed-not organized yet, see if needed-denoise-decon,ims,excel files,code,combined excel
+│   ├── 6-OHDA
+│   ├── control
+│   ├── off-state
+│   └── on-state
+├── raw
+│   ├── 6-OHDA
+│   ├── control
+│   ├── off-state
+│   └── on-state
+└── Spine density plots for Fig 4J and Suppl Fig 5.pzfx
+```
+
 What is pzfx?
 Apparently [Graph Pad](https://www.graphpad.com/)
 
 This is a proprietary format for Prism, a software used for scientific graphing and statistical analysis. The .pzfx file format is a compressed file that contains data, graphs, and analysis results created in GraphPad Prism.
 
-```bash
-├── Fig 4H
-│   ├── processed
-│   │   ├── 5104-3 60x str_Cycle fused
-│   │   │   ├── Fused_5104-3 60x str_Cycle stitched.oif - C=0_Fused_5104-3 60x str_Cycle stitched.oif - C=0_Image_01_01_02_010000.tif
-│   │   │   ├── Fused_5104-3 60x str_Cycle stitched.oif - C=0_Fused_5104-3 60x str_Cycle stitched.oif - C=0_Image_01_01_02_010001.tif
-...
-...
-...
-│   │   ├── MAX_Fused_5104-3 60x str_Cycle stitched.jpg
-│   │   └── MAX_Fused_5104-3 60x str_Cycle stitched with scale bar.jpg
-│   └── raw
-│       └── 5104-3 60x str_Cycle
-│           ├── Image_01_01_01_01.oif
-│           ├── Image_01_01_01_01.oif.files
-│           ├── Image_01_01_02_01.oif
-│           ├── Image_01_01_02_01.oif.files
-│           ├── Image_01_01_03_01.oif
-│           ├── Image_01_01_03_01.oif.files
-│           ├── Image_01_01_04_01.oif
-│           ├── Image_01_01_04_01.oif.files
-│           ├── Image_01_01_05_01.oif
-│           ├── Image_01_01_05_01.oif.files
-│           ├── Image_01_01_06_01.oif
-│           ├── Image_01_01_06_01.oif.files
-│           ├── Image_01_01_07_01.oif
-│           ├── Image_01_01_07_01.oif.files
-│           ├── Image_01_01_08_01.oif
-│           ├── Image_01_01_08_01.oif.files
-│           ├── Image_01_01_09_01.oif
-│           ├── Image_01_01_09_01.oif.files
-│           ├── MATL_01_01.log
-│           └── TileConfiguration.txt
-├── Fig 4I
-│   ├── processed
-│   │   ├── 6-OHDA
-│   │   │   ├── 8040-slide 1-slice 2-cell 1 proxi - Denoised decon_2024-07-27T13-10-58.187.png
-│   │   │   ├── 8040-slide 1-slice 2-cell 1 proxi - Denoised decon.ims
-│   │   │   └── 8040-slide 1-slice 2-cell 1 proxi - Denoised decon.nd2
-│   │   ├── control
-│   │   │   ├── 3824-slide 2-slice 2-cell 2 proxi - Denoised decon_2024-11-15T13-58-34.120.png
-│   │   │   ├── 3824-slide 2-slice 2-cell 2 proxi - Denoised decon.ims
-│   │   │   └── 3824-slide 2-slice 2-cell 2 proxi - Denoised decon.nd2
-│   │   ├── off-state
-│   │   │   ├── 8041-slide 2-slice 3-cell 2 proxi - Denoised decon_2024-07-27T16-23-35.514.png
-│   │   │   ├── 8041-slide 2-slice 3-cell 2 proxi - Denoised decon.ims
-│   │   │   └── 8041-slide 2-slice 3-cell 2 proxi - Denoised decon.nd2
-│   │   └── on-state
-│   │       ├── 8939-slide 1-slice 3-cell 2 den2 proxi - Denoised decon_2024-07-28T13-53-52.753.png
-│   │       ├── 8939-slide 1-slice 3-cell 2 den2 proxi - Denoised decon.ims
-│   │       └── 8939-slide 1-slice 3-cell 2 den2 proxi - Denoised decon.nd2
-│   └── raw
-│       ├── 6-OHDA
-│       │   └── 8040-slide 1-slice 2-cell 1 proxi.nd2
-│       ├── control
-│       │   └── 3824-slide 2-slice 2-cell 2 proxi.nd2
-│       ├── off-state
-│       │   └── 8041-slide 2-slice 3-cell 2 proxi.nd2
-│       └── on-state
-│           └── 8939-slide 1-slice 3-cell 2 den2 proxi.nd2
-└── Fig 4J and Suppl Fig 5
-    ├── processed-not organized yet, see if needed-denoise-decon,ims,excel files,code,combined excel
-    │   ├── 6-OHDA
-    │   ├── control
-    │   ├── off-state
-    │   └── on-state
-    ├── raw
-    │   ├── 6-OHDA
-    │   │   ├── 3823-slide 2-slice 4-cell 2 proxi.nd2
-    │   │   ├── 3825-slide 2-slice 3-cell 1 proxi.nd2
-    │   │   ├── 3825-slide 2-slice 3-cell 3 proxi.nd2
-    │   │   ├── 8040-slide 1-slice 2-cell 1 proxi.nd2
-    │   │   ├── 8040-slide 1-slice 2-cell 2 proxi.nd2
-    │   │   ├── 8040-slide 1-slice 2-cell 3 proxi.nd2
-    │   │   ├── 8040-slide 1-slice 3-cell 1 proxi.nd2
-    │   │   ├── 8040-slide 1-slice 3-cell 2 den2 proxi.nd2
-    │   │   ├── 8040-slide 1-slice 3-cell 2 proxi.nd2
-    │   │   ├── 8941-slide 1-slice 2-cell 1 den 2 proxi.nd2
-    │   │   ├── 8941-slide 1-slice 2-cell 1 proxi.nd2
-    │   │   ├── 8941-slide 1-slice 3-cell 1 proxi.nd2
-    │   │   ├── 8941-slide 1-slice 3-cell 2 proxi.nd2
-    │   │   ├── 8941-slide 1-slice 3-cell 3 proxi.nd2
-    │   │   ├── 8941-slide 1-slice 3-cell 4 den2 proxi.nd2
-    │   │   ├── 8941-slide 1-slice 3-cell 4 proxi.nd2
-    │   │   ├── 8941-slide 2-slice 2-cell 1 proxi.nd2
-    │   │   ├── 8941-slide 2-slice 2-cell 2 proxi.nd2
-    │   │   ├── 8941-slide 2-slice 2-cell 3 proxi.nd2
-    │   │   ├── 8941-slide 2-slice 2-cell 4 proxi.nd2
-    │   │   ├── 8941-slide 2-slice 2-cell 5 den2 proxi.nd2
-    │   │   └── 8941-slide 2-slice 2-cell 5 proxi.nd2
-    │   ├── control
-    │   │   ├── 3824-slide 2-slice 2-cell 1 proxi.nd2
-    │   │   ├── 3824-slide 2-slice 2-cell 2 proxi.nd2
-    │   │   ├── 5104-slice 3-cell 1 proxi3.nd2
-    │   │   ├── 510(Frederick Haer Company4-slide 2-slice 2-cell 1 den 2 proxi.nd2
-    │   │   ├── 5104-slide 2-slice 2-cell 1 proxi.nd2
-    │   │   ├── 5104-slide 2-slice 2-cell 2 proxi.nd2
-    │   │   ├── 8038-slide 1-slice 2-cell 1 den2 proxi.nd2
-    │   │   ├── 8038-slide 1-slice 2-cell 1 proxi_0001.nd2
-    │   │   ├── 8038-slide 1-slice 2-cell 2 den2 proxi.nd2
-    │   │   ├── 8038-slide 1-slice 2-cell 2 proxi.nd2
-    │   │   ├── 8038-slide 1-slice 2-cell 3 proxi.nd2
-    │   │   ├── 8940-slide 1-slice 1-cell 1 den2 proxi.nd2
-    │   │   ├── 8940-slide 1-slice 1-cell 1 proxi.nd2
-    │   │   ├── 8940-slide 1-slice 2-cell 1 den2 proxi.nd2
-    │   │   ├── 8940-slide 1-slice 2-cell 1 proxi.nd2
-    │   │   ├── 8940-slide 1-slice 2-cell 2 den2 proxi.nd2
-    │   │   ├── 8940-slide 1-slice 2-cell 2 proxi.nd2
-    │   │   └── 8940-slide 1-slice 2-cell 3 proxi.nd2
-    │   ├── off-state
-    │   │   ├── 3826-slide 2-slice 3-cell 1 proxi.nd2
-    │   │   ├── 3826-slide 2-slice 3-cell 2 proxi.nd2
-    │   │   ├── 5105-slice 3-cell 1 proxi3.nd2
-    │   │   ├── 5105-slice 3-cell 2 den2 proxi.nd2
-    │   │   ├── 5105-slice 3-cell 2 proxi.nd2
-    │   │   ├── 5105-slide 2-slice 2-cell 1 den 2 proxi.nd2
-    │   │   ├── 5105-slide 2-slice 2-cell 1 proxi.nd2
-    │   │   ├── 5105-slide 2-slice 3-cell 1 proxi.nd2
-    │   │   ├── 5105-slide 2-slice 3-cell 2 den 2 proxi.nd2
-    │   │   ├── 5105-slide 2-slice 3-cell 2 proxi.nd2
-    │   │   ├── 5105-slide 2-slice 3-cell 3 proxi.nd2
-    │   │   ├── 8041-slide 1-slice 4-cell 1 proxi.nd2
-    │   │   ├── 8041-slide 2-slice 2-cell 1 proxi.nd2
-    │   │   ├── 8041-slide 2-slice 3-cell 1den2 proxi.nd2
-    │   │   ├── 8041-slide 2-slice 3-cell 1 proxi.nd2
-    │   │   ├── 8041-slide 2-slice 3-cell 2 proxi.nd2
-    │   │   ├── 8041-slide 3-slice 3-cell 1 proxi.nd2
-    │   │   ├── 8041-slide 3-slice 3-cell 3 proxi.nd2
-    │   │   ├── 8041-slide 3-slice 3-cell 4 den2 proxi.nd2
-    │   │   ├── 8041-slide 4-slice 3-cell 2 proxi.nd2
-    │   │   ├── 8943-slide 1-slice 1-cell 1 den2 proxi.nd2
-    │   │   ├── 8943-slide 1-slice 1-cell 1 proxi.nd2
-    │   │   ├── 8943-slide 1-slice 1-cell 2 proxi.nd2
-    │   │   ├── 8943-slide 1-slice 2-cell 1 den2 proxi.nd2
-    │   │   └── 8943-slide 1-slice 2-cell 1 proxi.nd2
-    │   └── on-state
-    │       ├── 5107-slide 2-slice 2-cell 1 den 2 proxi.nd2
-    │       ├── 5107-slide 2-slice 2-cell 1 proxi.nd2
-    │       ├── 5107-slide 2-slice 2-cell 2 proxi.nd2
-    │       ├── 5107-slide 2-slice 3-cell 3 proxi.nd2
-    │       ├── 5108-slice 2-cell 1 den2 proxi.nd2
-    │       ├── 5108-slice 2-cell 1 den3 proxi.nd2
-    │       ├── 5108-slice 2-cell 1 proxi.nd2
-    │       ├── 5108-slide 2-slice 1-cell 1 den2 proxi.nd2
-    │       ├── 5108-slide 2-slice 1-cell 1 proxi.nd2
-    │       ├── 5108-slide 2-slice 1-cell 2 proxi.nd2
-    │       ├── 5108-slide 2-slice 2-cell 1 den 2 proxi.nd2
-    │       ├── 8042-slide 1-slice 2-cell 1 proxi.nd2
-    │       ├── 8042-slide 1-slice 2-cell 2 den2 proxi.nd2
-    │       ├── 8042-slide 1-slice 2-cell 2 proxi.nd2
-    │       ├── 8042-slide 1-slice 2-cell 3 proxi.nd2
-    │       ├── 8042-slide 1-slice 2-cell 4 proxi.nd2
-    │       ├── 8939-slide 1-slice 2-cell 1 den2 proxi.nd2
-    │       ├── 8939-slide 1-slice 2-cell 1 proxi.nd2
-    │       ├── 8939-slide 1-slice 2-cell 2 proxi.nd2
-    │       ├── 8939-slide 1-slice 3-cell 1 proxi.nd2
-    │       ├── 8939-slide 1-slice 3-cell 2 den2 proxi.nd2
-    │       └── 8939-slide 1-slice 3-cell 2 proxi.nd2
-    └── Spine density plots for Fig 4J and Suppl Fig 5.pzfx
-```
+Both of them contain the same raw data in nikons nd2 format. But Figure 4I has the examples that they show on the plot whereas figure 4J has more samples.
+
 
 What are:
 * nd2 files:  raw image data files produced by Nikon imaging system?
-* ims files: Imari software?
+* ims files: Imaris software?
 * oif files: Olympus Microscope?
 * pyt files:
 
