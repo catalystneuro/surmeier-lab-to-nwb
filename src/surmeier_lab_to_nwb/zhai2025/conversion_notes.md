@@ -65,7 +65,7 @@ The conversion of each protocol will handle the time alignment of data from each
 
 ## Which figures are related to which streams:
 * Figure 1 contains recordings in xml data and the currents are on the folder organization. It also has some confocal imaging.
-* Figure 2 has optogenetics and image stacks
+* Figure 2 This has the image stacks (spine density) and intracellular electrophysiology data with optogenetic stimuliation (Sr-oEPSC).
 * Figure 3 also intracellular electrophysiology
 * Figure 4 like figure 2 but also has "confocal spine density" data.
 * Figure 5: should have fluoresence traces. This looks like it has two photon time
@@ -591,31 +591,59 @@ The data of figure 2
 
 Relevant section from the methods:
 
-> For assessment of dendritic spine density, images of dendritic segments (proximal: ~40 μm
-> from soma; distal: > 80 μm from soma) were acquired with 0.15 μm pixels with 0.3 μm z-steps.
-> Images were deconvolved in AutoQuant X3.0.4 (MediaCybernetics, Rockville, MD) and semi-
-> automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount
-> Sinai School of Medicine, New York). On average, two proximal and two distal dendrites were
-> imaged and analyzed per neuron.
+> For assessment of dendritic spine density, images of dendritic segments (proximal: ~40 μm from soma; distal: > 80 μm from soma) were acquired with 0.15 μm pixels with 0.3 μm z-steps. Images were deconvolved in AutoQuant X3.0.4 (MediaCybernetics, Rockville, MD) and semi-automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai School of Medicine, New York). On average, two proximal and two distal dendrites were imaged and analyzed per neuron.
 
 
-This is data that counts the density of the spines and is presented as image stacks.It does not seem that the segmentation data is available but the confocal stacks are
+This is data that counts the density of the spines and is presented as image stacks.It does not seem that the segmentation data is available but the confocal stacks are. It seems that most images are deconvolved images and the software used is AutoQuant X3.0.4:
+
+https://mediacy.com/image-pro/autoquant-deconvolution/
 
 
+
+The density was counted with [NeuronStudio](https://biii.eu/neuronstudio/) but it seems that the data is not available in the shared data. Looking for extensions that might be related to this software returns nothing:
+
+```bash
+find . -type f -name "*.*" | rev | cut -d. -f1 | rev | sort | uniq
+DS_Store
+env
+tif
+xml
+```
+
+Folder for Spine Density:
+```bash
+├── Spine density
+│   ├── control dSPN
+│   ├── LID off-state dSPN
+│   ├── LID on-state dSPN
+│   └── PD dSPN  # PD most likely means Parkinson's disease
+
+```
 
 LID on-state dSPN:
 
 ```bash
-0411a2019  05012019a  0706a  0707a  0719a  0720a
-04122019a  05032019a  0706b  0707b  0719b  0721a
+0411a2019   # April 11, 2019,  "a"
+04122019a   # April 12, 2019,  "a"
+05012019a   # May 1, 2019,  "a"
+0706a       # July 6, 2017,  "a"
+0706b       # July 6, 2017,  "b" (same date, different animal or cell, this is unclear)
+0707a       # July 7, 2017,  "a"
+...
 ```
-Not clear why the folder have such a different name convention.
 
-Here the bottom are confocal stacks:
+
+Looking at the data under the subjects it seems that the naming convention is as follows:
+```bash
+2017 data: MMDD format (0706, 0707)
+2019 data: MMDDYYYY format (0411a2019, 04122019a)
+```
+
+See the structure
 
 ```bash
 .
-├── 0411a2019
+├── 0411a2019  # Reading the methodology code above, it seems that this is a single cell
 │   └── Decon_20190411_Cell1_dist1
 ├── 04122019a
 │   └── Decon_20190412_Cell1_prox12
@@ -626,7 +654,7 @@ Here the bottom are confocal stacks:
 │   └── Decon20190503_Cell1_Prox1-001
 ├── 0706a
 │   ├── Decon_07062017_Cell1_dist1
-│   ├── Decon_07062017_Cell1_dist2
+│   ├── Decon_07062017_Cell1_dist2    # Two proximal and two distal dendrites
 │   ├── Decon_20170706_Cell1_prox12
 │   └── Decon_20170706_Cell1_prox2
 ├── 0706b
@@ -635,14 +663,16 @@ Here the bottom are confocal stacks:
 │   ├── Decon_20170706_Cell2_prox1
 │   └── Decon_20170706_Cell2_prox2
 ├── 0707a
-│   ├── Decon_20170707_Cell1_dist1
+│   ├── Decon_20170707_Cell1_dist1  # See that both the letter and the cell number change for 0707
 │   ├── Decon_20170707_Cell1_dist2
 │   ├── Decon_20170707_Cell1_prox1
 │   └── Decon_20170707_Cell1_prox23
 ├── 0707b
-│   ├── Decon_20170707_Cell2_prox12
+│   ├── Decon_20170707_Cell2_prox12   # See that both the letter and the cell number change for 0707
 │   └── Decon_20170707_Cell2_realprox12
 ```
+
+As stated above, most probably what I am setting here is the deconvolved images (Auto).
 
 Inside there seems to be stacks:
 
@@ -664,11 +694,11 @@ Inside there seems to be stacks:
 
 ```
 
-There is only one image per file.
+There is only one image per tiff-file (one page).
 
 ### Sr-oEPSC
 
-I think this is the sectio of the methods that describes the Sr-oEPSC experiments:
+I think this is the section of the methods that describes the Sr-oEPSC experiments:
 
 > For Sr2+-oEPSC experiments, patch pipettes (3-4 MΩ resistance) were loaded with 120 CsMeSO3, 5 NaCl, 0.25 EGTA, 10 HEPES, 4 Mg-ATP, 0.3 Na-GTP, 10 TEA, 5 QX-314 (pH 7.25,osmolarity 280-290 mOsm/L). SPNs were held at -70 mV in the voltage-clamp configuration. After patching, recording solution was changed to Ca2+-free ACSF containing 3 mM SrCl2 and 10 μM gabazine (10 μM, to suppress GABAA-mediated currents). Slices were incubated with this Ca2+-free solution for 25 min before recording. EPSCs were evoked every 30 s by whole-field LED illumination (single 0.3-ms pulses)
 
@@ -742,9 +772,6 @@ nwbfile.add_ogen_site(ogen_site)
 
 not sure it is worth adding an `OptogeneticSeries` maybe take a look at the ;[ndx-optogenetics](https://github.com/rly/ndx-optogenetics
 ) extension:
-
-
-
 
 
 #### Data structure
@@ -1046,21 +1073,21 @@ Let's focus on the raw data:
 
 Two Python libraries are available for reading ND2 files:
 
-### [pims_nd2](https://github.com/soft-matter/pims_nd2/tree/master)
+[pims_nd2](https://github.com/soft-matter/pims_nd2/tree/master)
 - Relies on Nikon's proprietary SDK (it bundles it)
 - More compatible with a variety of ND2 file versions
 - Potentially more robust for complex or older files
 - May require additional installation steps due to SDK dependency
 - Used by pims
 
-### [nd2reader](https://github.com/Open-Science-Tools/nd2reader)
+[nd2reader](https://github.com/Open-Science-Tools/nd2reader)
 - Pure Python implementation
 - Easier to install and use in restricted environments
 - May not handle all ND2 variants
 - Less robust for edge cases compared to pims_nd2
 - No longer maintained
 
-### [nd2 tlambert03](https://talleylambert.com/nd2/)
+[nd2 tlambert03](https://talleylambert.com/nd2/)
 - Uses a pure python implementation of the Nikon ND2 file format
 - Handles all the variants with the "legacy" extra flag with pip installation
 - has lazy loading through memmap usage
@@ -1069,13 +1096,13 @@ Two Python libraries are available for reading ND2 files:
 
 I am going with `nd2 tlambert03` as it is the most robust and the most complete in the extraction of metadata. There is also the bioformats reader but that requires java which complicates the distribution and installation of the package.
 
-### Processed data in Figure 4I
+*Processed data in Figure 4I*
 
 Both ims nad ims Imari software data are contained. How to read this in python?
 
 
 
-## Figure 4J and Suppl Fig 5
+#### Figure 4J and Suppl Fig 5
 Figure 4J showed confocal detects more spines, but Supplemental Figure 5 proved WHY and validated the central hypothesis that spine size changes, not spine number changes, drive the apparent 2PLSM oscillations. Without this validation, the spine size hypothesis would remain speculative rather than proven. But they both contain the same data.
 
 ```bash
@@ -1495,7 +1522,7 @@ ls -R | rg ".MP4"
 ```
 
 
-# Things that would ben nice to do:
+# Things that would be nice to do:
 - Extract the times of the intracelluar events so we can write a single time series instead of many.
 - Add an extension for line scan data
 - Add an extension for image stacks that keeps the metadata of the microscopy

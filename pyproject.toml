@@ -15,9 +15,12 @@ classifiers = [
 ]
 
 dependencies = [
-  "neuroconv==0.7.3",
+  "neuroconv>=0.7.4",
   "nwbinspector",
   "lxml",
+  "nd2>=0.10.3",
+  "xmltodict>=0.14.2",
+  "tifffile>=2025.5.10",
 ]
 
 [project.urls]
@@ -84,9 +87,13 @@ fixable = ["ALL"]
 relative-imports-order = "closest-to-furthest"
 known-first-party = ["surmeier_lab_to_nwb"]
 
+[tool.uv.sources]
+neuroconv = { path = "../neuroconv", editable = true }
+
 
 [dependency-groups]
 dev = [
     "ipykernel>=6.29.5",
+    "matplotlib>=3.10.3",
     "pre-commit>=4.2.0",
 ]
