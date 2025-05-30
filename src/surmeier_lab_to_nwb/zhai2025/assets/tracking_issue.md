@@ -12,10 +12,14 @@
 These are the points that we wrote in the scope of work
 
 ## Build interfaces to convert the following data streams to NWB format:
-- [x] Convert ABF format
-- [x] Convert Bruker optical sensor recordings with appropriate metadata
-- [x] Convert electrophysiological data acquired with the Bruker system
+- [x] Convert ABF format: this data is not available and it will not be converted
+- [x] Convert Bruker optical sensor recordings with appropriate metadata:
+    - [x] Line Scans [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+    - [ ] Fluorescence traces.
+- [x] Convert electrophysiological data acquired with the Bruker system [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Build an interface for manual segmentation data in Surmeier lab format
+    - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
+    - [ ] Confocal microscopy image stacks for spine density
 - [ ] Integrate behavioral annotations from Surmeier lab custom format
 - [ ] Include behavioral video recordings
 - [ ] Include electrical stimulation signals and metadata
@@ -26,15 +30,33 @@ The data, however, was packaged per figure so I am gonna show progress per figur
 
 ## Figure 1:
 Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
-- [ ] Build needed interfaces
-- [ ] Conversion script
+### Somatic Excitability
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/1)
 - [ ] Metadata
 - [ ] Inspector
 - [ ] Upload data
 
+### Dendritic Excitability
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
+- [ ] Metadata
+- [ ] Inspector
+- [ ] Upload data
+
+
 ## Figure 2:
 This has the image stacks (spine density) and intracellular electrophysiology (CurrentClamp) data with optogenetic stimulation (Sr-oEPSC). The image stacks here are from two-photon laser scanning microscopy.
-- [ ] Build needed interfaces
+
+### Spine density image stacks
+- [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)
+- [ ] Metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### CurrentClamp with optogenetic stimulation
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
 - [ ] Metadata
 - [ ] Inspector
@@ -42,7 +64,16 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 
 ## Figure 3:
 Intracellular electrophysiology (VoltageClamp) and LineScan data.
-- [ ] Build needed interfaces
+
+## Somatic Excitability
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
+- [ ] Conversion script
+- [ ] Metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Dendritic Excitability
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
 - [ ] Metadata
 - [ ] Inspector
@@ -89,7 +120,12 @@ Behavioral scoring, intracellular electrophysiology (VoltageClamp), two-photon l
 - [ ] Upload data
 
 ## Nice to have
-- TODO
+
+First ensure that the raw data is available and on dandi and then we can do these improvements:
+- [ ] Extract the times of the intracellular events so we can write a single time series instead of many.
+- [ ] Add an extension for line scan data
+- [ ] Add an extension for image stacks that keeps the metadata of the microscopy
+- [ ] Separate the nwbfiles per subject
 
 # Data uploading and conversion packaging
 - [ ] Setup Dandiset(s):
