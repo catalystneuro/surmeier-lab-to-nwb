@@ -49,12 +49,12 @@ What is this Device:
 Build interfaces to convert the following data streams to NWB format:
 
 - Convert ABF format: I have not found .abf data
-- Convert Bruker optical sensor recordings with appropriate metadata.
-- Convert electrophysiological data acquired with the Bruker system
+- Convert Bruker optical sensor recordings with appropriate metadata: these are the line scans and the full-field timelapse image of figure 5.
+- Convert electrophysiological data acquired with the Bruker system: the prairie view data.
 - Build an interface for manual segmentation data in Surmeier lab format.
-- Integrate behavioral annotations from Surmeier lab custom format. Is this AIM scoring?
-- Include behavioral video recordings. Are those
-- Include electrical stimulation signals and metadata. I think this is on figure 5
+- Integrate behavioral annotations from Surmeier lab custom format. AIM scoring and contralateral rotations.
+- Include behavioral video recordings.  Videos are present.
+- Include electrical stimulation signals and metadata. Those are the .xml data from PrairieView and the *VolageOutput*.xml files that contain a textual description of the stimulus.
 
 Each conversion will utilize compression for efficient storage and implement chunking strategies to optimize for cloud storage. Detailed documentation will be provided for the installation and usage of the conversion software, including scripts to handle data from various protocols:
 1. Ex-vivo brain slices with optogenetics: combine ABF recordings with optogenetic stimulus information.
@@ -65,14 +65,14 @@ Each conversion will utilize compression for efficient storage and implement chu
 The conversion of each protocol will handle the time alignment of data from each data stream.
 
 ## Which figures are related to which streams:
-* Figure 1 contains recordings in xml data and the currents are on the folder organization. It also has some confocal imaging.
-* Figure 2 This has the image stacks (spine density) and intracellular electrophysiology data with optogenetic stimuliation (Sr-oEPSC).
-* Figure 3 also intracellular electrophysiology
-* Figure 4 like figure 2 but also has "confocal spine density" data.
-* Figure 5: should have fluoresence traces. This looks like it has two photon time
-* Figure 6
-* Figure 7
-* Figure 8
+* Figure 1: Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
+* Figure 2: This has the image stacks (spine density) and intracellular electrophysiology (CurrentClamp) data with optogenetic stimulation (Sr-oEPSC). The image stacks here are from two-photon laser scanning microscopy.
+* Figure 3: also intracellular electrophysiology (VoltageClamp), LineScan data
+* Figure 4: This has image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
+* Figure 5: Fluorescence imaging data from two-photon laser scanning microscopy.
+* Figure 6: Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density and line scans.
+* Figure 7: Intracellular electrophysiology (VoltageClamp),  two-photon laser stacks for spine density, and line scans. Behavior scoring data (AIM) and behavioral videos.
+* Figure 8: Behavioral scoring, intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density, and line scans.
 
 # Data Organization - Raw data for Figs
 
@@ -839,7 +839,115 @@ And inside there
 
 These are like the experiments of figure 1
 
+```bash
+.
+├── Dendritic excitability
+│   ├── LID off-state
+│   ├── LID on-state
+│   └── LID on-state with sul
+└── Somatic excitability
+    ├── LID off-state
+    ├── LID on-state
+    └── LID on-state with sul (iSPN)
 
+9 directories
+```
+
+### Dendritic excitability
+
+```bash
+.
+├── LID off-state
+│   ├── 0523a
+│   │   ├── 05232016_Cell1_dist1_trio-001
+│   │   ├── 05232016_Cell1_dist1_trio-002
+│   │   ├── 05232016_Cell1_dist1_trio-003
+│   │   ├── 05232016_Cell1_dist2_trio-001
+│   │   ├── 05232016_Cell1_dist2_trio-002
+│   │   ├── 05232016_Cell1_dist2_trio-003
+│   │   ├── 05232016_Cell1_prox1_trio-001
+│   │   ├── 05232016_Cell1_prox1_trio-002
+│   │   ├── 05232016_Cell1_prox1_trio-003
+│   │   ├── 05232016_Cell1_prox2_trio-001
+│   │   ├── 05232016_Cell1_prox2_trio-002
+│   │   └── 05232016_Cell1_prox2_trio-003
+│   ├── 0523b
+│   │   ├── 05232016_Cell2_dist1_trio-001
+│   │   ├── 05232016_Cell2_dist1_trio-002
+│   │   ├── 05232016_Cell2_dist1_trio-003
+│   │   ├── 05232016_Cell2_dist2_trio-001
+│   │   ├── 05232016_Cell2_dist2_trio-002
+│   │   ├── 05232016_Cell2_dist2_trio-003
+│   │   ├── 05232016_Cell2_prox1_trio-001
+│   │   ├── 05232016_Cell2_prox1_trio-002
+│   │   ├── 05232016_Cell2_prox1_trio-003
+```
+
+And each of the folders has raw line scan data, VoltageClamp and the line scan fluoresence data.
+
+### Somatic excitability
+
+This is Voltage Clamp data used to estimate rheobase curves
+
+```bash
+.
+├── LID off-state
+│   ├── 05232016_1
+│   │   ├── cell1-001
+│   │   ├── cell1-002
+│   │   ├── cell1-003
+│   │   ├── cell1-004
+│   │   ├── cell1-005
+│   │   ├── cell1-006
+│   │   ├── cell1-007
+│   │   ├── cell1-008
+│   │   ├── cell1-009
+│   │   ├── cell1-010
+│   │   ├── cell1-011
+│   │   ├── cell1-012
+│   │   ├── cell1-013
+│   │   ├── cell1-014
+│   │   ├── cell1-015
+│   │   ├── cell1-016
+│   │   ├── cell1-017
+│   │   ├── cell1-018
+│   │   ├── cell1-019
+│   │   ├── cell1-020
+│   │   └── cell1-021
+│   ├── 05232016_2
+│   │   ├── cell2-001
+│   │   ├── cell2-002
+│   │   ├── cell2-003
+│   │   ├── cell2-004
+│   │   ├── cell2-005
+│   │   ├── cell2-006
+│   │   ├── cell2-007
+│   │   ├── cell2-008
+│   │   ├── cell2-009
+│   │   ├── cell2-010
+```
+
+Where each folder is for a specific current level stimulus and each folder contains only VotlageClamp data from Prairie View.
+
+```bash
+.
+├── LID off-state
+│   ├── 05232016_1
+│   │   ├── cell1-001
+│   │   │   ├── cell1-001_Cycle00001_VoltageOutput_001.xml
+│   │   │   ├── cell1-001_Cycle00001_VoltageRecording_001.csv
+│   │   │   ├── cell1-001_Cycle00001_VoltageRecording_001.xml
+│   │   │   ├── cell1-001.xml
+│   │   │   └── References
+│   │   ├── cell1-002
+│   │   │   ├── cell1-002_Cycle00001_VoltageOutput_001.xml
+│   │   │   ├── cell1-002_Cycle00001_VoltageRecording_001.csv
+│   │   │   ├── cell1-002_Cycle00001_VoltageRecording_001.xml
+│   │   │   ├── cell1-002.xml
+│   │   │   └── References
+```
+
+###
 
 ## Figure 4
 
@@ -1399,7 +1507,7 @@ There are images stacks like the spine density in Figure 2.
 > The M1R-mediated modulation of iSPN dendrites is dependent upon CalDAG-GEFI (CDGI), a striatum-enriched, Ca²⁺-activated guanine nucleotide exchange factor
 
 
-ReadMe.rtf
+`ReadMe.rtf`
 
 ```
 {\rtf1\ansi\ansicpg1252\cocoartf2761
@@ -1728,116 +1836,169 @@ With patch clamp data, raw line scans and fluoresence data from the line scans.
 ## Figure 8
 
 ```bash
-tree -L 2
 .
 ├── M1R CRISPR AIMs
-│   └── AIM raw score_M1R CRISPR.xlsx
-├── M1R CRISPR SE
-│   ├── interleaved control
-│   └── M1R CRISPR
-└── M1R CRISPR spine density
-    ├── control
-    └── M1R CRISPR
+│   └── AIM raw score_M1R CRISPR.xlsx  AIM scores like the ones in the previous figure
+├── M1R CRISPR SE # Fig 8C-D
+│   ├── interleaved control # Control iSPNs somatic excitability data
+│   └── M1R CRISPR # M1R-deleted iSPNs somatic excitability dat
+└── M1R CRISPR spine density # Fig 8E-F
+   ├── control  # Control iSPN spine morphology - off-state
+   └── M1R CRISPR # M1R-deleted iSPN spine morphology - off-state
 ```
+
+M1R CRISPR refers to the CRISPR-Cas9 gene editing technique used to delete M1 muscarinic receptors (M1Rs) specifically from iSPNs.
+
+From the paper's methods:
+
+> Control mice were injected with only the gRNA-FR vector"
+
+Experimental Groups:
+* M1R CRISPR group:  AAV-Cas9 + AAV-gRNA-FusionRed  →  M1R deletion
+* Control group:     Saline + AAV-gRNA-FusionRed     →  No M1R deletion
 
 ### M1R CRISPR SE
 
-```bash
-tree -L 3 -I "*.xml|*.env|*.csv"
-```
-Only contains this three types of files that look like this:
+These are somatic excitability experiments with M1R CRISPR mice. The structure is like the one in figure 1:
 
 ```bash
 .
-├── cell1-001
-│   ├── cell1-001_Cycle00001_VoltageOutput_001.xml
-│   ├── cell1-001_Cycle00001_VoltageRecording_001.csv
-│   ├── cell1-001_Cycle00001_VoltageRecording_001.xml
-│   ├── cell1-001.env
-│   ├── cell1-001.xml
+├── interleaved control
+│   ├── 20221012a
+│   ├── 20221012b
+│   ├── 20221012c
+│   ├── 20221130a
+│   ├── 20221130b
+│   └── 20221130c
+└── M1R CRISPR
+    ├── 20221004b
+    ├── 20221004c
+    ├── 20221005a
+    ├── 20221005c
+    ├── 20221005d
+    ├── 20221129a
+    ├── 20221129b
+    └── 20221129c
+
+17 directories
+```
+This contains sessions of patch clamp data and every session is divided to take into account the stimuli like in figure 1
+
+```bash
+.
+├── 20221004b
+│   ├── cell2-001
+│   ├── cell2-002
+│   ├── cell2-003
+│   ├── cell2-004
+│   ├── cell2-005
+│   ├── cell2-006
+│   ├── cell2-007
+│   ├── cell2-008
+│   ├── cell2-009
+│   ├── cell2-010
+│   ├── cell2-011
+│   ├── cell2-012
+│   ├── cell2-013
+│   ├── cell2-014
+│   ├── cell2-015
+│   ├── cell2-016
+│   ├── cell2-017
+│   ├── cell2-018
+│   ├── cell2-019
+│   ├── cell2-020
+│   └── cell2-021
+├── 20221004c
+│   ├── cell3-001
+
+```
+Each of the session folder (one per level of the stimuli) contains only patch clamp data:
+
+
+```bash
+.
+├── cell2-001
+│   ├── cell2-001_Cycle00001_VoltageOutput_001.xml
+│   ├── cell2-001_Cycle00001_VoltageRecording_001.csv
+│   ├── cell2-001_Cycle00001_VoltageRecording_001.xml
+│   ├── cell2-001.env
+│   ├── cell2-001.xml
+│   └── References
+├── cell2-002
+│   ├── cell2-002_Cycle00001_VoltageOutput_001.xml
+│   ├── cell2-002_Cycle00001_VoltageRecording_001.csv
+│   ├── cell2-002_Cycle00001_VoltageRecording_001.xml
+│   ├── cell2-002.env
+│   ├── cell2-002.xml
 │   └── References
 
 ```
 
 
 ### M1R CRISPR spine density
-I expected to see spine density calculations on the M1R CRISPR spie density but there is only xml files
+
+These are image stacks like the ones of figure 2.
+
 
 ```bash
-tree -L 4 -I "*.tif*"
 .
 ├── control
 │   ├── 20221012a
-│   │   ├── Decon_20221012_cell1_dist1
-│   │   ├── Decon_20221012_cell1_dist2
-│   │   ├── Decon_20221012_cell1_prox1
-│   │   └── Decon_20221012_cell1_prox2
 │   ├── 20221012b
-│   │   ├── Decon_20221012_cell2_dist1
-│   │   ├── Decon_20221012_cell2_dist2
-│   │   ├── Decon_20221012_cell2_prox1
-│   │   └── Decon_20221012_cell2_prox23
 │   ├── 20221012c
-│   │   ├── Decon_20221012_cell3_dist1
-│   │   ├── Decon_20221012_cell3_prox1
-│   │   └── Decon_20221012_cell3_prox2
 │   ├── 20221130a
-│   │   ├── Decon_20221130_cell1_dist1
-│   │   ├── Decon_20221130_cell1-dist2
-│   │   ├── Decon_20221130_cell1_prox1
-│   │   └── Decon_20221130_cell1_prox2
 │   ├── 20221130b
-│   │   ├── Decon_20221130_cell2_dist12
-│   │   ├── Decon_20221130_cell2_prox1
-│   │   └── Decon_20221130_cell2_prox2
 │   └── 20221130c
-│       ├── Decon_20221130_cell3_dist1
-│       ├── Decon_20221130_cell3_dist2
-│       └── Decon_20221130_cell3_prox12
 └── M1R CRISPR
     ├── 20221004a
-    │   ├── Decon_20221004_cell1_dist1
-    │   ├── Decon_20221004_Cell1_medium12
-    │   └── Decon_20221004_cell1_prox1
     ├── 20221004b
-    │   ├── Decon_20221004_cell2_dist1
-    │   ├── Decon_20221004_cell2_dist2
-    │   ├── Decon_20221004_cell2_prox1
-    │   └── Decon_20221004_cell2_prox23
     ├── 20221004c
-    │   ├── Decon_20221004_cell3_dist1
-    │   ├── Decon_20221004_cell3_dist2
-    │   ├── Decon_20221004_cell3_prox1
-    │   └── Decon-20221004_cell3_prox2
     ├── 20221004d
-    │   ├── Decon_20221004_cell4_dist1
-    │   └── Decon_20221004_cell4_prox1
     ├── 20221005a
-    │   ├── Decon_20221004_cell1_dist1
-    │   ├── Decon_20221004_cell1_dist2
-    │   ├── Decon-20221005_cell1_prox1
-    │   └── Decon_20221005_cell1_prox2
     ├── 20221005b
-    │   ├── Decon-20221005_cell2_dist1
-    │   └── Decon_20221005_cell2_prox1
     ├── 20221005c
-    │   ├── Decon_20221005_cell3_dist1
-    │   └── Decon-20221005_cell3_prox12
     ├── 20221129a
-    │   ├── Decon_20221129_cell1_dist1
-    │   ├── Decon_20221129_cell1_dist2
-    │   ├── Decon_20221129_cell1_prox12
-    │   └── Decon_20221129_cell1_prox3
     ├── 20221129b
-    │   ├── Decon_20221129_cell2_dist1
-    │   ├── Decon_20221129_cell2_dist2
-    │   ├── Decon_20221129_cell2_prox1
-    │   └── Decon_20221129_cell2_prox2
     └── 20221129c
-        ├── Decon-20221129_cell3_dist12
-        ├── Decon_20221129_cell3_prox1
-        └── Decon_20221129_cell3_prox2
+
+19 directories
 ```
+
+For each of the cells there are density measurements at different distances from the soma, like in figure 2:
+
+```bash
+.
+├── 20221004a
+│   ├── Decon_20221004_cell1_dist1
+│   ├── Decon_20221004_Cell1_medium12
+│   └── Decon_20221004_cell1_prox1
+├── 20221004b
+│   ├── Decon_20221004_cell2_dist1
+│   ├── Decon_20221004_cell2_dist2
+│   ├── Decon_20221004_cell2_prox1
+│   └── Decon_20221004_cell2_prox23
+├── 20221004c
+│   ├── Decon_20221004_cell3_dist1
+│   ├── Decon_20221004_cell3_dist2
+│   ├── Decon_20221004_cell3_prox1
+│   └── Decon-20221004_cell3_prox2
+```
+
+And the stacks inside are like the ones in figure 2:
+
+```bash
+.
+├── 20221004a
+│   ├── Decon_20221004_cell1_dist1
+│   │   ├── 20_ZSeries-20221004_cell1_dist1-001_Cycle00001_Ch1_#.ome_Z01.tif
+│   │   ├── 20_ZSeries-20221004_cell1_dist1-001_Cycle00001_Ch1_#.ome_Z02.tif
+│   │   ├── 20_ZSeries-20221004_cell1_dist1-001_Cycle00001_Ch1_#.ome_Z03.tif
+│   │   ├── 20_ZSeries-20221004_cell1_dist1-001_Cycle00001_Ch1_#.ome_Z04.tif
+│   │   ├── 20_ZSeries-20221004_cell1_dist1-001_Cycle00001_Ch1_#.ome_Z05.tif
+│   │   ├── 20_ZSeries-20221004_cell1_dist1-001_Cycle00001_Ch1_#.ome_Z06.tif
+│   │   ├── 20_ZSeries-20221004_cell1_dist1-001_Cycle00001_Ch1_#.ome_Z07.tif
+```
+
 
 ## Supplementary Figure 3
 
