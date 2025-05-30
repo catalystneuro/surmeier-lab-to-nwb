@@ -21,6 +21,8 @@ dependencies = [
   "nd2>=0.10.3",
   "xmltodict>=0.14.2",
   "tifffile>=2025.5.10",
+  "roiextractors>=0.5.13",
+  "hdmf==4.0.0",
 ]
 
 [project.urls]
@@ -89,6 +91,7 @@ known-first-party = ["surmeier_lab_to_nwb"]
 
 [tool.uv.sources]
 neuroconv = { path = "../neuroconv", editable = true }
+roiextractors = { path = "../roiextractors", editable = true }
 
 
 [dependency-groups]

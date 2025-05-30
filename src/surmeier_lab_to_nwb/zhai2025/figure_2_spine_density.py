@@ -159,7 +159,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
 
     # TODO: add microscope device
 
-    subfolders = [f for f in session_folder.iterdir() if f.is_dir()]
+    subfolders = [f for f in session_folder_path.iterdir() if f.is_dir()]
 
     print(f"Found {len(subfolders)} image stacks in session")
 
