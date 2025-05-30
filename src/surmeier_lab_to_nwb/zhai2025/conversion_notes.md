@@ -1310,6 +1310,62 @@ tree -L 2
 
 ```
 
+### Dendritic excitability
+
+This data looks like the one from figure 1 but is a different condition:
+
+```bash
+.
+├── control
+│   ├── 0217a
+│   │   ├── 02172020_Cell1_dist1_trio-001
+│   │   │   ├── 02172020_Cell1_dist1_trio-001_Cycle00001_Ch1_000001.ome.tif
+│   │   │   ├── 02172020_Cell1_dist1_trio-001_Cycle00001_Ch2_000001.ome.tif
+│   │   │   ├── 02172020_Cell1_dist1_trio-001_Cycle00001_LineProfileData.csv
+│   │   │   ├── 02172020_Cell1_dist1_trio-001_Cycle00001_VoltageOutput_001.xml
+│   │   │   ├── 02172020_Cell1_dist1_trio-001_Cycle00001_VoltageRecording_001.csv
+│   │   │   ├── 02172020_Cell1_dist1_trio-001_Cycle00001_VoltageRecording_001.xml
+│   │   │   └── References
+
+```
+That is, patch clamp data, raw line scans and fluoresence data from the line scans.
+
+
+###  Somatic Excitability
+
+Also like data from the figure 1 but different condition:
+
+```bash
+head -n 30
+.
+├── control
+│   ├── 0217a
+│   │   ├── cell1-001
+│   │   │   ├── cell1-001_Cycle00001_VoltageOutput_001.xml
+│   │   │   ├── cell1-001_Cycle00001_VoltageRecording_001.csv
+│   │   │   ├── cell1-001_Cycle00001_VoltageRecording_001.xml
+│   │   │   ├── cell1-001.xml
+│   │   │   └── References
+```
+
+That is, only patch clamp data.
+
+### Spine Density
+
+```bash
+
+.
+├── control
+│   ├── 02172020a
+│   │   ├── Decon_20200217_Cell1_dist12
+│   │   │   ├── 20_ZSeries-20200217_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z01.tif
+│   │   │   ├── 20_ZSeries-20200217_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z02.tif
+│   │   │   ├── 20_ZSeries-20200217_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z03.tif
+│   │   │   ├── 20_ZSeries-20200217_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z04.tif
+```
+
+There are images stacks like the spine density in Figure 2.
+
 ## Figure 7
 
 ```bash
