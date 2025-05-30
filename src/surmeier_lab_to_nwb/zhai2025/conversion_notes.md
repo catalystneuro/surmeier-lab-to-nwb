@@ -31,6 +31,7 @@ https://docs.google.com/document/d/1ITmVEEOQ1TbBC8hvZvkdQ-VcdW9_ynUWFwfRxBBrAGQ/
 * **CDGI** stands for CalDAG-GEFI, a calcium-activated guanine nucleotide exchange factor that is highly expressed in the striatum. It plays a critical role in linking M1 muscarinic receptor activation to intracellular signaling pathways that regulate dendritic excitability and synaptic plasticity in indirect pathway spiny projection neurons (iSPNs). In the paper, disrupting CDGI was found to blunt the dendritic adaptations in iSPNs and reduce dyskinetic behaviors, suggesting its important role in the pathophysiology of levodopa-induced dyskinesia.
 * **D1**: Direct pathway spiny projection neurons (dSPNs) that express dopamine D1 receptors
 * **D2**: Indirect pathway spiny projection neurons (iSPNs) that express dopamine D2 receptors
+* **ACSF** stands for Artificial Cerebrospinal Fluid
 
 Corroborate this:
 The STK metadata in this context likely refers to metadata extracted from a MetaMorph STK file, a format used in microscopy for storing image sequences. STK files are essentially TIFF files with additional MetaMorph-specific metadata embedded in the tags. This metadata typically contains acquisition parameters, calibration details, and channel information.
@@ -193,8 +194,6 @@ How do they look:
    6   │ </PVScan>
 ```
 
-- cell1-001_Cycle00001_VoltageOutput_001.xml
-These is just a TimeSeries with two columns (time in ms) and Primary which from the xml should be in mv
 
 - cell1-001_Cycle00001_VoltageRecording_001.xml
 Most likely  XML describing how the raw data are acquired and scaled, which signals are recorded vs. disabled, and how the software’s user interface plots them.
@@ -1137,13 +1136,34 @@ What are:
 
 ## Figure 5
 
+This is the relevant section of the methods:
+
+> ACh release was assessed by imaging GRABACh3.0, a genetically encoded fluorescent sensor of ACh, using 2PLSM. Acute slices with striatal expression of GRABACh3.0 were prepared as described  above, transferred to a recording chamber, and continuously perfused with normal ACSF at 32–34°C. A two-photon laser (Chameleon Ultra II, Coherent, Santa Clara, CA) tuned to 920 nm was used to excite  GRABACh3.0. Fluorescence was imaged using an Ultima In Vitro Multiphoton Microscope system   (Bruker, Billerica, MA) with an Olympus 60x/0.9 NA water-immersion objective lens and a Hamamatsu  H7422P-40 GaAsP PMT (490 nm to 560 nm, Hamamatsu Photonics, Hamamatsu, Japan).
+>
+> Time series images of the GRABACh3.0 were acquired with 0.388 μm × 0.388 μm pixels, 8-μs dwell time  and a frame rate of 21.26 fps. After 3-s baseline acquisition, synchronous ACh release was evoked by  delivering a single (1 ms x 0.3 mA) or a train of 20 electrical stimuli (1 ms x 0.3 mA at 20 Hz) by a  concentric bipolar electrode (CBAPD75, FHC) placed at 200 μm ventral to the region of interest.  Imaging was continued for at least another 5 s. Two trials were performed for each stimulation  protocol and data averaged. The slices were imaged for (in this sequence) control, 50 nM DA (only  for lesioned mice), 10 μM quinpirole and 10 μM sulpiride treatment conditions, with at least 5 min  of perfusion for each treatment.
+>
+> The minimal (Fmin) and maximal fluorescence intensity (Fmax) were determined by applying 10 μM TTX  (to block any basal transmission) and 100 μM acetylcholine chloride (to saturate GRABACh3.0 signal),  respectively. The whole image was the region of interest (ROI) used for analysis. Fluorescent intensity  data were analyzed by custom Python code (accessible upon request). Briefly, the fluorescence  intensity values were first background-subtracted (the background resulted from PMT was measured  by imaging with same PMT voltage but zero laser power). Baseline fluorescence F0 was the average  fluorescence over the 1 s period right before stimulation. ΔF = F − F0 was normalized by  (Fmax − Fmin) and then analyzed.
 ```bash
 .
 ├── LID off (Figure 5 E)
-├── PD (6-OHDA) (Figure 5 D)
-└── UL control (Figure 5 C)
+├── PD (6-OHDA lessioned Figure 5 D)
+└── UL control (Unlessioned Figure 5 C)
 ```
 Note that each of them correspond to a paper figure
+
+Some terminology to understand the file organization
+```
+ctr = Control (baseline ACSF)
+50nMDA = 50 nM dopamine application (mimics on-state DA levels)
+quin = Quinpirole (D2R agonist)
+sul = Sulpiride (D2R antagonist)
+ACh = 100 μM acetylcholine (for sensor saturation/calibration)
+TTX = Tetrodotoxin (blocks sodium channels, determines F_min)
+```
+
+Stimulation Protocols:
+* single = Single pulse electrical stimulation (1 ms × 0.3 mA)
+* burst = Burst stimulation (20 pulses at 20 Hz)
 
 • Quinpirole is a D2 receptor agonist. When applied, it activates D2 receptors on cholinergic interneurons, leading to a suppression of ACh release.
 
@@ -1151,6 +1171,9 @@ Note that each of them correspond to a paper figure
 
 • +Sulpiride refers to the application of a D2 receptor antagonist. By blocking D2 receptors, sulpiride prevents dopamine from exerting its inhibitory effect on ACh release, resulting in an increased evoked ACh signal.
 
+
+Ch2 (PMT gain 900) = GRAB^ACh3.0^ fluorescence channel
+Ch3 (PMT gain 320, "Dodt") = Transmitted light/reference channel
 
 ```bash
 .
@@ -1193,19 +1216,82 @@ Note that each of them correspond to a paper figure
     └── 04102024slice2ROI2
 ```
 
-These folders contain what looks like Two Photon time series data:
+Why ROI1 and ROI2?
+
+Maybe different fields of view within the same slice, possibly to increase sampling or find optimal expression areas.
+
+This will be relevant when doing subject matching at the end
+
+If I look inside a tissue folder the following folders are found:
 
 ```bash
-├── BOT_04122024_slice1ROI1_sul_single-002
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001-botData.csv
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000001.ome.tif
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000002.ome.tif
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000003.ome.tif
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000004.ome.tif
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000005.ome.tif
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000006.ome.tif
-│   ├── BOT_04122024_slice1ROI1_sul_single-002_Cycle00001_Ch2_000007.ome.tif
+BOT_04162024_slice2ROI1_50nMDA_burst-001     # 50 nM dopamine + burst stimulation (20 pulses at 20 Hz) - trial 1
+BOT_04162024_slice2ROI1_50nMDA_burst-002     # 50 nM dopamine + burst stimulation (20 pulses at 20 Hz) - trial 2
+BOT_04162024_slice2ROI1_50nMDA_single-001    # 50 nM dopamine + single pulse stimulation - trial 1
+BOT_04162024_slice2ROI1_50nMDA_single-002    # 50 nM dopamine + single pulse stimulation - trial 2
+BOT_04162024_slice2ROI1_ACh-001              # 100 μM acetylcholine saturation (for F_max calibration)
+BOT_04162024_slice2ROI1_ctr_burst-001        # Control baseline ACSF + burst stimulation - trial 1
+BOT_04162024_slice2ROI1_ctr_burst-002        # Control baseline ACSF + burst stimulation - trial 2
+BOT_04162024_slice2ROI1_ctr_single-001       # Control baseline ACSF + single pulse stimulation - trial 1
+BOT_04162024_slice2ROI1_ctr_single-002       # Control baseline ACSF + single pulse stimulation - trial 2
+BOT_04162024_slice2ROI1_quin_burst-001       # 10 μM quinpirole (D2R agonist) + burst stimulation - trial 1
+BOT_04162024_slice2ROI1_quin_burst-002       # 10 μM quinpirole (D2R agonist) + burst stimulation - trial 2
+BOT_04162024_slice2ROI1_quin_single-001      # 10 μM quinpirole (D2R agonist) + single pulse stimulation - trial 1
+BOT_04162024_slice2ROI1_quin_single-002      # 10 μM quinpirole (D2R agonist) + single pulse stimulation - trial 2
+BOT_04162024_slice2ROI1_sul_burst-001        # 10 μM sulpiride (D2R antagonist) + burst stimulation - trial 1
+BOT_04162024_slice2ROI1_sul_burst-002        # 10 μM sulpiride (D2R antagonist) + burst stimulation - trial 2
+BOT_04162024_slice2ROI1_sul_single-001       # 10 μM sulpiride (D2R antagonist) + single pulse stimulation - trial 1
+BOT_04162024_slice2ROI1_sul_single-002       # 10 μM sulpiride (D2R antagonist) + single pulse stimulation - trial 2
+BOT_04162024_slice2ROI1_TTX-001              # 10 μM tetrodotoxin (blocks Na+ channels, for F_min calibration)
 ```
+
+
+And each of those folders have the following structure:
+
+```bash
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001-botData.csv
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_Ch2_000001.ome.tif
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_Ch2_000002.ome.tif
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_Ch2_000003.ome.tif
+... The series keeps going
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_Ch2_000121.ome.tif
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_Ch3_000001.ome.tif
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_Ch3_000002.ome.tif
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_Ch3_000003.ome.tif
+... The series keeps going
+├── BOT_04162024_slice2ROI1_sul_single-001_Cycle00001_VoltageOutput_001.xml
+├── BOT_04162024_slice2ROI1_sul_single-001.env
+├── BOT_04162024_slice2ROI1_sul_single-001.xml
+```
+
+Looking at the data:
+* `botData.csv` contains the time series of brightness over time (BOT) for the GRABACh3.0 sensor. This should be converted to Fluorescence on nwb.
+* `Ch2` of the tiff files contains the fluorescence channel data for GRABACh3.0, which is the main channel of interest.
+* `Ch3` of the tiff files is the second channel, which might be the Dodt contrast channel or just background.
+* `VoltageOutput_001.xml` contains the stimulation protocol metadata, including timing and amplitude of electrical stimuli.
+* `env` and `xml` files contain additional metadata about the experiment setup, such as microscope settings, PMT gains, and other parameters. The session start time in xml.
+
+### Some useful terminology for the data on this figure.
+
+**Dodt**: Gradient Contrast
+Dodt contrast is a transmitted light microscopy technique that provides high-contrast visualization of unstained living tissue without interfering with fluorescence detection. By using a similar principle to oblique contrast, DGC produces images with contrast comparable to those made by Differential Interference Contrast (DIC) and without the imaging artefacts associated with other techniques like phase contrast.
+
+It is not clear if the second channel on the tiff files is this method or just background. The pmtGain for the main channel is 900 whereas the second channel named "Dodt" has 320.
+
+**BOT**: brightness over time (BOT) is a method to visualize changes in fluorescence intensity over time, often used in imaging experiments to track dynamic processes like neurotransmitter release.
+
+### Is the stimulus data available?
+I don't think so, like in figure 2 the stimuli is just specified but there is no actual data of the data shape. Moreover, running the typical search for extensions within the provided data we find:
+
+```bash
+ find . -type f -name "*.*" | rev | cut -d. -f1 | rev | sort | uniq
+csv
+env
+tif
+xml
+```
+And all of those formats are the ones described above.
+
 
 ## Figure 6
 
