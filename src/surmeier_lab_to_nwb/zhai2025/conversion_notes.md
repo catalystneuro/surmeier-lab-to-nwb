@@ -1371,27 +1371,359 @@ There are images stacks like the spine density in Figure 2.
 ```bash
 
 .
-├── AIM rating
-│   └── AIM testing_CDGI KO.xlsx  # This is an excel file
-├── contralateral rotations
-│   └── CDGI KO videos  # These are the videos
-├── KO DE on vs off
-│   ├── KO off-state
-│   └── KO on-state
-├── KO SE on vs off
-│   ├── KO off-state
-│   └── KO on-state
-├── KO spine density
-│   ├── KO off
-│   └── KO on
-└── oxoM on DE
-    ├── KO
-    ├── ReadMe.rtf
-    └── WT
+├── AIM rating (Figure 7J)
+│   └── AIM testing_CDGI KO.xlsx  # AIM scores
+├── contralateral rotations  (Figure 7I)
+│   └── CDGI KO videos  # Video recordings for rotation analysis
+├── KO DE on vs off # Figure 7F CDGI KO dendritic excitability
+│   ├── KO off-state  # LID off-state
+│   └── KO on-state   # LID on-state
+├── KO SE on vs off # Figure 7C # CDGI KO somatic excitability
+│   ├── KO off-state
+│   └── KO on-state
+├── KO spine density # (Figure 7H) CDGI KO spine morphology -
+│   ├── KO off
+│   └── KO on
+└── oxoM on DE (Figure 7E)
+    ├── KO  # CDGI KO oxo-M dendritic response (Figure 7E)
+    └── WT   # Wildtype oxo-M dendritic response
 ```
+
+* KO: knockout
+* WT: wildtype
+* DE: Dendritic Excitability
+* SE: Somatic Excitability
+* oxoM: Oxotremorine-M (muscarinic agonist testing M1R function)
+* CDGI stands for CalDAG-GEFI (Calcium and DAG-regulated Guanine nucleotide Exchange Factor I). From the paper:
+
+> The M1R-mediated modulation of iSPN dendrites is dependent upon CalDAG-GEFI (CDGI), a striatum-enriched, Ca²⁺-activated guanine nucleotide exchange factor
+
+
+ReadMe.rtf
+
+```
+{\rtf1\ansi\ansicpg1252\cocoartf2761
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\part\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 -001~-003 are before \
+and -004~-006 or -007~-009 are after oxoM application.}
+```
+This is a convention for the protocol:
+
+```
+-001, -002, -003    # BEFORE oxo-M application (baseline measurements)
+-004, -005, -006    # AFTER oxo-M application (drug response)
+-007, -008, -009    # AFTER oxo-M application (additional recordings)
+```
+
+Experimental Design:
+This follows a paired before/after design where:
+* Baseline recordings (-001 to -003): Measure dendritic excitability in normal ACSF
+* Drug application: Add oxotremorine-M (muscarinic agonist) to bath
+* Response recordings (-004 onwards): Measure how dendritic excitability changes
+
+
+### AIM rating
+ Abnormal Involuntary Movement (AIM)
+
+
+
 How does the excel looks like:
 
 ![aim score](./assets/aim_score.png)
+
+* Columns B-G: Time points during levodopa sessions (20min, 40min, 60min, 80min, 100min, 120min)
+* Column H: Final total or summary score
+* Column I: "60min rotations/min" - likely contralateral rotation counts
+
+ET#4123, ET#4124: Likely different mouse IDs
+Weight indicated: 21g, 22g, 22.5g, 23g - typical adult mouse weights
+
+**AIM Categories** (rows for each mouse):
+
+* Ax: Axial AIMs (abnormal trunk/neck movements)
+* Li: Limb AIMs (abnormal forelimb movements)
+* Ol: Orolingual AIMs (abnormal mouth/tongue movements)
+* Total score: Sum of all three categories
+
+### Contralateral rotations
+
+Here there are videos of the CDGI KO mice. The folder structure is as follows:
+
+```bash
+.
+└── CDGI KO videos
+   ├── 02232018-                    # Date: Feb 23, 2018 - Experimental cohort 1
+   │   ├── 1st session              # Day 1: 6 mg/kg L-DOPA + 12 mg/kg benserazide
+   │   ├── 2nd session              # Day 3: 6 mg/kg L-DOPA + 12 mg/kg benserazide
+   │   ├── 3rd session              # Day 5: 12 mg/kg L-DOPA + 12 mg/kg benserazide
+   │   ├── 4th session              # Day 7: 12 mg/kg L-DOPA + 12 mg/kg benserazide
+   │   └── 5th session              # Day 9: 12 mg/kg L-DOPA + 12 mg/kg benserazide
+   ├── 03202018-                    # Date: Mar 20, 2018 - Experimental cohort 2
+   │   ├── 1st session              # Sessions every other day
+   │   ├── 2nd session
+   │   ├── 3rd session
+   │   ├── 4th session
+   │   └── 5th session
+   ├── 04012018-                    # Date: Apr 1, 2018 - Experimental cohort 3
+   │   ├── 1st session
+   │   ├── 2nd session
+   │   ├── 3rd session
+   │   ├── 4th session
+   │   └── 5th session
+   ├── 07182018-                    # Date: Jul 18, 2018 - Experimental cohort 4
+   │   ├── 1st session
+   │   ├── 2nd session
+   │   ├── 3rd session
+   │   ├── 4th session
+   │   └── 5th session
+   ├── 09052018-                    # Date: Sep 5, 2018 - Experimental cohort 5
+
+```
+
+And each of the files contains the following structure
+
+```bash
+.
+└── CDGI KO videos
+    ├── 02232018-
+    │   ├── 1st session
+    │   │   ├── 1590_1_20min.mov     # Mouse #1590, Session 1, 20min post-injection
+    │   │   ├── 1590_1_40min.mov     # Mouse #1590, Session 1, 40min post-injection
+    │   │   ├── 1590_1_60min.mov     # Mouse #1590, Session 1, 60min post-injection
+    │   │   ├── 1590_1_80min.mov     # Mouse #1590, Session 1, 80min post-injection
+    │   │   ├── 1944_1_20min.mov     # Mouse #1944, Session 1, 20min post-injection
+    │   │   ├── 1944_1_40min.mov     # Mouse #1944, Session 1, 40min post-injection
+    │   │   ├── 1944_1_60min.mov     # Mouse #1944, Session 1, 60min post-injection
+    │   │   ├── 1944_1_80min.mov     # Mouse #1944, Session 1, 80min post-injection
+    │   │   ├── 1945_1_20min.mov     # Mouse #1945, Session 1, 20min post-injection
+    │   │   ├── 1945_1_40min.mov     # Mouse #1945, Session 1, 40min post-injection
+    │   │   ├── 1945_1_60min.mov     # Mouse #1945, Session 1, 60min post-injection
+    │   │   └── 1945_1_80min.mov     # Mouse #1945, Session 1, 80min post-injection
+    │   ├── 2nd session
+    │   │   ├── 1590_2_20min.mov     # Mouse #1590, Session 2, 20min post-injection
+    │   │   ├── 1590_2_40min.mov     # Mouse #1590, Session 2, 40min post-injection
+    │   │   ├── 1590_2_60min.mov     # Mouse #1590, Session 2, 60min post-injection
+```
+
+### KO DE on vs off
+
+Dendritic excitability two states.
+
+```bash
+.
+├── KO off-state
+│   ├── 0525a
+│   ├── 0525b
+│   ├── 0525c
+│   ├── 0526a
+│   ├── 0526b
+│   ├── 0526c
+│   ├── 0527a
+│   ├── 0527b
+│   ├── 0616a
+│   ├── 0619b
+│   └── 0619c
+└── KO on-state
+    ├── 0816a
+    ├── 0816b
+    ├── 0901a
+    ├── 0902b
+    ├── 0902c
+    ├── 0902d
+    ├── 0913a
+    └── 0913b
+```
+
+These experiments are like the ones of dendritic excitability in figure 1:
+
+```bash
+.
+├── 0816a
+│   ├── 20160816_Cell1_dist1_trio-001
+│   │   ├── 20160816_Cell1_dist1_trio-001_Cycle00001_Ch1_000001.ome.tif
+│   │   ├── 20160816_Cell1_dist1_trio-001-Cycle00001_Ch1Source.tif
+│   │   ├── 20160816_Cell1_dist1_trio-001_Cycle00001_Ch2_000001.ome.tif
+│   │   ├── 20160816_Cell1_dist1_trio-001-Cycle00001_Ch2Source.tif
+│   │   ├── 20160816_Cell1_dist1_trio-001_Cycle00001_LineProfileData.csv
+│   │   ├── 20160816_Cell1_dist1_trio-001_Cycle00001_VoltageOutput_001.xml
+│   │   ├── 20160816_Cell1_dist1_trio-001_Cycle00001_VoltageRecording_001.csv
+│   │   ├── 20160816_Cell1_dist1_trio-001_Cycle00001_VoltageRecording_001.xml
+│   │   ├── 20160816_Cell1_dist1_trio-001.env
+│   │   ├── 20160816_Cell1_dist1_trio-001.xml
+│   │   └── References
+│   ├── 20160816_Cell1_dist1_trio-002
+│   │   ├── 20160816_Cell1_dist1_trio-002_Cycle00001_Ch1_000001.ome.tif
+│   │   ├── 20160816_Cell1_dist1_trio-002-Cycle00001_Ch1Source.tif
+│   │   ├── 20160816_Cell1_dist1_trio-002_Cycle00001_Ch2_000001.ome.tif
+│   │   ├── 20160816_Cell1_dist1_trio-002-Cycle00001_Ch2Source.tif
+│   │   ├── 20160816_Cell1_dist1_trio-002_Cycle00001_LineProfileData.csv
+```
+
+See that it has raw line scans, patch clamp data and fluorescence data from the line scans.
+
+### KO SE on vs off
+
+Somatic excitability two states.
+
+```bash
+.
+├── KO off-state
+│   ├── 0525a
+│   ├── 0525b
+│   ├── 0525c
+│   ├── 0526a
+│   ├── 0526b
+│   ├── 0526c
+│   ├── 0527a
+│   ├── 0527b
+│   ├── 0527c
+│   ├── 0616a
+│   ├── 0616b
+│   ├── 0619b
+│   └── 0619c
+└── KO on-state
+    ├── 0816a
+    ├── 0816b
+    ├── 0901a
+    ├── 0902b
+    ├── 0902c
+    ├── 0902d
+    ├── 0913a
+    └── 0913b
+```
+
+This are only patch clamp data, no fluorescence data:
+
+```bash
+├── KO off-state
+│   ├── 0525a
+│   │   ├── cell1-001
+│   │   │   ├── cell1-001_Cycle00001_VoltageOutput_001.xml
+│   │   │   ├── cell1-001_Cycle00001_VoltageRecording_001.csv
+│   │   │   ├── cell1-001_Cycle00001_VoltageRecording_001.xml
+│   │   │   ├── cell1-001.xml
+│   │   │   └── References
+│   │   ├── cell1-002
+│   │   │   ├── cell1-002_Cycle00001_VoltageOutput_001.xml
+│   │   │   ├── cell1-002_Cycle00001_VoltageRecording_001.csv
+│   │   │   ├── cell1-002_Cycle00001_VoltageRecording_001.xml
+│   │   │   ├── cell1-002.xml
+│   │   │   └── References
+│   │   ├── cell1-003
+│   │   │   ├── cell1-003_Cycle00001_VoltageOutput_001.xml
+│   │   │   ├── cell1-003_Cycle00001_VoltageRecording_001.csv
+│   │   │   ├── cell1-003_Cycle00001_VoltageRecording_001.xml
+│   │   │   ├── cell1-003.xml
+```
+
+
+### KO spine density
+Spine density two states.
+
+```bash
+.
+├── KO off
+│   ├── 0525a
+│   ├── 0525c
+│   ├── 0526a
+│   ├── 0526c
+│   ├── 0527a
+│   ├── 0527b
+│   ├── 0616a
+│   ├── 0616b
+│   ├── 0619b
+│   ├── 0619c
+│   └── 0912d
+└── KO on
+    ├── 0816a
+    ├── 0816b
+    ├── 0902a
+    ├── 0902b
+    ├── 0902c
+    ├── 0902d
+    ├── 0913a
+    └── 0913b
+
+22 directories
+```
+
+These experiments are like the ones of spine density in figure 2 and contain stacks:
+```bash
+0
+.
+├── KO off
+│   ├── 0525a
+│   │   ├── Decon_20160525_Cell1_dist132
+│   │   │   ├── 20_ZSeries-20160525_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z001.tif
+│   │   │   ├── 20_ZSeries-20160525_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z002.tif
+│   │   │   ├── 20_ZSeries-20160525_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z003.tif
+│   │   │   ├── 20_ZSeries-20160525_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z004.tif
+│   │   │   ├── 20_ZSeries-20160525_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z005.tif
+│   │   │   ├── 20_ZSeries-20160525_Cell1_dist12-001_Cycle00001_Ch1_#.ome_Z006.tif
+```
+
+### oxoM on DE
+Dendritic excitability with oxoM on and off.
+
+```bash
+.
+├── KO
+│   ├── 0228c2d1
+│   ├── 0228c2d2
+│   ├── 0228c3d1
+│   ├── 0228c3d2
+│   ├── 0301c2d1
+│   ├── 0301c2d2
+│   ├── 0301c3d1
+│   ├── 0301c3d2
+│   ├── 0314c2d1
+│   ├── 0314c2d2
+│   ├── 0314c3d1
+│   └── 0314c3d2
+└── WT
+    ├── 0221c1d1
+    ├── 0221c1d2
+    ├── 0221c2d1
+    ├── 0221c2d2
+    ├── 0305c1d1
+    ├── 0305c1d2
+    ├── 0305c2d1
+    ├── 0305c2d2
+    ├── 0305c3d1
+    └── 0305c3d2
+```
+
+Being dendritic excitability experiments with oxoM on and off, the structure is like the one in figure 1:
+
+```bash
+.
+├── 0228c2d1
+│   ├── 02282018_Cell2_dist1_trio-001
+│   │   ├── 02282018_Cell2_dist1_trio-001_Cycle00001_Ch1_000001.ome.tif
+│   │   ├── 02282018_Cell2_dist1_trio-001-Cycle00001_Ch1Source.tif
+│   │   ├── 02282018_Cell2_dist1_trio-001_Cycle00001_Ch2_000001.ome.tif
+│   │   ├── 02282018_Cell2_dist1_trio-001-Cycle00001_Ch2Source.tif
+│   │   ├── 02282018_Cell2_dist1_trio-001_Cycle00001_LineProfileData.csv
+│   │   ├── 02282018_Cell2_dist1_trio-001_Cycle00001_VoltageOutput_001.xml
+│   │   ├── 02282018_Cell2_dist1_trio-001_Cycle00001_VoltageRecording_001.csv
+│   │   ├── 02282018_Cell2_dist1_trio-001_Cycle00001_VoltageRecording_001.xml
+│   │   ├── 02282018_Cell2_dist1_trio-001.env
+│   │   ├── 02282018_Cell2_dist1_trio-001.xml
+│   │   └── References
+│   ├── 02282018_Cell2_dist1_trio-002
+│   │   ├── 02282018_Cell2_dist1_trio-002_Cycle00001_Ch1_000001.ome.tif
+│   │   ├── 02282018_Cell2_dist1_trio-002-Cycle00001_Ch1Source.tif
+│   │   ├── 02282018_Cell2_dist1_trio-002_Cycle00001_Ch2_000001.ome.tif
+│   │   ├── 02282018_Cell2_dist1_trio-002-Cycle00001_Ch2Source.tif
+│   │   ├── 02282018_Cell2_dist1_trio-002_Cycle00001_LineProfileData.csv
+```
+With patch clamp data, raw line scans and fluoresence data from the line scans.
+
 
 ## Figure 8
 
