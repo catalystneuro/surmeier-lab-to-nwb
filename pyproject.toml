@@ -93,6 +93,8 @@ known-first-party = ["surmeier_lab_to_nwb"]
 neuroconv = { path = "../neuroconv", editable = true }
 roiextractors = { path = "../roiextractors", editable = true }
 
+[tool.uv]
+config-settings = { editable_mode = "compat" }
 
 [dependency-groups]
 dev = [
