@@ -15,7 +15,7 @@ These are the points that we wrote in the scope of work
 - [x] Convert ABF format: this data is not available and it will not be converted
 - [x] Convert Bruker optical sensor recordings with appropriate metadata:
     - [x] Line Scans [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
-    - [ ] Fluorescence traces.
+    - [x] Fluorescence traces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12) [fix Bruker roiextractors](https://github.com/catalystneuro/roiextractors/pull/438) [fix Bruker neuroconv](https://github.com/catalystneuro/neuroconv/pull/1375)
 - [x] Convert electrophysiological data acquired with the Bruker system [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Build an interface for manual segmentation data in Surmeier lab format
     - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
@@ -89,7 +89,7 @@ Image stacks (spine density) like figure 2 but they come in a different format a
 
 ## Figure 5:
 Fluorescence imaging data from two-photon laser scanning microscopy.
-- [ ] Build needed interfaces
+- [x] Build needed interfaces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12)
 - [ ] Conversion script
 - [ ] Metadata
 - [ ] Inspector

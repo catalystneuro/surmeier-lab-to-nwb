@@ -1,5 +1,3 @@
-"""Complete implementation for PrairieViewBrightnessOverTimeInterface."""
-
 from pathlib import Path
 
 import numpy as np
@@ -27,8 +25,6 @@ class PrairieViewBrightnessOverTimeInterface(BrukerTiffSinglePlaneConverter):
     The BOT data typically contains timestamps and brightness values for multiple
     regions of interest, which are added as ROI response series to the NWB file.
     """
-
-    ExtractorName = "BrukerTiffSinglePlaneImagingExtractor"
 
     def __init__(self, folder_path, bot_csv_data_file_path, xml_metadata_file_path):
         """Initialize the interface."""
@@ -74,7 +70,7 @@ class PrairieViewBrightnessOverTimeInterface(BrukerTiffSinglePlaneConverter):
 
         metadata = metadata or self.get_metadata()
         conversion_options = conversion_options or {}
-        super().add_to_nwbfile(nwbfile, metadata, **conversion_options)
+        super().add_to_nwbfile(nwbfile=nwbfile, metadata=metadata, **conversion_options)
 
         # Load brightness over time data
         bot_df = pd.read_csv(self.bot_csv_data_file_path)
