@@ -70,7 +70,11 @@ class NikonImageStackInterface(BaseDataInterface):
 
         # Create Images container
         container_name = "ZStackImagesContainer"
-        description = ""
+        description = (
+            "High-resolution confocal images are captured from fixed brain sections "
+            "using a 60× oil immersion objective (NA = 1.49), with z-steps of 0.125 μm "
+            "and a pixel size of 0.09 μm."
+        )
         images_container = Images(
             name=container_name,
             description=description,
