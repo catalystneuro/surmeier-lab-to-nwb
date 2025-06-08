@@ -19,7 +19,7 @@ These are the points that we wrote in the scope of work
 - [x] Convert electrophysiological data acquired with the Bruker system [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Build an interface for manual segmentation data in Surmeier lab format
     - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface Bug](https://github.com/catalystneuro/neuroconv/pull/1365)
-    - [ ] Confocal microscopy image stacks for spine density
+    - [x] Confocal microscopy image stacks for spine density Nikon  [Figure 4](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [ ] Integrate behavioral annotations from Surmeier lab custom format
 - [ ] Include behavioral video recordings
 - [ ] Include electrical stimulation signals and metadata
@@ -97,7 +97,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 
 ## Confocal Spine Density
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
-- [ ] Build needed interfaces
+- [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [ ] Conversion script
 - [ ] Metadata
 - [ ] Inspector

@@ -1142,7 +1142,7 @@ The pty files are plain text and can be read directly. Here some lines:
   ...
 
 ```
-There is no metadata about the roi locations. The file with the `.roi` extension is mostly empty. I think Imaris software was used on the peprocessed data to estimat the dendritic spine density. A full example file can be found in `src/surmeier_lab_to_nwb/zhai2025/assets/example_pth_file.pty`.
+There is no metadata about the roi locations. The file with the `.roi` extension is mostly empty. I think Imaris software was used on the preprocessed data to estimate the dendritic spine density. A full example file can be found in `src/surmeier_lab_to_nwb/zhai2025/assets/example_pth_file.pty`.
 
 #### Figure 4I
 
@@ -1215,10 +1215,10 @@ Figure 4J showed confocal detects more spines, but Supplemental Figure 5 proved 
 .
 ├── processed-not organized yet, see if needed-denoise-decon,ims,excel files,code,combined excel
 │   ├── 6-OHDA
-│   ├── control
+│   ├── control   # These files are empty
 │   ├── off-state
 │   └── on-state
-├── raw
+├── raw  # These contain nikon nd2 files.
 │   ├── 6-OHDA
 │   ├── control
 │   ├── off-state
