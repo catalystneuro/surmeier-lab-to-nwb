@@ -18,7 +18,7 @@ These are the points that we wrote in the scope of work
     - [x] Fluorescence traces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12) [fix Bruker roiextractors](https://github.com/catalystneuro/roiextractors/pull/438) [fix Bruker neuroconv](https://github.com/catalystneuro/neuroconv/pull/1375)
 - [x] Convert electrophysiological data acquired with the Bruker system [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Build an interface for manual segmentation data in Surmeier lab format
-    - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
+    - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface Bug](https://github.com/catalystneuro/neuroconv/pull/1365)
     - [ ] Confocal microscopy image stacks for spine density
 - [ ] Integrate behavioral annotations from Surmeier lab custom format
 - [ ] Include behavioral video recordings
@@ -55,7 +55,7 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 - [ ] Inspector
 - [ ] Upload data
 
-### CurrentClamp with optogenetic stimulation
+### Current clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
 - [ ] Metadata
@@ -80,6 +80,22 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [ ] Upload data
 
 ## Figure 4:
+
+### Current clamp with optogenetic stimulation
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
+- [ ] Conversion script
+- [ ] Metadata
+- [ ] Inspector
+- [ ] Upload data
+
+## Spine Density
+- [ ] Build needed interfaces
+- [ ] Conversion script
+- [ ] Metadata
+- [ ] Inspector
+- [ ] Upload data
+
+## Confocal Spine Density
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [ ] Build needed interfaces
 - [ ] Conversion script
