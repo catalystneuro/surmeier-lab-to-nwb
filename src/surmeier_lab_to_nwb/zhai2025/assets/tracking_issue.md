@@ -33,14 +33,14 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 ### Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/1)
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -51,14 +51,14 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 ### Spine density image stacks
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Current clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -68,14 +68,14 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ## Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -84,14 +84,14 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ### Current clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ## Spine Density
 - [ ] Build needed interfaces
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -99,7 +99,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -107,7 +107,7 @@ Image stacks (spine density) like figure 2 but they come in a different format a
 Fluorescence imaging data from two-photon laser scanning microscopy.
 - [x] Build needed interfaces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12)
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -115,7 +115,7 @@ Fluorescence imaging data from two-photon laser scanning microscopy.
 Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density and line scans.
 - [ ] Build needed interfaces
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -123,7 +123,7 @@ Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spin
 Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density, and line scans. Behavior scoring data (AIM) and behavioral videos.
 - [ ] Build needed interfaces
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -131,7 +131,7 @@ Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spin
 Behavioral scoring, intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density, and line scans.
 - [ ] Build needed interfaces
 - [ ] Conversion script
-- [ ] Metadata
+- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
