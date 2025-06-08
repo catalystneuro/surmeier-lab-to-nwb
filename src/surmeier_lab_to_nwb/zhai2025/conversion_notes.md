@@ -954,8 +954,8 @@ Where each folder is for a specific current level stimulus and each folder conta
 ```bash
 .
 ├── Confocal spine density
-│   ├── Fig 4H
-│   ├── Fig 4I
+│   ├── Fig 4H   # oif and tiff files
+│   ├── Fig 4I   #
 │   └── Fig 4J and Suppl Fig 5
 ├── Spine density (These are like figure 2)
 │   ├── control iSPN
@@ -1032,14 +1032,13 @@ The raw data for Figure 4 comes from an Olympus system and includes the native m
 tree -L 3 -I "*.xml|*.env|*.csv"
 ```
 
-The only files are xml env and csv
 
 ### Confocal spine density
 
 ```bash
 ├── Fig 4H
 │   ├── processed  # Contains tiffs and jpgs
-│   └── raw
+│   └── raw  # Contains oif (Olympus Image Files) files and their associated folders
 ├── Fig 4I
 │   ├── processed
 │   └── raw
@@ -1052,7 +1051,7 @@ The only files are xml env and csv
 
 #### Figure 4H
 
-My reading above is that processed data contains the processed images which are the images in raw after some image processing. Let's focus on this part of the conversion.
+My reading above is that processed data contains the processed images which are the images in raw after some image processing. Let's focus on the raw data.
 
 ```bash
 [256K]  .
