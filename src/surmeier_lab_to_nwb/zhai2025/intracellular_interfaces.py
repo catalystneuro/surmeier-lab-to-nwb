@@ -279,7 +279,7 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
 
         icephys_metadata = metadata["Icephys"]
         icephys_metadata["VoltageClampSeries"][self.icephys_metadata_key] = {
-            "name": "VoltageClampSeries",
+            "name": self.icephys_metadata_key,
             "description": "Prairie View voltage clamp series",
             "device": self.device_name,
             "electrode": self.electrode_name,
