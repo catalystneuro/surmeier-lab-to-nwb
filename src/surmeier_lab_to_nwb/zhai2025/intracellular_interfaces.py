@@ -62,6 +62,25 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
         enabled_signals = [signal for signal in signal_list if signal["Enabled"] == "true"]
         self.signal_metadata = enabled_signals[0]
 
+    def get_session_start_time(self) -> Optional[datetime]:
+        """
+        Extract session start time from the XML file.
+
+        Returns
+        -------
+        Optional[datetime]
+            Session start time parsed from XML DateTime field, or None if not available
+        """
+        datetime_str = self.xml_recording_dict["VRecSessionEntry"].get("DateTime", None)
+        if datetime_str is not None:
+            try:
+                # Parse ISO format datetime string
+                return datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                # If parsing fails, return None
+                pass
+        return None
+
     def get_metadata(self) -> DeepDict:
         """
         Extract metadata from the XML file.
@@ -73,18 +92,8 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
         """
         metadata = super().get_metadata()
 
-        # Extract session start time
-        session_start_time = None
-        datetime_str = self.xml_recording_dict["VRecSessionEntry"].get("DateTime", None)
-        if datetime_str is not None:
-            try:
-                # Parse ISO format datetime string
-                session_start_time = datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                # If parsing fails, leave as None
-                pass
-
         # Add session start time if available
+        session_start_time = self.get_session_start_time()
         if session_start_time is not None:
             metadata["NWBFile"]["session_start_time"] = session_start_time
 
@@ -287,7 +296,7 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
 
         return metadata
 
-    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None):
+    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None, starting_time: Optional[float] = None):
         """
         Add the recording data to the NWB file.
 
@@ -297,6 +306,10 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
             NWB file to add the data to
         metadata : dict
             Metadata dictionary
+        starting_time : float, optional
+            Start time of the recording relative to session start (in seconds).
+            If None, uses timestamps from data. If provided, uses starting_time
+            for absolute temporal synchronization within the experimental session.
         """
 
         metadata = metadata or self.get_metadata()
@@ -356,13 +369,27 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
         current_amps = current_pA.values / nano_amperes_factor
 
         name = patch_clamp_series_metadata["name"]
-        voltage_clamp_series = VoltageClampSeries(
-            name=name,
-            description=patch_clamp_series_metadata["description"],
-            data=current_amps,
-            timestamps=timestamps.values,
-            electrode=electrode,
-        )
+
+        # Use absolute timing if provided, otherwise use relative timestamps
+        if starting_time is not None:
+            # Calculate sampling rate from timestamps
+            sampling_rate = 1.0 / (timestamps.iloc[1] - timestamps.iloc[0])
+            voltage_clamp_series = VoltageClampSeries(
+                name=name,
+                description=patch_clamp_series_metadata["description"],
+                data=current_amps,
+                starting_time=starting_time,
+                rate=sampling_rate,
+                electrode=electrode,
+            )
+        else:
+            voltage_clamp_series = VoltageClampSeries(
+                name=name,
+                description=patch_clamp_series_metadata["description"],
+                data=current_amps,
+                timestamps=timestamps.values,
+                electrode=electrode,
+            )
 
         # Add voltage clamp series to acquisition
         nwbfile.add_acquisition(voltage_clamp_series)

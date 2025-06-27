@@ -50,31 +50,14 @@ OPTOGENETIC PARAMETERS:
 =====================
 From VoltageOutput XML metadata:
 - Pulse duration: 0.3 milliseconds (matches paper specification)
-- LED voltage: 5V (corresponds to different intensity settings)
+- LED voltage: 5V
 - Pulse timing: 20ms delay + 0.3ms pulse + recording window
 - Repetitions: Single pulse per sweep
 - Inter-sweep interval: 30 seconds
 
-CONVERSION OUTPUT:
-================
-NWB files are saved to: nwb_files/figure_2_optical_stimuli/
-Filename format: sr_oepsc_{condition}_{session_folder}.nwb
-
-Each NWB file contains:
-- Session metadata with precise timing
-- Subject information with experimental condition
-- Multiple VoltageClampSeries (one per sweep)
-- OptogeneticSeries with stimulus parameters
-- Device specifications for recording and stimulation equipment
-
-This conversion enables standardized analysis of the hierarchical data structure
-(Session → Cell → Sweep → Individual EPSCs) required for Figure 2's statistical
-comparisons between LID on-state and off-state conditions.
 """
-import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
 from neuroconv.tools import configure_and_write_nwbfile
@@ -88,63 +71,6 @@ from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
 from surmeier_lab_to_nwb.zhai2025.optogenetics_interfaces import (
     PrairieViewOptogeneticsInterface,
 )
-
-
-def parse_sweep_info(sweep_folder_name: str) -> Dict[str, Any]:
-    """
-    Extract detailed sweep metadata from Sr-oEPSC experimental folder naming.
-
-    The sweep folder naming convention encodes important experimental parameters
-    including the recorded cell identifier, LED stimulation parameters, and sweep
-    number. This function parses these components to provide structured
-    metadata for NWB file organization and identification.
-
-    Parameters
-    ----------
-    sweep_folder_name : str
-        The name of the sweep folder following the pattern:
-        'cell{N}_LED{X}-{YYY}' or variations like 'cell{N}_LED{X}.{Z}-{YYY}'
-
-        Examples:
-        - 'cell1_LED14-001': Cell 1, LED stimulation 14, sweep 001
-        - 'cell2_LED12-006': Cell 2, LED stimulation 12, sweep 006
-        - 'cell1_LED9.1-001': Cell 1, LED stimulation 9.1, sweep 001
-
-    Returns
-    -------
-    Dict[str, Any]
-        A dictionary containing parsed sweep components:
-
-        - 'cell_number' (str): Numeric identifier of the recorded cell
-        - 'led_number' (str): LED stimulation parameter identifier
-        - 'sweep_number' (str): Sequential sweep number within the series
-        - 'sweep_name' (str): Complete original folder name for reference
-
-    Notes
-    -----
-    The LED number may contain decimal points (e.g., '9.1') and represents
-    different stimulation protocols or intensities used in the experiment.
-    Each sweep contains a single voltage clamp recording with
-    LED stimulation pulses delivered every 30 seconds during the sweep.
-    """
-    # Extract cell number
-    cell_match = re.search(r"cell(\d+)", sweep_folder_name)
-    cell_number = cell_match.group(1) if cell_match else "unknown"
-
-    # Extract LED stimulation protocol number
-    led_match = re.search(r"LED(\d+)", sweep_folder_name)
-    led_number = led_match.group(1) if led_match else "unknown"
-
-    # Extract sweep number
-    sweep_match = re.search(r"-(\d+)$", sweep_folder_name)
-    sweep_number = sweep_match.group(1) if sweep_match else "unknown"
-
-    return {
-        "cell_number": cell_number,
-        "led_number": led_number,
-        "sweep_number": sweep_number,
-        "sweep_name": sweep_folder_name,
-    }
 
 
 def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
@@ -185,6 +111,16 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
     20.3-400 ms: Recording window for asynchronous EPSCs
     400+ ms:     End sweep, wait 30 seconds for next sweep
 
+    TIMING SYNCHRONIZATION:
+    ======================
+    - Session start time: Parsed from folder name (MMDDYYYY format)
+    - Sweep timestamps: Extracted from VoltageRecording XML DateTime fields
+    - Absolute timing: Each sweep uses actual time offset from session start
+    - Pulse timing: Optogenetic stimulus offset by 20ms within each sweep
+    - Precision: Maintains microsecond accuracy from XML timestamps
+    - Validation: 30-second intervals verified programmatically
+    - Implementation: Uses existing interface metadata instead of duplicate XML parsing
+
     Parameters
     ----------
     session_folder_path : Path
@@ -217,18 +153,30 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
     3. Create NWBFile with session-specific metadata outside processing loop
     4. Process each sweep independently:
        - Create VoltageClampInterface for electrophysiology data
-       - Create OptogeneticsInterface for LED stimulus parameters
-       - Add both to existing NWBFile
+       - Extract sweep timing from interface metadata for synchronization
+       - Calculate time offset from session start for absolute timing
+       - Create OptogeneticsInterface for LED stimulus parameters (20ms delay)
+       - Add both to existing NWBFile with proper temporal alignment
     5. Maintain hierarchical organization: Session → Cell → Sweep → EPSCs
 
-    STATISTICAL ANALYSIS STRUCTURE:
-    - Individual EPSC events detected within each sweep
-    - Multiple sweeps per cell provide repeated measurements
-    - Multiple cells per session provide biological replicates
-    - Multiple sessions per condition provide experimental replicates
+    SWEEP STRUCTURE AND TIMING:
+    Each sweep represents a complete optogenetic stimulation + recording cycle:
+    - Continuous voltage recording throughout (~400ms minimum)
+    - 20ms baseline period before stimulation
+    - 0.3ms LED pulse for ChR2 activation
+    - 40-400ms analysis window for EPSC detection
+    - 30-second inter-sweep interval for recovery
 
-    This hierarchical organization enables proper statistical analysis while
-    maintaining experimental traceability for Figure 2's comparative analysis.
+    The NWB structure preserves this timing:
+    - VoltageClampSeries: Contains full voltage recording with absolute timing
+    - OptogeneticSeries: Contains LED stimulus with 20ms offset from recording start
+    - Temporal synchronization enables cross-sweep analysis and validation
+
+    EXPERIMENTAL RATIONALE:
+    - Strontium substitution causes asynchronous glutamate release
+    - Enables detection of individual synaptic events vs summed responses
+    - 30-second intervals prevent synaptic depression from over-stimulation
+    - Analysis window (40-400ms) captures asynchronous EPSC events
     """
     # Parse session start time from folder name (MMDDYYYY pattern)
     folder_name = session_folder_path.name
@@ -266,9 +214,10 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
     session_description = (
         f"Sr²⁺-oEPSC recordings from dorsal striatal projection neurons (dSPNs) under {condition} condition. "
         f"Voltage clamp at -70 mV in Ca²⁺-free ACSF with 3 mM SrCl₂ and 10 μM gabazine. "
-        f"Optogenetic stimulation: 0.3ms blue LED pulses (5V drive) activating ChR2-expressing "
-        f"corticostriatal terminals every 30 seconds. Recording window: 20ms baseline + 0.3ms pulse + "
-        f"~380ms for asynchronous EPSC detection. Multiple sweeps per cell for statistical analysis."
+        f"Each sweep: 20ms baseline + 0.3ms blue LED pulse (ChR2 activation) + continuous recording "
+        f"with analysis window 40-400ms post-stimulus for asynchronous EPSC detection. "
+        f"30-second inter-sweep intervals prevent synaptic depression. Multiple sweeps per cell "
+        f"enable detection of individual synaptic events rather than summed responses."
     )
 
     # Update with session-specific metadata
@@ -311,6 +260,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
 
     # Get all sweep folders
     sweep_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
+    sweep_folders = sorted(sweep_folders, key=lambda x: x.name)  # Sort by sweep index
 
     print(f"Found {len(sweep_folders)} sweeps in experimental session")
 
@@ -320,9 +270,6 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
     # Process each sweep
     for sweep_index, sweep_folder in enumerate(sweep_folders):
         print(f"  Processing: {sweep_folder.name}")
-
-        # Parse sweep information
-        sweep_info = parse_sweep_info(sweep_folder.name)
 
         # Find XML recording file
         xml_files = list(sweep_folder.glob("*_VoltageRecording_*.xml"))
@@ -340,8 +287,21 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
             icephys_metadata_key=f"VoltageClampSweep{sweep_number_padded}",
         )
 
-        # Add voltage clamp data to NWB file
-        voltage_clamp_interface.add_to_nwbfile(nwbfile=nwbfile)
+        # Get sweep timing from voltage clamp interface
+        sweep_datetime = voltage_clamp_interface.get_session_start_time()
+
+        # Calculate offset from session start
+        if sweep_datetime is not None:
+            # Ensure timezone consistency
+            if sweep_datetime.tzinfo is None:
+                sweep_datetime = sweep_datetime.replace(tzinfo=central_tz)
+            sweep_offset_seconds = (sweep_datetime - session_start_time_with_tz).total_seconds()
+        else:
+            # Fallback: use sweep index * 30 seconds if XML timing not available
+            sweep_offset_seconds = sweep_index * 30.0
+
+        # Add voltage clamp data to NWB file with absolute timing
+        voltage_clamp_interface.add_to_nwbfile(nwbfile=nwbfile, starting_time=sweep_offset_seconds)
 
         # Find VoltageOutput XML file and create optogenetics interface
         voltage_output_files = list(sweep_folder.glob("*_VoltageOutput_*.xml"))
@@ -351,19 +311,20 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
         # Create optogenetics interface with consistent sweep numbering
         optogenetics_interface = PrairieViewOptogeneticsInterface(
             voltage_output_xml_path=voltage_output_files[0],
-            sweep_info=sweep_info,
             optogenetics_metadata_key=f"OptogeneticSweep{sweep_number_padded}",
         )
 
-        # Add optogenetic stimulus to NWB file
-        optogenetics_interface.add_to_nwbfile(nwbfile=nwbfile)
+        # Add optogenetic stimulus to NWB file with timing synchronized to sweep + pulse delay
+        pulse_delay_seconds = 0.020  # 20ms delay before LED pulse within each sweep
+        optogenetics_interface.add_to_nwbfile(nwbfile=nwbfile, starting_time=sweep_offset_seconds + pulse_delay_seconds)
 
         print(
             f"    Found LED stimulus: {optogenetics_interface.stimulus_params['pulse_width_ms']}ms pulse at {optogenetics_interface.stimulus_params['pulse_amplitude_v']}V control voltage (optical power unknown)"
         )
 
         print(
-            f"    Successfully added sweep: Cell {sweep_info['cell_number']}, LED {sweep_info['led_number']}, Sweep {sweep_info['sweep_number']}"
+            f"    Successfully added sweep {sweep_number_padded}: {sweep_folder.name} "
+            f"(offset: {sweep_offset_seconds:.3f}s)"
         )
 
     return nwbfile

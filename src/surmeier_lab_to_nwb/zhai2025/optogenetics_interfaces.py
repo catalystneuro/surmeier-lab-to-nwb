@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import xmltodict
 from neuroconv.basedatainterface import BaseDataInterface
@@ -17,7 +17,6 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
     def __init__(
         self,
         voltage_output_xml_path: str | Path,
-        sweep_info: Dict[str, Any],
         optogenetics_metadata_key: str = "PrairieViewOptogenetics",
     ):
         """
@@ -29,30 +28,22 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             Path to the Prairie View VoltageOutput XML configuration file.
             Expected format: '*_Cycle00001_VoltageOutput_001.xml'
 
-        sweep_info : Dict[str, Any]
-            Sweep metadata dictionary containing:
-            - 'cell_number': Identifier of the recorded cell
-            - 'led_number': LED stimulation protocol identifier
-            - 'sweep_number': Sequential sweep number
-            - 'sweep_name': Complete sweep folder name
-
         optogenetics_metadata_key : str, default="PrairieViewOptogenetics"
             Unique identifier for this optogenetics interface instance.
         """
         self.voltage_output_xml_path = Path(voltage_output_xml_path)
-        self.sweep_info = sweep_info
         self.optogenetics_metadata_key = optogenetics_metadata_key
 
         # Parse stimulus parameters from XML
         self.stimulus_params = self._parse_optogenetic_stimulus()
 
-    def _parse_optogenetic_stimulus(self) -> Dict[str, Any]:
+    def _parse_optogenetic_stimulus(self) -> dict:
         """
         Extract optogenetic LED stimulation parameters from Prairie View XML.
 
         Returns
         -------
-        Dict[str, Any]
+        dict
             Dictionary containing stimulus parameters:
             - 'pulse_count' (int): Number of LED pulses in the stimulus train
             - 'pulse_width_ms' (float): Duration of each LED pulse in milliseconds
@@ -139,8 +130,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
                     "description": (
                         f"LED stimulus: {self.stimulus_params['pulse_width_ms']} ms blue LED pulse "
                         f"delivered at {self.stimulus_params['first_pulse_delay_ms']} ms delay. "
-                        f"Cell {self.sweep_info['cell_number']}, LED protocol {self.sweep_info['led_number']}, "
-                        f"Sweep {self.sweep_info['sweep_number']}. Control voltage: {self.stimulus_params['pulse_amplitude_v']} V. "
+                        f"Control voltage: {self.stimulus_params['pulse_amplitude_v']} V. "
                         f"NOTE: Actual optical power unknown - only electrical control parameters available. "
                         f"Pulses occur every 30 seconds to evoke asynchronous EPSCs."
                     ),
@@ -151,7 +141,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
 
         return metadata
 
-    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None):
+    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None, starting_time: Optional[float] = None):
         """
         Add optogenetic stimulation data and metadata to NWB file.
 
@@ -162,6 +152,11 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
 
         metadata : dict, optional
             Metadata dictionary. If not provided, will use get_metadata().
+
+        starting_time : float, optional
+            Start time of the optogenetic stimulus relative to session start (in seconds).
+            This should include the sweep offset + pulse delay (typically 20ms) for
+            proper temporal synchronization with the voltage clamp recording.
         """
         metadata = metadata or self.get_metadata()
 
@@ -194,7 +189,6 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         # Create stimulus time series data
         pulse_width_s = self.stimulus_params["pulse_width_ms"] / 1000.0
         pulse_delay_s = self.stimulus_params["first_pulse_delay_ms"] / 1000.0
-        control_voltage = self.stimulus_params["pulse_amplitude_v"]
 
         # NOTE: Optical power not available in source data
         # The XML files only contain LED control voltage (5V), not actual optical power
@@ -216,14 +210,18 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         for i in range(pulse_start_sample, min(pulse_end_sample, n_samples)):
             stimulus_data[i] = optical_power_unknown
 
-        # Create OptogeneticSeries
+        # Create OptogeneticSeries with proper timing
         series_info = optogenetics_metadata["OptogeneticSeries"][self.optogenetics_metadata_key]
+
+        # Use provided starting_time for temporal synchronization, or default to 0.0
+        stimulus_starting_time = starting_time if starting_time is not None else 0.0
+
         stimulus_series = OptogeneticSeries(
             name=series_info["name"],
             description=series_info["description"],
             data=stimulus_data,
             site=ogen_site,
-            starting_time=0.0,
+            starting_time=stimulus_starting_time,
             rate=float(sampling_rate),
         )
 
