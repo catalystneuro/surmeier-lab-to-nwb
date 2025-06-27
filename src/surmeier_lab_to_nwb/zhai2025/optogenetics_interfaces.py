@@ -112,10 +112,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         metadata["Devices"][device_name] = {
             "name": device_name,
             "description": (
-                "Blue LED (470 nm wavelength) for whole-field optogenetic stimulation of "
-                "AAV5-hSyn-hChR2(H134R)-EYFP expressing corticostriatal terminals. LED controlled "
-                "via Prairie View analog output line 2 with 5V drive voltage for 0.3 ms pulses "
-                "delivered every 30 seconds to evoke Sr2+-oEPSCs in dSPNs."
+                "Blue LED (470 nm) for whole-field optogenetic stimulation controlled via Prairie View. "
+                "Drives 5V pulses to activate ChR2-expressing corticostriatal terminals."
             ),
         }
 
@@ -127,11 +125,9 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
                     "name": site_name,
                     "device": device_name,
                     "description": (
-                        "Optogenetic stimulation site targeting AAV5-hSyn-hChR2(H134R)-EYFP expressing "
-                        "corticostriatal terminals in dorsal striatum. ChR2 expression achieved via "
-                        "stereotaxic injection into motor cortex ipsilateral to 6-OHDA lesion. "
-                        "Whole-field LED illumination activates corticostriatal projections to evoke "
-                        "Sr2+-oEPSCs in dSPNs under voltage clamp at -70 mV holding potential."
+                        "Optogenetic stimulation site in dorsal striatum targeting ChR2-expressing corticostriatal terminals. "
+                        "ChR2 expression from motor cortex injection ipsilateral to 6-OHDA lesion. "
+                        "LED illumination activates projections to evoke Sr2+-oEPSCs in recorded dSPNs."
                     ),
                     "excitation_lambda": 470.0,  # nm, blue LED
                     "location": "dorsal striatum (ipsilateral to 6-OHDA lesion)",
@@ -139,15 +135,14 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             },
             "OptogeneticSeries": {
                 self.optogenetics_metadata_key: {
-                    "name": f"OptogeneticStimulus_Cell{self.sweep_info['cell_number']}_LED{self.sweep_info['led_number']}_Sweep{self.sweep_info['sweep_number']}",
+                    "name": self.optogenetics_metadata_key,
                     "description": (
-                        f"Blue LED optogenetic stimulus (470 nm, {self.stimulus_params['pulse_width_ms']} ms, "
-                        f"{self.stimulus_params['pulse_amplitude_v']} V) for Sr2+-oEPSC experiment. "
+                        f"LED stimulus: {self.stimulus_params['pulse_width_ms']} ms blue LED pulse "
+                        f"delivered at {self.stimulus_params['first_pulse_delay_ms']} ms delay. "
                         f"Cell {self.sweep_info['cell_number']}, LED protocol {self.sweep_info['led_number']}, "
-                        f"Sweep {self.sweep_info['sweep_number']}. Stimulus delivered at "
-                        f"{self.stimulus_params['first_pulse_delay_ms']} ms to activate ChR2-expressing "
-                        f"corticostriatal terminals and evoke asynchronous EPSCs in Ca2+-free ACSF "
-                        f"with 3 mM Sr2+ substitution. LED pulses occur every 30 seconds during the sweep."
+                        f"Sweep {self.sweep_info['sweep_number']}. Control voltage: {self.stimulus_params['pulse_amplitude_v']} V. "
+                        f"NOTE: Actual optical power unknown - only electrical control parameters available. "
+                        f"Pulses occur every 30 seconds to evoke asynchronous EPSCs."
                     ),
                     "site": site_name,
                 }
@@ -199,7 +194,12 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         # Create stimulus time series data
         pulse_width_s = self.stimulus_params["pulse_width_ms"] / 1000.0
         pulse_delay_s = self.stimulus_params["first_pulse_delay_ms"] / 1000.0
-        pulse_amplitude = self.stimulus_params["pulse_amplitude_v"]
+        control_voltage = self.stimulus_params["pulse_amplitude_v"]
+
+        # NOTE: Optical power not available in source data
+        # The XML files only contain LED control voltage (5V), not actual optical power
+        # For NWB compliance, we use a placeholder value and document the limitation
+        optical_power_unknown = 0.001  # Placeholder: 1 mW (typical optogenetics range)
 
         # Create simple pulse stimulus data
         # Assuming typical recording duration of ~1 second
@@ -211,9 +211,10 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         pulse_start_sample = int(pulse_delay_s * sampling_rate)
         pulse_end_sample = int((pulse_delay_s + pulse_width_s) * sampling_rate)
 
-        # Set pulse amplitude during pulse period
+        # Set optical power during pulse period (placeholder value)
+        # Actual optical power unknown - only control voltage ({control_voltage}V) available
         for i in range(pulse_start_sample, min(pulse_end_sample, n_samples)):
-            stimulus_data[i] = pulse_amplitude
+            stimulus_data[i] = optical_power_unknown
 
         # Create OptogeneticSeries
         series_info = optogenetics_metadata["OptogeneticSeries"][self.optogenetics_metadata_key]

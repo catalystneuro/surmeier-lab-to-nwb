@@ -1,4 +1,76 @@
 # -*- coding: utf-8 -*-
+"""
+Figure 2 Optical Stimuli Conversion Script - Zhai et al. 2025
+============================================================
+
+This script converts Sr²⁺-oEPSC (strontium-substituted optogenetically evoked
+postsynaptic current) experimental data from Figure 2 of Zhai et al. 2025 into
+NWB (Neurodata Without Borders) format.
+
+EXPERIMENTAL CONTEXT:
+===================
+The data comes from experiments investigating corticostriatal synaptic strength
+in a Parkinson's disease model with levodopa-induced dyskinesia (LID). Mice
+received:
+- Unilateral 6-OHDA lesions (>95% dopamine depletion)
+- Dyskinesiogenic levodopa treatment
+- AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex
+
+Two experimental conditions were compared:
+- LID on-state: Sacrificed 30 min post-levodopa dose
+- LID off-state: Sacrificed 24-48h post-levodopa dose
+
+DATA STRUCTURE:
+==============
+The raw data follows a hierarchical organization:
+
+Base Path/
+├── LID on-state/
+│   ├── 07052023a/          # Session A on July 5, 2023
+│   │   ├── cell1_LED14-001/    # Cell 1, LED intensity 14, sweep 001
+│   │   │   ├── *_VoltageRecording_*.xml/csv  # Electrophysiology data
+│   │   │   ├── *_VoltageOutput_*.xml         # Optogenetic parameters
+│   │   │   └── *_Environment.xml             # Recording configuration
+│   │   ├── cell1_LED14-002/    # Next sweep (30 seconds later)
+│   │   └── ...
+│   ├── 07062023a/          # Session A on July 6, 2023
+│   └── ...
+└── LID off-state/
+    ├── 07132023a/          # Different session dates
+    └── ...
+
+TIMING VERIFICATION:
+Actual timestamps from XML files confirm 30-second intervals:
+2023-07-05T15:19:12 → cell1_LED14-001
+2023-07-05T15:19:42 → cell1_LED14-002 (+30 seconds)
+2023-07-05T15:20:12 → cell1_LED14-003 (+30 seconds)
+...
+
+OPTOGENETIC PARAMETERS:
+=====================
+From VoltageOutput XML metadata:
+- Pulse duration: 0.3 milliseconds (matches paper specification)
+- LED voltage: 5V (corresponds to different intensity settings)
+- Pulse timing: 20ms delay + 0.3ms pulse + recording window
+- Repetitions: Single pulse per sweep
+- Inter-sweep interval: 30 seconds
+
+CONVERSION OUTPUT:
+================
+NWB files are saved to: nwb_files/figure_2_optical_stimuli/
+Filename format: sr_oepsc_{condition}_{session_folder}.nwb
+
+Each NWB file contains:
+- Session metadata with precise timing
+- Subject information with experimental condition
+- Multiple VoltageClampSeries (one per sweep)
+- OptogeneticSeries with stimulus parameters
+- Device specifications for recording and stimulation equipment
+
+This conversion enables standardized analysis of the hierarchical data structure
+(Session → Cell → Sweep → Individual EPSCs) required for Figure 2's statistical
+comparisons between LID on-state and off-state conditions.
+"""
 import re
 from datetime import datetime
 from pathlib import Path
@@ -6,6 +78,7 @@ from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
@@ -15,88 +88,6 @@ from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
 from surmeier_lab_to_nwb.zhai2025.optogenetics_interfaces import (
     PrairieViewOptogeneticsInterface,
 )
-
-
-def extract_date_from_folder_name(folder_name: str) -> datetime:
-    """
-    Extract experimental session date from Sr-oEPSC folder naming convention.
-
-    The folder names follow the pattern MMDDYYYY{letter}, where the letter suffix
-    distinguishes multiple sessions on the same day (e.g., '07052023a', '08162023b').
-    This function parses the date component and returns a timezone-aware datetime
-    object set to Central Time Zone (Chicago), which is the timezone of the
-    Northwestern University lab where the experiments were conducted.
-
-    Parameters
-    ----------
-    folder_name : str
-        The folder name containing the embedded date in MMDDYYYY format.
-        Examples: '07052023a', '08162023b', '07062023c'
-
-    Returns
-    -------
-    datetime
-        A timezone-aware datetime object representing the experimental session date,
-        set to midnight Central Time Zone.
-
-    Raises
-    ------
-    ValueError
-        If the folder name does not contain a recognizable 8-digit date pattern.
-    """
-    # Look for date pattern MMDDYYYY in folder name
-    date_match = re.search(r"(\d{8})", folder_name)
-    if date_match:
-        date_str = date_match.group(1)
-        month = int(date_str[:2])
-        day = int(date_str[2:4])
-        year = int(date_str[4:8])
-    else:
-        raise ValueError(f"Could not extract date from folder name: {folder_name}")
-
-    # Illinois is in Central Time Zone
-    central_tz = ZoneInfo("America/Chicago")
-
-    return datetime(year, month, day, 0, 0, 0, tzinfo=central_tz)
-
-
-def parse_session_info(session_folder: Path) -> Dict[str, Any]:
-    """
-    Extract comprehensive session metadata from Sr-oEPSC experimental folder structure.
-
-    This function analyzes the session folder name to extract temporal and organizational
-    metadata needed for NWB file creation. The session folder naming convention follows
-    the pattern MMDDYYYY{letter}, where the letter suffix allows multiple experimental
-    sessions to be conducted on the same calendar date.
-
-    Parameters
-    ----------
-    session_folder : Path
-        Path object pointing to the experimental session folder.
-        Expected folder name format: MMDDYYYY{letter} (e.g., '07052023a', '08162023b')
-
-    Returns
-    -------
-    Dict[str, Any]
-        A dictionary containing parsed session metadata with the following keys:
-
-        - 'session_start_time' (datetime): Timezone-aware datetime object
-        - 'date_str' (str): Human-readable date string in YYYY-MM-DD format
-        - 'session_id' (str): Unique session identifier combining date and suffix
-        - 'session_suffix' (str): Letter suffix distinguishing sessions on same date
-    """
-    folder_name = session_folder.name
-    session_start_time = extract_date_from_folder_name(folder_name)
-
-    # Extract session identifier from folder name (e.g., 'a', 'b', 'c')
-    session_suffix = folder_name[-1] if folder_name[-1].isalpha() else ""
-
-    return {
-        "session_start_time": session_start_time,
-        "date_str": f"{session_start_time.year}-{session_start_time.month:02d}-{session_start_time.day:02d}",
-        "session_id": f"{session_start_time.year}{session_start_time.month:02d}{session_start_time.day:02d}{session_suffix}",
-        "session_suffix": session_suffix,
-    }
 
 
 def parse_sweep_info(sweep_folder_name: str) -> Dict[str, Any]:
@@ -158,68 +149,111 @@ def parse_sweep_info(sweep_folder_name: str) -> Dict[str, Any]:
 
 def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
     """
-    Comprehensive conversion of Sr-oEPSC experimental session to NWB format.
+    Convert Sr²⁺-oEPSC experimental session to NWB format for Figure 2 analysis.
 
-    This function orchestrates the complete conversion of a single experimental
-    session containing multiple Sr-oEPSC (strontium-substituted optogenetically
-    evoked postsynaptic current) sweeps. It processes both voltage clamp
-    electrophysiology recordings and associated optogenetic stimulation metadata,
-    organizing them into a standardized NWB file structure suitable for
-    computational analysis and data sharing.
+    This function converts a complete experimental session from the Zhai et al. 2025
+    Figure 2 optogenetic experiments. Each session represents a single day of experiments
+    with consistent conditions, containing multiple cells and sweeps for statistical analysis.
+
+    DATA ORGANIZATION:
+    ==================
+
+    Sessions (Date-based folders):
+    - Format: MMDDYYYY{letter} (e.g., 07052023a, 07062023b)
+    - Represents: Single experimental day with consistent conditions
+    - Contains: Multiple cells recorded under same protocol
+    - Conditions: Either "LID on-state" or "LID off-state"
+
+    Sweeps (Individual recordings):
+    - Format: cell{N}_LED{X}-{YYY} (e.g., cell1_LED14-001)
+    - Represents: One complete optogenetic stimulation + recording episode
+    - Timing: Exact 30-second intervals between sweeps (verified from timestamps)
+    - Contains: Single 0.3ms blue LED pulse + Sr²⁺-oEPSC recording
+
+    OPTOGENETIC STIMULUS PARAMETERS (from XML metadata):
+    ====================================================
+    - Pulse duration: 0.3 milliseconds (matches paper exactly)
+    - LED voltage: 5V drive (corresponds to different LED intensities)
+    - Timing: 20ms baseline + 0.3ms pulse + ~380ms recording window
+    - Frequency: Every 30 seconds between sweeps
+    - Target: ChR2-expressing corticostriatal terminals
+
+    EXPERIMENTAL TIMELINE PER SWEEP:
+    ================================
+    0-20 ms:     Baseline recording (LED off, 0V)
+    20-20.3 ms:  Light pulse (LED on, 5V) → ChR2 activation
+    20.3-400 ms: Recording window for asynchronous EPSCs
+    400+ ms:     End sweep, wait 30 seconds for next sweep
 
     Parameters
     ----------
     session_folder_path : Path
-        Path to the experimental session folder containing multiple sweep subfolders.
-        Each sweep folder should contain Prairie View recording files including:
-        - VoltageRecording XML and CSV files (electrophysiology data)
-        - VoltageOutput XML files (stimulus protocol definitions)
-        - Environment and reference files
+        Path to experimental session folder (date-based naming).
+        Contains multiple sweep subfolders with Prairie View files:
+        - VoltageRecording XML/CSV: Electrophysiology data
+        - VoltageOutput XML: Optogenetic stimulus parameters
+        - Configuration files: Recording setup metadata
 
     condition : str
-        Experimental condition identifier describing the animal model state.
-        Examples: "LID on-state", "LID off-state"
-        This affects metadata and helps categorize the experimental context.
+        Experimental condition: "LID on-state" or "LID off-state"
+        - On-state: 30 min post-levodopa injection
+        - Off-state: 24-48h post-levodopa injection
 
     Returns
     -------
     NWBFile
-        A complete NWB file object containing:
-
-        - Session metadata (timestamps, experimenter info, lab details)
-        - Multiple VoltageClampSeries objects (one per sweep)
-        - OptogeneticSeries objects with stimulus timing and parameters
-        - Device information for recording and stimulation equipment
-        - Electrode and stimulus site specifications
+        Complete NWB file containing:
+        - Session metadata with precise timing from folder names
+        - VoltageClampSeries for each sweep (Sr²⁺-oEPSC recordings)
+        - OptogeneticSeries with 0.3ms pulse parameters
+        - Device specifications for recording and LED stimulation
+        - Subject information with experimental condition
 
     Notes
     -----
-    The conversion process includes:
+    CONVERSION METHODOLOGY:
+    1. Parse session start time from folder name (MMDDYYYY format)
+    2. Load general metadata from YAML (lab, institution, experimenters)
+    3. Create NWBFile with session-specific metadata outside processing loop
+    4. Process each sweep independently:
+       - Create VoltageClampInterface for electrophysiology data
+       - Create OptogeneticsInterface for LED stimulus parameters
+       - Add both to existing NWBFile
+    5. Maintain hierarchical organization: Session → Cell → Sweep → EPSCs
 
-    1. Session-level metadata extraction from folder naming conventions
-    2. Sweep-by-sweep processing of electrophysiology recordings
-    3. Stimulus parameter extraction from Prairie View XML configurations
-    4. Creation of NWB-compliant data structures and relationships
-    5. Comprehensive error handling for missing or malformed files
+    STATISTICAL ANALYSIS STRUCTURE:
+    - Individual EPSC events detected within each sweep
+    - Multiple sweeps per cell provide repeated measurements
+    - Multiple cells per session provide biological replicates
+    - Multiple sessions per condition provide experimental replicates
 
-    Each sweep within the experimental session is processed independently, allowing for
-    robust handling of incomplete datasets while preserving all available
-    experimental data and metadata.
+    This hierarchical organization enables proper statistical analysis while
+    maintaining experimental traceability for Figure 2's comparative analysis.
     """
-    # Parse session information
-    session_info = parse_session_info(session_folder_path)
-    print(f"Session date: {session_info['date_str']}, Session: {session_info['session_id']}")
+    # Parse session start time from folder name (MMDDYYYY pattern)
+    folder_name = session_folder_path.name
+    # Extract first 8 digits from folder name (MMDDYYYY format)
+    date_str = folder_name[:8]
+    # Parse MMDDYYYY format
+    session_start_time = datetime.strptime(date_str, "%m%d%Y")
+    # Add Central Time Zone (Illinois)
+    central_tz = ZoneInfo("America/Chicago")
+    session_start_time_with_tz = session_start_time.replace(tzinfo=central_tz)
+
+    session_id = session_folder_path.name
+    print(f"Processing session folder: {session_folder_path.name}")
+
+    # Load metadata from YAML file
+    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create Subject information
     subject = Subject(
-        subject_id=f"mouse_{session_info['session_id']}",
+        subject_id=f"mouse_{session_id}",
         description=(
-            f"Adult Drd1-Tdtomato transgenic mouse used for Sr2+-oEPSC experiments under {condition} condition. "
-            f"Mouse received unilateral 6-OHDA lesion (>95% dopamine depletion) in substantia nigra pars compacta "
-            f"to model Parkinson's disease. For dyskinesia experiments, mice received dyskinesiogenic levodopa "
-            f"treatment (6-12 mg/kg + benserazide) every other day for ≥5 sessions. AAV5-hSyn-hChR2(H134R)-EYFP "
-            f"was stereotaxically injected into motor cortex ipsilateral to lesion for optogenetic stimulation "
-            f"of corticostriatal terminals."
+            f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
+            f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP "
+            f"injection into motor cortex for optogenetic experiments. Experimental condition: {condition}."
         ),
         species="Mus musculus",
         strain="Drd1-Tdtomato transgenic",
@@ -228,67 +262,63 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
         genotype="Drd1-Tdtomato+",
     )
 
-    # Create NWB file with appropriate metadata
+    # Session description for this specific recording
+    session_description = (
+        f"Sr²⁺-oEPSC recordings from dorsal striatal projection neurons (dSPNs) under {condition} condition. "
+        f"Voltage clamp at -70 mV in Ca²⁺-free ACSF with 3 mM SrCl₂ and 10 μM gabazine. "
+        f"Optogenetic stimulation: 0.3ms blue LED pulses (5V drive) activating ChR2-expressing "
+        f"corticostriatal terminals every 30 seconds. Recording window: 20ms baseline + 0.3ms pulse + "
+        f"~380ms for asynchronous EPSC detection. Multiple sweeps per cell for statistical analysis."
+    )
+
+    # Update with session-specific metadata
+    session_specific_metadata = {
+        "NWBFile": {
+            "session_description": session_description,
+            "identifier": f"zhai2025_fig2_sr_oepsc_{condition.replace(' ', '_').replace('-', '_')}_{session_id}",
+            "session_id": session_id,
+            "session_start_time": session_start_time_with_tz,
+            "keywords": ["Sr2+-oEPSC", "corticostriatal terminals", "dSPNs", "ChR2", "blue LED stimulation"],
+            "notes": (
+                "DETAILED EXPERIMENTAL PROTOCOLS: "
+                "Animal preparation: Dyskinesiogenic levodopa (6-12 mg/kg + 12 mg/kg benserazide) every other day for ≥5 sessions. "
+                "Recording solution: Ca2+-free ACSF + 3 mM SrCl2 + 10 μM gabazine, 25 min incubation. "
+                "Pipette solution: 120 mM CsMeSO3, 5 mM NaCl, 0.25 mM EGTA, 10 mM HEPES, 4 mM Mg-ATP, "
+                "0.3 mM Na-GTP, 10 mM TEA, 5 mM QX-314 (pH 7.25, 280-290 mOsm). "
+                "Recording parameters: -70 mV holding potential, 3-4 MΩ pipette resistance, 30s stimulation interval, "
+                "40-400ms analysis window for asynchronous events."
+            ),
+        }
+    }
+
+    # Deep update the metadata with session-specific information
+    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+
+    # Create NWBFile directly
     nwbfile = NWBFile(
-        session_description=(
-            f"Sr2+-oEPSC (strontium-substituted optogenetically evoked postsynaptic current) recordings "
-            f"in direct pathway spiny projection neurons (dSPNs) from dyskinetic mice under {condition} condition. "
-            f"Voltage clamp recordings at -70 mV holding potential in Ca2+-free ACSF containing 3 mM SrCl2 "
-            f"and 10 μM gabazine. ChR2-expressing corticostriatal terminals stimulated with blue LED pulses "
-            f"(470 nm, 0.3 ms duration) to evoke asynchronous excitatory postsynaptic currents. "
-            f"Recorded from Drd1-Tdtomato mice with unilateral 6-OHDA lesions and established LID."
-        ),
-        identifier=f"zhai2025_fig2_sr_oepsc_{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
-        session_start_time=session_info["session_start_time"],
-        experimenter=[
-            "Zhai, Shenyu",
-            "Cui, Qiaoling",
-            "Wokosin, David",
-            "Sun, Linqing",
-            "Tkatch, Tatiana",
-            "Crittenden, Jill R.",
-            "Graybiel, Ann M.",
-            "Surmeier, D. James",
-        ],
-        lab="Surmeier Lab",
-        institution="Northwestern University",
-        experiment_description=(
-            f"Investigation of corticostriatal synaptic strength in levodopa-induced dyskinesia (LID) "
-            f"using Sr2+-oEPSC measurements under {condition} condition. AAV5-hSyn-hChR2(H134R)-EYFP "
-            f"was injected into motor cortex ipsilateral to 6-OHDA lesion to express channelrhodopsin-2 "
-            f"in corticostriatal terminals. Mice received dyskinesiogenic levodopa treatment (6-12 mg/kg "
-            f"+ 12 mg/kg benserazide) and were sacrificed either 30 min post-dose (on-state) or 24-48h "
-            f"post-dose (off-state). Whole-cell voltage clamp recordings from dSPNs in Ca2+-free ACSF "
-            f"with Sr2+ substitution to measure asynchronous release from optogenetically activated "
-            f"corticostriatal synapses. Part of Figure 2 from Zhai et al. 2025 studying state-dependent "
-            f"modulation of synaptic connectivity in Parkinson's disease model."
-        ),
-        session_id=session_info["session_id"],
+        session_description=metadata["NWBFile"]["session_description"],
+        identifier=metadata["NWBFile"]["identifier"],
+        session_start_time=metadata["NWBFile"]["session_start_time"],
+        experimenter=metadata["NWBFile"]["experimenter"],
+        lab=metadata["NWBFile"]["lab"],
+        institution=metadata["NWBFile"]["institution"],
+        experiment_description=metadata["NWBFile"]["experiment_description"],
+        session_id=metadata["NWBFile"]["session_id"],
         subject=subject,
-        notes=(
-            "EXPERIMENTAL PROTOCOLS: "
-            "1. Animal Model: Drd1-Tdtomato mice with unilateral 6-OHDA lesions (>95% DA depletion). "
-            "2. Dyskinesia Induction: Dyskinesiogenic levodopa doses (6 mg/kg first 2 sessions, "
-            "12 mg/kg later sessions + 12 mg/kg benserazide) every other day for ≥5 sessions. "
-            "3. State Definition: On-state = 30 min post-levodopa; Off-state = 24-48h post-levodopa. "
-            "4. ChR2 Expression: AAV5-hSyn-hChR2(H134R)-EYFP injected into motor cortex. "
-            "5. Recording Solution: Ca2+-free ACSF + 3 mM SrCl2 + 10 μM gabazine, 25 min incubation. "
-            "6. Pipette Solution: 120 mM CsMeSO3, 5 mM NaCl, 0.25 mM EGTA, 10 mM HEPES, "
-            "4 mM Mg-ATP, 0.3 mM Na-GTP, 10 mM TEA, 5 mM QX-314 (pH 7.25, 280-290 mOsm). "
-            "7. Recording Parameters: Voltage clamp at -70 mV, pipette resistance 3-4 MΩ, "
-            "stimulation every 30s, analysis window 40-400ms post-stimulus for asynchronous events. "
-            "Each sweep represents one voltage clamp recording session."
-        ),
+        keywords=metadata["NWBFile"]["keywords"],
+        notes=metadata["NWBFile"]["notes"],
     )
 
     # Get all sweep folders
-    sweep_folders = [f for f in session_folder_path.iterdir() if f.is_dir() and "cell" in f.name.lower()]
-    sweep_folders.sort()
+    sweep_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
 
     print(f"Found {len(sweep_folders)} sweeps in experimental session")
 
+    if not sweep_folders:
+        raise ValueError(f"No sweep folders found in session: {session_folder_path} for condition: {condition}")
+
     # Process each sweep
-    for sweep_folder in sweep_folders:
+    for sweep_index, sweep_folder in enumerate(sweep_folders):
         print(f"  Processing: {sweep_folder.name}")
 
         # Parse sweep information
@@ -303,10 +333,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
 
         xml_recording_file = xml_files[0]
 
-        # Create voltage clamp interface
+        # Create voltage clamp interface with consistent sweep numbering
+        sweep_number_padded = f"{sweep_index + 1:03d}"  # 1-indexed, zero-padded to 3 digits
         voltage_clamp_interface = PrairieViewVoltageClampInterface(
             file_path=xml_recording_file,
-            icephys_metadata_key=f"VoltageClamp_Cell{sweep_info['cell_number']}_LED{sweep_info['led_number']}_Sweep{sweep_info['sweep_number']}",
+            icephys_metadata_key=f"VoltageClampSweep{sweep_number_padded}",
         )
 
         # Add voltage clamp data to NWB file
@@ -314,20 +345,22 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
 
         # Find VoltageOutput XML file and create optogenetics interface
         voltage_output_files = list(sweep_folder.glob("*_VoltageOutput_*.xml"))
-        if voltage_output_files:
-            optogenetics_interface = PrairieViewOptogeneticsInterface(
-                voltage_output_xml_path=voltage_output_files[0],
-                sweep_info=sweep_info,
-                optogenetics_metadata_key=f"Optogenetics_Cell{sweep_info['cell_number']}_LED{sweep_info['led_number']}_Sweep{sweep_info['sweep_number']}",
-            )
+        if not voltage_output_files:
+            raise FileNotFoundError(f"Required VoltageOutput XML file not found in sweep folder: {sweep_folder.name}")
 
-            # Add optogenetic stimulus to NWB file
-            optogenetics_interface.add_to_nwbfile(nwbfile=nwbfile)
-            print(
-                f"    Found LED stimulus: {optogenetics_interface.stimulus_params['pulse_width_ms']}ms pulse at {optogenetics_interface.stimulus_params['pulse_amplitude_v']}V"
-            )
-        else:
-            print(f"    Warning: No VoltageOutput XML file found in {sweep_folder.name}")
+        # Create optogenetics interface with consistent sweep numbering
+        optogenetics_interface = PrairieViewOptogeneticsInterface(
+            voltage_output_xml_path=voltage_output_files[0],
+            sweep_info=sweep_info,
+            optogenetics_metadata_key=f"OptogeneticSweep{sweep_number_padded}",
+        )
+
+        # Add optogenetic stimulus to NWB file
+        optogenetics_interface.add_to_nwbfile(nwbfile=nwbfile)
+
+        print(
+            f"    Found LED stimulus: {optogenetics_interface.stimulus_params['pulse_width_ms']}ms pulse at {optogenetics_interface.stimulus_params['pulse_amplitude_v']}V control voltage (optical power unknown)"
+        )
 
         print(
             f"    Successfully added sweep: Cell {sweep_info['cell_number']}, LED {sweep_info['led_number']}, Sweep {sweep_info['sweep_number']}"
@@ -351,8 +384,7 @@ if __name__ == "__main__":
     for condition in conditions:
         condition_path = base_path / condition
         if not condition_path.exists():
-            print(f"Warning: Condition path does not exist: {condition_path}")
-            continue
+            raise FileNotFoundError(f"Base path does not exist: {condition_path}")
 
         print(f"Processing Sr-oEPSC data for: {condition}")
 
@@ -371,9 +403,15 @@ if __name__ == "__main__":
                 condition=condition,
             )
 
-            # Generate output filename
+            # Generate output filename and create output directory structure
             safe_condition = condition.replace(" ", "_").replace("-", "_")
-            nwbfile_path = Path(f"sr_oepsc_{safe_condition}_{session_folder.name}.nwb")
+
+            # Create nwb_files directory at root level
+            root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
+            nwb_files_dir = root_dir / "nwb_files" / "figure_2_optical_stimuli"
+            nwb_files_dir.mkdir(parents=True, exist_ok=True)
+
+            nwbfile_path = nwb_files_dir / f"sr_oepsc_{safe_condition}_{session_folder.name}.nwb"
 
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             print(f"Successfully saved: {nwbfile_path}")
