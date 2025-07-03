@@ -82,8 +82,25 @@ The conversion of each protocol will handle the time alignment of data from each
 2. **PDF File**: [adv8224_SupplementalMaterial_v1] - Associated Supplemental Materials and Figures.
 3. **Excel File**: [Key resources table_Zhai_v1] - Key resources table for relevant software (incl. Notebooks), protocols, antibodies, viruses, animals, chemicals, and hardware.
 4. **Excel File**: [Data Connections] - Master sheets for raw data connections to panel figures, resources table, and some experiment metadata.
-5. **Folder**: [Tabular dataset Zhai et al. 2025] - Includes readme file inside folder; spreadsheets for each Figure with separate pages for each Figure panel’s data.
+5. **Folder**: [Tabular dataset Zhai et al. 2025] - Includes readme file inside folder; spreadsheets for each Figure with separate pages for each Figure panel's data.
 6. **Folder**: [Raw data for Figs] - Folders arranged by Figure panels.
+
+## Figure-Specific Conversion Notes
+
+Detailed conversion notes for each figure have been organized into separate files for better maintainability:
+
+- [Figure 1 Conversion Notes](conversion_notes_folder/figure_1_conversion_notes.md) - dSPN excitability and dendritic calcium imaging
+- [Figure 2 Conversion Notes](conversion_notes_folder/figure_2_conversion_notes.md) - Spine density and optogenetic Sr2+-oEPSC recordings
+- [Figure 3 Conversion Notes](conversion_notes_folder/figure_3_conversion_notes.md) - iSPN excitability and D2R antagonist effects
+- [Figure 4 Conversion Notes](conversion_notes_folder/figure_4_conversion_notes.md) - Confocal vs. two-photon spine density comparison
+- [Figure 5 Conversion Notes](conversion_notes_folder/figure_5_conversion_notes.md) - GRABACh3.0 acetylcholine release imaging
+- [Figure 6 Conversion Notes](conversion_notes_folder/figure_6_conversion_notes.md) - M1R antagonist effects on iSPN properties
+- [Figure 7 Conversion Notes](conversion_notes_folder/figure_7_conversion_notes.md) - CDGI knockout effects on iSPN excitability
+- [Figure 8 Conversion Notes](conversion_notes_folder/figure_8_conversion_notes.md) - M1R CRISPR effects on iSPN properties and dyskinetic behaviors
+- [Supplementary Figure 3 Conversion Notes](conversion_notes_folder/supplementary_figure_3_conversion_notes.md) - M1R CRISPR behavioral video recordings
+- [Supplementary Figure 4 Conversion Notes](conversion_notes_folder/supplementary_figure_4_conversion_notes.md) - Additional confocal vs. two-photon spine density validation
+
+For a high-level overview of NWB conversion considerations across all figures, see [Conversion Notes Overview](conversion_notes_folder/conversion_notes_overview.md).
 
 ## Figure 1
 
