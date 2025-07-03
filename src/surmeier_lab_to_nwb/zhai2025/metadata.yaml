@@ -1,11 +1,12 @@
 NWBFile:
   keywords:
-    - optogenetics
-    - voltage clamp
     - corticostriatal
     - Parkinson's disease
     - levodopa-induced dyskinesia
     - dSPNs
+    - iSPNs
+    - indirect pathway
+
   related_publications:
     - "https://doi.org/10.1016/j.neuron.2025.01.xxx"
   institution: Northwestern University
@@ -26,7 +27,7 @@ NWBFile:
     either 30 min post-dose (on-state) or 24-48h post-dose (off-state). Data corresponds to Figure 2
     from Zhai et al. 2025.
 Subject:
-  species: Rattus norvegicus
+  species: Mus musculus
   description: A rich text description of the subject
   age: TBD  # in ISO 8601, such as "P1W2D"
   sex: TBD  # One of M, F, U, or O

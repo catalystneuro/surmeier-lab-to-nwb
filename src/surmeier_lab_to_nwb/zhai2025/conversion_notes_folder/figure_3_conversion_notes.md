@@ -66,6 +66,43 @@ LID off-state/
 ...
 ```
 
+Each of this is a session folder containing the recordings for a specific cell.
+
+```
+├── 05232016_1
+│   ├── cell1-001
+│   ├── cell1-002
+│   ├── cell1-003
+│   ├── cell1-004
+│   ├── cell1-005
+│   ├── cell1-006
+│   ├── cell1-007
+│   ├── cell1-008
+│   ├── cell1-009
+│   ├── cell1-010
+│   ├── cell1-011
+│   ├── cell1-012
+│   ├── cell1-013
+│   ├── cell1-014
+│   ├── cell1-015
+│   ├── cell1-016
+│   ├── cell1-017
+│   ├── cell1-018
+│   ├── cell1-019
+│   ├── cell1-020
+│   └── cell1-021
+├── 05232016_2
+│   ├── cell2-001
+│   ├── cell2-002
+│   ├── cell2-003
+│   ├── cell2-004
+│   ├── cell2-005
+
+...
+```
+
+
+
 **File Bundle per Current Level**:
 ```
 cell1-001/
