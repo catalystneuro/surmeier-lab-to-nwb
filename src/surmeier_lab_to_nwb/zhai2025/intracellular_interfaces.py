@@ -1,12 +1,65 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 import xmltodict
 from neuroconv.basedatainterface import BaseDataInterface
 from neuroconv.utils import DeepDict
 from pynwb.file import NWBFile
 from pynwb.icephys import CurrentClampSeries, VoltageClampSeries
+
+# Protocol step to current mapping for F-I (frequency-current) relationship experiments
+PROTOCOL_STEP_TO_CURRENT: Dict[str, int] = {
+    """
+    Mapping of protocol step numbers to current injection values in picoamps (pA).
+
+    This protocol is used for somatic excitability experiments in Figures 1 and 3
+    of Zhai et al. 2025. The protocol involves stepping current injections from
+    -120 pA to +300 pA in 20 pA increments for 500 ms duration each.
+
+    Key experimental details:
+    - Step duration: 500 ms
+    - Current range: -120 pA to +300 pA
+    - Step size: 20 pA
+    - Total steps: 21 (some cells may have additional steps beyond +300 pA)
+    - Used for F-I relationship analysis and rheobase measurements
+
+    Protocol steps:
+    - 001-006: Hyperpolarizing currents (-120 to -20 pA)
+    - 007-021: Depolarizing currents (+20 to +300 pA)
+    - 022-026: Extended depolarizing currents (+320 to +400 pA, not all cells)
+
+    References:
+    - Figure 1: dSPN somatic excitability in LID model
+    - Figure 3: iSPN somatic excitability and D2 receptor signaling
+    """
+    "001": -120,  # pA - Strong hyperpolarization
+    "002": -100,  # pA
+    "003": -80,  # pA
+    "004": -60,  # pA
+    "005": -40,  # pA
+    "006": -20,  # pA - Weak hyperpolarization
+    "007": 20,  # pA - Weak depolarization (often near rheobase)
+    "008": 40,  # pA
+    "009": 60,  # pA
+    "010": 80,  # pA
+    "011": 100,  # pA
+    "012": 120,  # pA
+    "013": 140,  # pA
+    "014": 160,  # pA
+    "015": 180,  # pA
+    "016": 200,  # pA
+    "017": 220,  # pA
+    "018": 240,  # pA
+    "019": 260,  # pA
+    "020": 280,  # pA
+    "021": 300,  # pA - Standard maximum current
+    "022": 320,  # pA - Extended protocol (some cells only)
+    "023": 340,  # pA
+    "024": 360,  # pA
+    "025": 380,  # pA
+    "026": 400,  # pA - Extended maximum current
+}
 
 
 class PrairieViewPathClampBaseInterface(BaseDataInterface):
