@@ -68,14 +68,39 @@ The conversion of each protocol will handle the time alignment of data from each
 
 ## Figure-to-Data Stream Mapping
 
-* **Figure 1**: Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
+### Figures with Dendritic Excitability Experiments
+
+The following figures contain **dendritic excitability experiments** using standardized two-photon line scan imaging protocols:
+
+#### Core Methodology (Consistent Across All Dendritic Excitability Figures)
+- **Two-photon laser scanning microscopy (2PLSM)**: 810 nm excitation laser (Chameleon Ultra II)
+- **Calcium imaging**: Fluo-4 (Ca2+-sensitive) and Alexa Fluor 568 (Ca2+-insensitive) dyes
+- **Back-propagating action potentials (bAPs)**: Induced by brief current pulses
+- **Current injection protocol**: Three 2 nA, 2 ms pulses at 50 Hz
+- **Line scan parameters**: 64 pixels per line, 10 μs dwell time, ~2500 time points
+- **Spatial measurements**: Proximal (~40 μm) and distal (~90 μm) from soma
+- **Analysis**: Distal/proximal calcium signal ratio as dendritic excitability index
+
+#### Figure-Specific Applications
+* **Figure 1**: Intracellular electrophysiology (CurrentClamp), **dendritic excitability line scans**, somatic excitability protocols
+  - **Cell type**: dSPNs (direct pathway SPNs)
+  - **Conditions**: LID off-state, on-state, + D1R antagonist (SCH)
+  - **Raw data**: 1.5GB total dendritic excitability data
+* **Figure 3**: Intracellular electrophysiology (CurrentClamp), **dendritic excitability line scans**, somatic excitability protocols
+  - **Cell type**: iSPNs (indirect pathway SPNs)
+  - **Conditions**: LID off-state, on-state, + D2R antagonist (sulpiride)
+* **Figure 6**: Intracellular electrophysiology (CurrentClamp), **dendritic excitability line scans**, two-photon spine density stacks
+  - **Cell type**: iSPNs
+  - **Conditions**: Control vs. M1R antagonist
+* **Figure 7**: Intracellular electrophysiology (CurrentClamp), **dendritic excitability line scans**, spine density stacks, behavioral data
+  - **Cell type**: iSPNs
+  - **Conditions**: CDGI knockout vs. wild-type
+
+### Other Figure Data Streams
 * **Figure 2**: Image stacks (spine density) and intracellular electrophysiology (CurrentClamp) data with optogenetic stimulation (Sr-oEPSC). The image stacks here are from two-photon laser scanning microscopy.
-* **Figure 3**: Intracellular electrophysiology (VoltageClamp), LineScan data
 * **Figure 4**: Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
-* **Figure 5**: Fluorescence imaging data from two-photon laser scanning microscopy.
-* **Figure 6**: Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density and line scans.
-* **Figure 7**: Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density, and line scans. Behavior scoring data (AIM) and behavioral videos.
-* **Figure 8**: Behavioral scoring, intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density, and line scans.
+* **Figure 5**: Fluorescence imaging data from two-photon laser scanning microscopy (GRABACh3.0 acetylcholine sensor).
+* **Figure 8**: Behavioral scoring, intracellular electrophysiology (CurrentClamp), two-photon laser stacks for spine density.
 
 ## Data Organization - Raw Data for Figs
 

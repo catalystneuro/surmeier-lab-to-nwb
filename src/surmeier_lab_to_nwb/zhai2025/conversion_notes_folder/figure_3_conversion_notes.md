@@ -40,10 +40,29 @@ Similar to Figure 1, voltage changes recorded in response to current injection s
 
 **Methodology**: Combination of patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM)
 
-Similar to Figure 1 protocol with iSPNs instead of dSPNs:
-- Patch clamp recording with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568
-- Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz)
+> To assess iSPN dendritic excitability in on- and off-states, and the role of D2 receptor signaling, the same methodology as Figure 1 was used. iSPNs in ex vivo brain slices were patch clamped, filled with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568, **and injected with brief current steps (three 2 nA injections, 2 ms each, at 50 Hz)**.
+
+**Stimulus Protocol**:
+```
+Current (nA)
+  2 |   ___      ___      ___
+    |  |   |    |   |    |   |
+  0 |__|   |____|   |____|   |____
+      <-2ms->    <-2ms->    <-2ms->
+      <---20ms--><---20ms--->
+```
+
+**Physiological Rationale**:
+- **Back-propagating action potentials (bAPs)**: Somatically delivered current steps evoke spikes that back-propagate into iSPN dendrites
+- **Calcium signaling**: bAPs trigger transient opening of voltage-dependent Ca2+ channels, producing measurable calcium transients
+- **Dendritic excitability assessment**: Magnitude of Ca2+ signals serves as a surrogate estimate of dendritic depolarization extent
+
+**Analysis**:
 - Ca2+ signals measured at proximal (~40 μm from soma) and distal (~90 μm from soma) dendritic locations
+- **Distal/proximal ratio**: Used as index of dendritic excitability, normalized for experimental variables
+- **iSPN vs dSPN comparison**: Opposite effects observed - iSPNs show decreased excitability in on-state (vs. increased in dSPNs)
+
+**Key Finding**: iSPN dendritic excitability decreased in on-state, reversed by sulpiride (D2R antagonist)
 
 ### Pharmacological Manipulation
 
@@ -115,24 +134,46 @@ cell1-001/
 
 ### Dendritic Excitability Data Structure
 
+**Raw Data Location**: `/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 3/Dendritic excitability/`
+
 **Naming Convention**: `[date]_Cell[cell number]_[location][location number]_trio-[trial number]`
 
-**Directory Structure**:
+**Complete Directory Structure**:
 ```
-LID off-state/
-├── 0523a/          # May 23, 2016, animal "a"
-│   ├── 05232016_Cell1_dist1_trio-001
-│   ├── 05232016_Cell1_dist1_trio-002
-│   ├── 05232016_Cell1_dist1_trio-003
-│   ├── 05232016_Cell1_prox1_trio-001
-│   ├── 05232016_Cell1_prox1_trio-002
-│   └── 05232016_Cell1_prox1_trio-003
-├── 0523b/          # May 23, 2016, animal "b"
-│   ├── 05232016_Cell2_dist1_trio-001
-│   ├── 05232016_Cell2_dist1_trio-002
-│   └── 05232016_Cell2_dist1_trio-003
-...
+Figure 3/Dendritic excitability/
+├── LID off-state/
+│   ├── 0523a/          # May 23, 2016, animal "a"
+│   │   ├── 05232016_Cell1_dist1_trio-001
+│   │   ├── 05232016_Cell1_dist1_trio-002
+│   │   ├── 05232016_Cell1_dist1_trio-003
+│   │   ├── 05232016_Cell1_prox1_trio-001
+│   │   ├── 05232016_Cell1_prox1_trio-002
+│   │   └── 05232016_Cell1_prox1_trio-003
+│   ├── 0523b/          # May 23, 2016, animal "b"
+│   │   ├── 05232016_Cell2_dist1_trio-001
+│   │   ├── 05232016_Cell2_dist1_trio-002
+│   │   └── 05232016_Cell2_dist1_trio-003
+│   ├── 0524a/          # May 24, 2016, animal "a"
+│   ├── 0524b/          # May 24, 2016, animal "b"
+│   ├── 0525a/          # May 25, 2016, animal "a"
+│   └── [Additional off-state experiments]
+├── LID on-state/
+│   ├── 0523a/          # May 23, 2016, animal "a" (on-state)
+│   ├── 0523b/          # May 23, 2016, animal "b" (on-state)
+│   ├── 0524a/          # May 24, 2016, animal "a" (on-state)
+│   ├── 0524b/          # May 24, 2016, animal "b" (on-state)
+│   └── [Additional on-state experiments]
+└── LID on-state with sul/  # "sul" = sulpiride (D2R antagonist)
+    ├── 0523a/          # May 23, 2016, animal "a" + sulpiride
+    ├── 0523b/          # May 23, 2016, animal "b" + sulpiride
+    ├── 0524a/          # May 24, 2016, animal "a" + sulpiride
+    └── [Additional sulpiride experiments]
 ```
+
+**Experimental Design Notes**:
+- **Cell type focus**: iSPNs (indirect pathway SPNs) vs. dSPNs in Figure 1
+- **D2R modulation**: Sulpiride blocks D2 dopamine receptors to test receptor-dependent effects
+- **Comparative design**: Same animals tested across different pharmacological conditions when possible
 
 **File Bundle per Recording**:
 ```
@@ -171,6 +212,12 @@ Same as Figure 1 - three 2 nA current injections, 2 ms each, at ~50 Hz frequency
 
 ### Two-Photon Imaging
 > The recorded SPN was visualized using 810 nm excitation laser (Chameleon Ultra II, Coherent, Santa Clara, USA). Dendritic structure was visualized by the red signal of Alexa Fluor 568 detected by a Hamamatsu R3982 side-on photomultiplier tube (PMT, 580-620 nm). Calcium transients, as signals in the green channel, were detected by a Hamamatsu H7422P-40 GaAsP PMT (490-560 nm, Hamamatsu Photonics, Japan).
+
+**Imaging Strategy**:
+- **Dendritic targeting**: Line scans positioned along iSPN dendrites at specific distances from soma
+- **Dual-channel acquisition**: Simultaneous recording of calcium (Fluo-4) and structural (Alexa Fluor 568) signals
+- **Spatial calibration**: Distances measured from soma to scan locations using structural channel
+- **Signal validation**: Structural channel confirms dendrite integrity throughout recording
 
 ## Key Findings
 

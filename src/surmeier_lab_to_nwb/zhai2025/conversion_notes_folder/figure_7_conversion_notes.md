@@ -21,10 +21,29 @@ Figure 7/
 
 **Methodology**: Combination of patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM)
 
-Similar to Figure 1 protocol:
-- Patch clamp recording with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568
-- Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz)
+> To assess the role of CDGI in iSPN dendritic excitability, the same methodology as previous figures was applied to CDGI knockout and wild-type mice. iSPNs were patch clamped, filled with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568, **and injected with brief current steps (three 2 nA injections, 2 ms each, at 50 Hz)**.
+
+**Stimulus Protocol**:
+```
+Current (nA)
+  2 |   ___      ___      ___
+    |  |   |    |   |    |   |
+  0 |__|   |____|   |____|   |____
+      <-2ms->    <-2ms->    <-2ms->
+      <---20ms--><---20ms--->
+```
+
+**Physiological Rationale**:
+- **Back-propagating action potentials (bAPs)**: Somatically delivered current steps evoke spikes that back-propagate into iSPN dendrites
+- **Genetic approach**: Testing whether CDGI gene deletion affects dendritic calcium transients
+- **Molecular validation**: Confirms the role of specific signaling molecules in dendritic excitability
+
+**Analysis**:
 - Ca2+ signals measured at proximal (~40 μm from soma) and distal (~90 μm from soma) dendritic locations
+- **Distal/proximal ratio**: Used as index of dendritic excitability, normalized for experimental variables
+- **CDGI KO vs. WT**: Comparison reveals CDGI-dependent component of dendritic excitability
+
+**Key Finding**: CDGI knockout alters iSPN dendritic excitability, confirming its role in dendritic plasticity
 
 ### Genetic Manipulation
 
@@ -37,32 +56,46 @@ Similar to Figure 1 protocol:
 
 ### Dendritic Excitability Data Structure
 
+**Raw Data Location**: `/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 7/oxoM on DE/`
+
 **Naming Convention**: `[date]_Cell[cell number]_[location][location number]_trio-[trial number]`
 
-**Directory Structure**:
+**Complete Directory Structure**:
 ```
-CDGI KO/
-├── 0301a/          # March 1, 2020, animal "a"
-│   ├── 03012020_Cell1_dist1_trio-001
-│   ├── 03012020_Cell1_dist1_trio-002
-│   ├── 03012020_Cell1_dist1_trio-003
-│   ├── 03012020_Cell1_prox1_trio-001
-│   ├── 03012020_Cell1_prox1_trio-002
-│   └── 03012020_Cell1_prox1_trio-003
-├── 0301b/
-├── 0302a/
-...
+Figure 7/oxoM on DE/  # Note: "oxoM on DE" = oxotremorine-M effects on Dendritic Excitability
+├── KO/                 # CDGI knockout mice
+│   ├── 0301a/          # March 1, 2020, animal "a"
+│   │   ├── 03012020_Cell1_dist1_trio-001
+│   │   ├── 03012020_Cell1_dist1_trio-002
+│   │   ├── 03012020_Cell1_dist1_trio-003
+│   │   ├── 03012020_Cell1_prox1_trio-001
+│   │   ├── 03012020_Cell1_prox1_trio-002
+│   │   └── 03012020_Cell1_prox1_trio-003
+│   ├── 0301b/          # March 1, 2020, animal "b"
+│   ├── 0302a/          # March 2, 2020, animal "a"
+│   ├── 0302b/          # March 2, 2020, animal "b"
+│   ├── 0303a/          # March 3, 2020, animal "a"
+│   └── [Additional CDGI KO experiments]
+├── WT/                # Wild-type control mice
+│   ├── 0301a/          # March 1, 2020, animal "a"
+│   │   ├── 03012020_Cell1_dist1_trio-001
+│   │   ├── 03012020_Cell1_dist1_trio-002
+│   │   ├── 03012020_Cell1_dist1_trio-003
+│   │   ├── 03012020_Cell1_prox1_trio-001
+│   │   ├── 03012020_Cell1_prox1_trio-002
+│   │   └── 03012020_Cell1_prox1_trio-003
+│   ├── 0301b/          # March 1, 2020, animal "b"
+│   ├── 0302a/          # March 2, 2020, animal "a"
+│   ├── 0302b/          # March 2, 2020, animal "b"
+│   └── [Additional WT control experiments]
+└── ReadMe.rtf         # Additional experimental notes
+```
 
-WT/
-├── 0301a/          # March 1, 2020, animal "a"
-│   ├── 03012020_Cell1_dist1_trio-001
-│   ├── 03012020_Cell1_dist1_trio-002
-│   ├── 03012020_Cell1_dist1_trio-003
-│   ├── 03012020_Cell1_prox1_trio-001
-│   ├── 03012020_Cell1_prox1_trio-002
-│   └── 03012020_Cell1_prox1_trio-003
-...
-```
+**Experimental Design**:
+- **Littermate controls**: CDGI KO and WT mice from same breeding pairs
+- **Genotype blinding**: Experimenter unaware of genotype during recordings
+- **Standardized protocols**: Identical experimental conditions for both genotypes
+- **oxoM treatment**: Some experiments include oxotremorine-M (muscarinic agonist) to test receptor responsiveness
 
 **File Bundle per Recording**:
 ```

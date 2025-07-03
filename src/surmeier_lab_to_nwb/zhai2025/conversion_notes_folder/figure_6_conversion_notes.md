@@ -42,10 +42,29 @@ Similar to Figures 1 and 3, voltage changes recorded in response to current inje
 
 **Methodology**: Combination of patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM)
 
-Similar to Figure 1 protocol:
-- Patch clamp recording with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568
-- Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz)
+> To assess the role of M1 muscarinic receptors in iSPN dendritic excitability, the same methodology as Figures 1 and 3 was applied. iSPNs were patch clamped, filled with Ca2+-sensitive dye Fluo-4 and Ca2+-insensitive dye Alexa Fluor 568, **and injected with brief current steps (three 2 nA injections, 2 ms each, at 50 Hz)**.
+
+**Stimulus Protocol**:
+```
+Current (nA)
+  2 |   ___      ___      ___
+    |  |   |    |   |    |   |
+  0 |__|   |____|   |____|   |____
+      <-2ms->    <-2ms->    <-2ms->
+      <---20ms--><---20ms--->
+```
+
+**Physiological Rationale**:
+- **Back-propagating action potentials (bAPs)**: Somatically delivered current steps evoke spikes that back-propagate into iSPN dendrites
+- **M1R modulation**: Testing whether M1 muscarinic receptor signaling affects dendritic calcium transients
+- **Pharmacological approach**: M1R antagonist blocks muscarinic signaling to reveal receptor-dependent effects
+
+**Analysis**:
 - Ca2+ signals measured at proximal (~40 μm from soma) and distal (~90 μm from soma) dendritic locations
+- **Distal/proximal ratio**: Used as index of dendritic excitability, normalized for experimental variables
+- **Control vs. M1R antagonist**: Comparison reveals M1R-dependent component of dendritic excitability
+
+**Key Finding**: M1R antagonist blocks specific components of iSPN dendritic excitability
 
 ### Spine Density Protocol
 
@@ -100,27 +119,42 @@ cell1-001/
 
 ### Dendritic Excitability Data Structure
 
+**Raw Data Location**: `/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 6/Dendritic excitability/`
+
 **Naming Convention**: `[date]_Cell[cell number]_[location][location number]_trio-[trial number]`
 
-**Directory Structure**:
+**Complete Directory Structure**:
 ```
-control/
-├── 0217a/          # February 17, 2020, animal "a"
-│   ├── 02172020_Cell1_dist1_trio-001
-│   ├── 02172020_Cell1_dist1_trio-002
-│   ├── 02172020_Cell1_dist1_trio-003
-│   ├── 02172020_Cell1_prox1_trio-001
-│   ├── 02172020_Cell1_prox1_trio-002
-│   └── 02172020_Cell1_prox1_trio-003
-...
+Figure 6/Dendritic excitability/
+├── control/
+│   ├── 0217a/          # February 17, 2020, animal "a"
+│   │   ├── 02172020_Cell1_dist1_trio-001
+│   │   ├── 02172020_Cell1_dist1_trio-002
+│   │   ├── 02172020_Cell1_dist1_trio-003
+│   │   ├── 02172020_Cell1_prox1_trio-001
+│   │   ├── 02172020_Cell1_prox1_trio-002
+│   │   └── 02172020_Cell1_prox1_trio-003
+│   ├── 0217b/          # February 17, 2020, animal "b"
+│   ├── 0218a/          # February 18, 2020, animal "a"
+│   ├── 0218b/          # February 18, 2020, animal "b"
+│   ├── 0219a/          # February 19, 2020, animal "a"
+│   ├── 0219b/          # February 19, 2020, animal "b"
+│   └── [Additional control experiments]
+└── M1R antagonist/
+    ├── 0217a/          # February 17, 2020, animal "a" + M1R antagonist
+    │   ├── 02172020_Cell1_dist1_trio-001
+    │   ├── 02172020_Cell1_dist1_trio-002
+    │   └── 02172020_Cell1_dist1_trio-003
+    ├── 0217b/          # February 17, 2020, animal "b" + M1R antagonist
+    ├── 0218a/          # February 18, 2020, animal "a" + M1R antagonist
+    ├── 0218b/          # February 18, 2020, animal "b" + M1R antagonist
+    └── [Additional M1R antagonist experiments]
+```
 
-M1R antagonist/
-├── 0217a/
-│   ├── 02172020_Cell1_dist1_trio-001
-│   ├── 02172020_Cell1_dist1_trio-002
-│   └── 02172020_Cell1_dist1_trio-003
-...
-```
+**Experimental Design**:
+- **Paired experiments**: Same animals tested under control and M1R antagonist conditions
+- **Within-subject design**: Allows direct comparison of M1R-dependent effects
+- **Temporal sequence**: Control recordings often performed before drug application
 
 **File Bundle per Recording**:
 ```

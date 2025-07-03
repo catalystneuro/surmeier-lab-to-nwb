@@ -175,7 +175,7 @@ BOT_04162024_slice2ROI1_sul_single-001/
 - **Objective**: Olympus 60x/0.9 NA water-immersion
 
 ### Detection
-- **PMT**: Hamamatsu H7422P-40 GaAsP
+- **PMT**: Hamamatsu1 H7422P-40 GaAsP
 - **Detection range**: 490-560 nm
 - **Gain settings**: Ch2 = 900, Ch3 = 320
 
