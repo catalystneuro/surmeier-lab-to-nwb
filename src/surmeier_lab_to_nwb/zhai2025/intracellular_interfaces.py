@@ -87,6 +87,7 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
 
         self.file_path = Path(file_path)
         self.icephys_metadata_key = icephys_metadata_key
+        self._t_start = 0.0  # Default starting time
 
         # Load XML data
         with open(self.file_path, "r") as xml_file:
@@ -258,6 +259,17 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
         electrode = self._get_or_create_electrode(nwbfile, metadata, device)
         return device, electrode
 
+    def set_aligned_starting_time(self, aligned_starting_time: float) -> None:
+        """
+        Set the aligned starting time for all time series data.
+
+        Parameters
+        ----------
+        aligned_starting_time : float
+            Starting time in seconds relative to session start for temporal alignment
+        """
+        self._t_start = aligned_starting_time
+
 
 class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
     """Interface for Prairie View current clamp data."""
@@ -377,6 +389,10 @@ class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
         voltage_mV = recording_data_df[" Primary"] * multiplier / divisor
         voltage_volts = voltage_mV.values / 1_000.0  # Convert mV to volts
 
+        # Apply aligned starting time offset
+        if self._t_start != 0.0:
+            timestamps = timestamps + self._t_start
+
         # Create current clamp series
         name = patch_clamp_series_metadata["name"]
         current_clamp_series = CurrentClampSeries(
@@ -492,6 +508,10 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
                 electrode=electrode,
             )
         else:
+            # Apply aligned starting time offset
+            if self._t_start != 0.0:
+                timestamps = timestamps + self._t_start
+
             voltage_clamp_series = VoltageClampSeries(
                 name=name,
                 description=patch_clamp_series_metadata["description"],
