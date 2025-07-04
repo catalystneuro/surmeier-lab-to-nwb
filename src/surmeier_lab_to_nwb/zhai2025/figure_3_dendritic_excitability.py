@@ -268,12 +268,22 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         recording_info = recording_info_dict[recording_folder]
         main_xml_file = recording_folder / f"{recording_folder.name}.xml"
 
-        # Create line scan interface for this recording
-        line_scan_interface = PrairieViewLineScanInterface(xml_metadata_file_path=main_xml_file)
-
+        # Create recording_id for consistent naming
         repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"
         location_id = f"{recording_info['location_full']}Dendrite{recording_info['location_number']}"
         recording_id = f"{location_id}{repetition_id}"
+
+        # Create interfaces for the two known channels
+        structural_ophys_key = f"PrairieViewLineScan{recording_id}Alexa568"
+        calcium_ophys_key = f"PrairieViewLineScan{recording_id}Fluo4"
+
+        structural_interface = PrairieViewLineScanInterface(
+            xml_metadata_file_path=main_xml_file, channel_name="Ch1", ophys_metadata_key=structural_ophys_key
+        )
+
+        calcium_interface = PrairieViewLineScanInterface(
+            xml_metadata_file_path=main_xml_file, channel_name="Ch2", ophys_metadata_key=calcium_ophys_key
+        )
 
         print(f"  Processing recording for folder: {recording_folder.name}")
         print(f"    Recording ID: {recording_id}")
@@ -325,14 +335,76 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         # Add intracellular data to NWB file
         intracellular_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=intracellular_metadata)
 
-        # Get line scan metadata and update with recording-specific information
-        line_scan_metadata = line_scan_interface.get_metadata()
+        # Process structural channel (Ch1/Alexa568)
+        structural_metadata = structural_interface.get_metadata()
+        # Apply fluorophore-specific metadata based on experimental knowledge
+        structural_metadata["Devices"][structural_ophys_key]["name"] = "BrukerUltima"
+        structural_metadata["Devices"][structural_ophys_key][
+            "description"
+        ] = "Bruker two-photon microscope for line scan imaging"
+        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["name"] = f"ImagingPlane{location_id}"
+        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key][
+            "description"
+        ] = f"Line scan imaging plane for {location_id} using Alexa Fluor 568 structural dye"
+        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["indicator"] = "Alexa Fluor 568"
+        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
+            "name"
+        ] = f"PlaneSegmentation{recording_id}"
+        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
+            "description"
+        ] = f"Line scan ROI segmentation for {location_id} structural imaging"
+        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
+            "name"
+        ] = f"RoiResponseSeriesAlexa568{recording_id}"
+        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
+            "description"
+        ] = f"Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM) - {location_id}"
+        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
+            "name"
+        ] = f"ImageAlexa568{recording_id}"
+        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
+            "description"
+        ] = f"Source image for Alexa Fluor 568 structural reference - {location_id}"
+        structural_metadata["TimeSeries"][structural_ophys_key]["name"] = f"TimeSeriesLineScanRawAlexa568{recording_id}"
+        structural_metadata["TimeSeries"][structural_ophys_key][
+            "description"
+        ] = f"Line scan raw data for Alexa Fluor 568 structural reference - {location_id}"
 
-        line_scan_metadata["recording_id"] = recording_id
-        line_scan_metadata["location_id"] = location_id
+        # Add structural data to NWB file
+        structural_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=structural_metadata)
 
-        # Add line scan data to NWB file with updated metadata
-        line_scan_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=line_scan_metadata)
+        # Process calcium channel (Ch2/Fluo4)
+        calcium_metadata = calcium_interface.get_metadata()
+        # Apply fluorophore-specific metadata based on experimental knowledge
+        calcium_metadata["Devices"][calcium_ophys_key]["name"] = "BrukerUltima"
+        calcium_metadata["Devices"][calcium_ophys_key][
+            "description"
+        ] = "Bruker two-photon microscope for line scan imaging"
+        ophys_metadata = calcium_metadata["Ophys"]
+        ophys_metadata["ImagingPlanes"][calcium_ophys_key]["name"] = f"ImagingPlane{location_id}"
+        ophys_metadata["ImagingPlanes"][calcium_ophys_key][
+            "description"
+        ] = f"Line scan imaging plane for {location_id} using Fluo-4 calcium indicator"
+        ophys_metadata["ImagingPlanes"][calcium_ophys_key]["indicator"] = "Fluo-4"
+        ophys_metadata["PlaneSegmentation"][calcium_ophys_key]["name"] = f"PlaneSegmentation{recording_id}"
+        ophys_metadata["PlaneSegmentation"][calcium_ophys_key][
+            "description"
+        ] = f"Line scan ROI segmentation for {location_id} calcium imaging"
+        ophys_metadata["RoiResponseSeries"][calcium_ophys_key]["name"] = f"RoiResponseSeriesFluo4{recording_id}"
+        ophys_metadata["RoiResponseSeries"][calcium_ophys_key][
+            "description"
+        ] = f"Calcium fluorescence from Fluo-4 (100 μM) - {location_id}"
+        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key]["name"] = f"ImageFluo4{recording_id}"
+        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key][
+            "description"
+        ] = f"Source image for Fluo-4 calcium indicator - {location_id}"
+        calcium_metadata["TimeSeries"][calcium_ophys_key]["name"] = f"TimeSeriesLineScanRawFluo4{recording_id}"
+        calcium_metadata["TimeSeries"][calcium_ophys_key][
+            "description"
+        ] = f"Line scan raw data for Fluo-4 calcium indicator - {location_id}"
+
+        # Add calcium data to NWB file
+        calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
         print(f"    Added line scan imaging data")
         print(f"    Successfully processed recording: {recording_folder.name}")
