@@ -53,9 +53,17 @@ Current (nA)
       <---20ms--><---20ms--->
 ```
 
+**Physiological Rationale**:
+- **Back-propagating action potentials (bAPs)**: Somatically delivered current steps evoke spikes that back-propagate into SPN dendrites
+- **Calcium signaling**: bAPs trigger transient opening of voltage-dependent Ca2+ channels, producing measurable calcium transients
+- **Dendritic excitability assessment**: Magnitude of Ca2+ signals serves as a surrogate estimate of dendritic depolarization extent
+
 **Analysis**:
 - Ca2+ signals measured at proximal (~40 μm from soma) and distal (~90 μm from soma) dendritic locations
-- Distal/proximal ratio used as index of dendritic excitability
+- **Distal/proximal ratio**: Used as index of dendritic excitability, normalized for experimental variables (dye concentration, laser intensity)
+- **Significance**: Higher ratio indicates greater dendritic excitability and more effective bAP invasion
+
+**Key Finding**: Dendritic excitability index significantly greater in on-state dSPNs than in off-state dSPNs (p = 0.0115)
 
 ## Data Organization
 
@@ -87,18 +95,78 @@ cell1-001/
 
 ### Dendritic Excitability Data Structure
 
+**Raw Data Location**: `/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 1/Dendritic excitability/`
+
 **Naming Convention**: `[date]_Cell[cell number]_[location][location number]_trio-[trial number]`
 
 Example: `07062017_Cell1_dist1_trio-001`
 
-**Directory Structure**:
+**Complete Directory Structure**:
 ```
-├── 0706a/          # July 6th, animal "a"
-│   ├── 0706a1/     # Cell 1 from animal "a"
-│   └── 0706a2/     # Cell 2 from animal "a"
-├── 0706b/          # July 6th, animal "b"
-│   └── 0706b1/     # Cell 1 from animal "b"
+Figure 1/Dendritic excitability/
+├── LID off-state/
+│   ├── 0202a/          # Feb 2nd, 2017, animal "a"
+│   │   ├── 0202a1/     # Cell 1 from animal "a"
+│   │   └── 0202a2/     # Cell 2 from animal "a"
+│   ├── 0203a/          # Feb 3rd, 2017, animal "a"
+│   │   ├── 0203a1/, 0203a2/, 0203a3/
+│   ├── 0203c/          # Feb 3rd, 2017, animal "c"
+│   │   ├── 0203c1/, 0203c2/
+│   ├── 0204a/          # Feb 4th, 2017, animal "a"
+│   │   ├── 0204a1/, 0204a2/
+│   ├── 0204b/          # Feb 4th, 2017, animal "b"
+│   │   ├── 0204b1/, 0204b2/
+│   ├── 0812c/          # Aug 12th, 2016, animal "c"
+│   │   └── 0812c1/
+│   ├── 1111b/          # Nov 11th, 2016, animal "b"
+│   │   ├── 1111b1/, 1111b2/
+│   ├── 1111c/          # Nov 11th, 2016, animal "c"
+│   │   └── 1111c2/
+│   ├── 1114a/          # Nov 14th, 2016, animal "a"
+│   │   ├── 1111a1/, 1111a2/, 1111a3/
+│   └── 1116c/          # Nov 16th, 2016, animal "c"
+│       ├── 1116c1/, 1116c2/
+├── LID on-state/
+│   ├── 0706a/          # July 6th, 2017, animal "a"
+│   │   ├── 0706a1/, 0706a2/
+│   ├── 0706b/          # July 6th, 2017, animal "b"
+│   │   └── 0706b1/
+│   ├── 0707a/          # July 7th, 2017, animal "a"
+│   │   ├── 0707a1/, 0707a2/
+│   ├── 0707b/          # July 7th, 2017, animal "b"
+│   │   └── [Recording folders with detailed file structures]
+│   ├── 0719a/          # July 19th, 2017, animal "a"
+│   │   ├── 0719a1/, 0719a2/
+│   ├── 0719b/          # July 19th, 2017, animal "b"
+│   │   ├── 0719b1/, 0719b2/
+│   ├── 0720a/          # July 20th, 2017, animal "a"
+│   │   └── 0720a1/
+│   ├── 0720b/          # July 20th, 2017, animal "b"
+│   │   ├── 0720b1/, 0720b2/
+│   ├── 0721a/          # July 21st, 2017, animal "a"
+│   │   ├── 0721a1/, 0721a2/
+│   └── 0721b/          # July 21st, 2017, animal "b"
+│       ├── 0721b1/, 0721b2/
+└── LID on-state with SCH/
+    ├── 0411a2/         # April 11th, 2019, animal "a", cell 2
+    ├── 0411b1/         # April 11th, 2019, animal "b", cell 1
+    ├── 0412a/          # April 12th, 2019, animal "a"
+    │   ├── 0412a1/, 0412a2/
+    ├── 0412b/          # April 12th, 2019, animal "b"
+    │   ├── 0412b1/, 0412b2/
+    ├── 0501b/          # May 1st, 2019, animal "b"
+    │   ├── 0501b1/, 0501b2/
+    ├── 0503a3/         # May 3rd, 2019, animal "a", cell 3
+    ├── 0503c/          # May 3rd, 2019, animal "c"
+    ├── 0507b1/         # May 7th, 2019, animal "b", cell 1
+    └── 0507c/          # May 7th, 2019, animal "c"
 ```
+
+**Data Volume Summary**:
+- **LID off-state**: 585M total data
+- **LID on-state**: 525M total data
+- **LID on-state with SCH**: 353M total data
+- **Total**: 1.5GB of dendritic excitability data
 
 **File Bundle per Recording**:
 ```
@@ -179,6 +247,14 @@ Example: `07062017_Cell1_dist1_trio-001`
 - **Pixels per line**: 64
 - **Dwell time**: 10 μs/pixel
 - **Typical acquisition**: 2500 lines (time points)
+- **Temporal resolution**: ~640 μs per line (64 pixels × 10 μs/pixel)
+- **Total recording duration**: ~1.6 seconds for 2500 lines
+
+**Imaging Strategy**:
+- **Dendritic targeting**: Line scans positioned along dendrites at specific distances from soma
+- **Dual-channel acquisition**: Simultaneous recording of calcium (Fluo-4) and structural (Alexa Fluor 568) signals
+- **Spatial calibration**: Distances measured from soma to scan locations using structural channel
+- **Signal validation**: Structural channel confirms dendrite integrity throughout recording
 
 ## Experimental Timeline Analysis
 
