@@ -274,7 +274,7 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
 class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
     """Interface for Prairie View current clamp data."""
 
-    keywords = ("intracellular electrophysiology", "patch clamp", "prairie view")
+    keywords = ("intracellular electrophysiology", "patch clamp", "prairie view", "current clamp")
 
     def __init__(
         self,

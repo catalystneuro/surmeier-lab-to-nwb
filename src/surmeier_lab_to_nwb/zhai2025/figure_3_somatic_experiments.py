@@ -101,9 +101,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             ),
             "session_id": session_info["session_id"],
             "keywords": [
-                "intracellular electrophysiology",
-                "patch clamp",
-                "current clamp",
                 "somatic excitability",
                 "F-I relationship" "rheobase",
             ],
