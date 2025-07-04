@@ -157,16 +157,85 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
             "name": self.device_name,
             "description": f"Prairie View intracellular recording device: {self.device_name}",
         }
-        metadata["Devices"][self.device_name] = device_metadata
+        metadata["Devices"][self.icephys_metadata_key] = device_metadata
         icephys_metadata = metadata["Icephys"]
 
         self.electrode_name = "IntracellularElectrode"
-        icephys_metadata["IntracellularElectrodes"][self.electrode_name] = {
+        icephys_metadata["IntracellularElectrodes"][self.icephys_metadata_key] = {
             "name": self.electrode_name,
             "description": "Intracellular electrodes",
         }
 
         return metadata
+
+    def _get_or_create_device(self, nwbfile: NWBFile, metadata: dict):
+        """
+        Get or create a device for the intracellular recording.
+
+        Parameters
+        ----------
+        nwbfile : NWBFile
+            NWB file to add the device to
+        metadata : dict
+            Metadata dictionary
+
+        Returns
+        -------
+        Device
+            The device object
+        """
+        device_metadata = metadata["Devices"][self.icephys_metadata_key]
+        default_device_name = "DevicePrairieViewIntracelular"
+        device_name = device_metadata.get("name", default_device_name)
+
+        # Create or get device
+        if device_name in nwbfile.devices:
+            device = nwbfile.devices[device_name]
+        else:
+            device_description = device_metadata.get(
+                "description", f"Prairie View intracellular recording device: {device_name}"
+            )
+            device = nwbfile.create_device(name=device_name, description=device_description)
+
+        return device
+
+    def _get_or_create_electrode(self, nwbfile: NWBFile, metadata: dict, device):
+        """
+        Get or create an electrode for the intracellular recording.
+
+        Parameters
+        ----------
+        nwbfile : NWBFile
+            NWB file to add the electrode to
+        metadata : dict
+            Metadata dictionary
+        device : Device
+            Device object for the electrode
+
+        Returns
+        -------
+        IntracellularElectrode
+            The electrode object
+        """
+        available_electrodes = nwbfile.icephys_electrodes
+        electrode_metadata = metadata["Icephys"]["IntracellularElectrodes"][self.icephys_metadata_key]
+
+        default_electrode_name = "IntracellularElectrode"
+        electrode_name = electrode_metadata.get("name", default_electrode_name)
+
+        if electrode_name in available_electrodes:
+            electrode = available_electrodes[electrode_name]
+        else:
+            description = electrode_metadata.get(
+                "description", f"Prairie View intracellular electrode for {device.name}"
+            )
+            electrode = nwbfile.create_icephys_electrode(
+                name=electrode_name,
+                description=description,
+                device=device,
+            )
+
+        return electrode
 
 
 class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
@@ -233,41 +302,10 @@ class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
         metadata = metadata or self.get_metadata()
 
         patch_clamp_series_metadata = metadata["Icephys"]["CurrentClampSeries"][self.icephys_metadata_key]
-        device_tag = patch_clamp_series_metadata["device"]
-        device_metadata = metadata["Devices"][device_tag]
 
-        default_device_name = "DevicePrairieViewIntracelular"
-        device_name = device_metadata.get("name", default_device_name)
-
-        # Create or get device
-        if device_name in nwbfile.devices:
-            device = nwbfile.devices[device_name]
-        else:
-            device_description = device_metadata.get(
-                "description", f"Prairie View intracellular recording device: {device_name}"
-            )
-            device = nwbfile.create_device(name=device_name, description=device_description)
-
-        # Create or use provided electrode
-        available_electrodes = nwbfile.icephys_electrodes
-        electrode_tag = patch_clamp_series_metadata.get("electrode", "IntracellularElectrode")
-
-        electrode_metadata = metadata["Icephys"]["IntracellularElectrodes"][electrode_tag]
-
-        default_electrode_name = "IntracellularElectrode"
-        electrode_name = electrode_metadata.get("name", default_electrode_name)
-
-        if electrode_name in available_electrodes:
-            electrode = available_electrodes[electrode_name]
-        else:
-            description = electrode_metadata.get(
-                "description", f"Prairie View intracellular electrode for {device_name}"
-            )
-            electrode = nwbfile.create_icephys_electrode(
-                name=electrode_name,
-                description=description,
-                device=device,
-            )
+        # Create or get device and electrode using helper methods
+        device = self._get_or_create_device(nwbfile, metadata)
+        electrode = self._get_or_create_electrode(nwbfile, metadata, device)
 
         import pandas as pd
 
@@ -286,7 +324,6 @@ class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
         voltage_volts = voltage_mV.values / 1_000.0  # Convert mV to volts
 
         # Create current clamp series
-
         name = patch_clamp_series_metadata["name"]
         current_clamp_series = CurrentClampSeries(
             name=name,
@@ -368,41 +405,10 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
         metadata = metadata or self.get_metadata()
 
         patch_clamp_series_metadata = metadata["Icephys"]["VoltageClampSeries"][self.icephys_metadata_key]
-        device_tag = patch_clamp_series_metadata["device"]
-        device_metadata = metadata["Devices"][device_tag]
 
-        default_device_name = "DevicePrairieViewIntracelular"
-        device_name = device_metadata.get("name", default_device_name)
-
-        # Create or get device
-        if device_name in nwbfile.devices:
-            device = nwbfile.devices[device_name]
-        else:
-            device_description = device_metadata.get(
-                "description", f"Prairie View intracellular recording device: {device_name}"
-            )
-            device = nwbfile.create_device(name=device_name, description=device_description)
-
-        # Create or use provided electrode
-        available_electrodes = nwbfile.icephys_electrodes
-        electrode_tag = patch_clamp_series_metadata.get("electrode", "IntracellularElectrode")
-
-        electrode_metadata = metadata["Icephys"]["IntracellularElectrodes"][electrode_tag]
-
-        default_electrode_name = "IntracellularElectrode"
-        electrode_name = electrode_metadata.get("name", default_electrode_name)
-
-        if electrode_name in available_electrodes:
-            electrode = available_electrodes[electrode_name]
-        else:
-            description = electrode_metadata.get(
-                "description", f"Prairie View intracellular electrode for {device_name}"
-            )
-            electrode = nwbfile.create_icephys_electrode(
-                name=electrode_name,
-                description=description,
-                device=device,
-            )
+        # Create or get device and electrode using helper methods
+        device = self._get_or_create_device(nwbfile, metadata)
+        electrode = self._get_or_create_electrode(nwbfile, metadata, device)
 
         import pandas as pd
 
