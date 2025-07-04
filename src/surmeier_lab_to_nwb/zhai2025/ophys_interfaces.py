@@ -21,31 +21,88 @@ from pynwb.ophys import (
 
 
 class PrairieViewLineScanInterface(BaseDataInterface):
-    """Interface for Prairie View line scan data."""
+    """
+    Interface for Prairie View line scan data from combined patch clamp and two-photon imaging experiments.
+
+    This interface handles line scan recordings acquired during dendritic excitability experiments where
+    brief current steps are delivered to neurons while simultaneously recording calcium transients using
+    two-photon laser scanning microscopy.
+
+    Session Structure
+    -----------------
+    Each recording session corresponds to a single experimental trial and contains:
+
+    ```
+    session_folder/
+    ├── session_name.xml                                    # Master experiment file (this interface's input)
+    ├── session_name_Cycle00001_Ch1_000001.ome.tif         # Fluo-4 calcium channel raw kymograph data
+    ├── session_name-Cycle00001_Ch1Source.tif               # Field of view with scan line overlay (Ch1)
+    ├── session_name_Cycle00001_Ch2_000001.ome.tif         # Alexa Fluor 568 structural channel raw data
+    ├── session_name-Cycle00001_Ch2Source.tif               # Field of view with scan line overlay (Ch2)
+    ├── session_name_Cycle00001_LineProfileData.csv         # Processed fluorescence profiles over time
+    ├── session_name_Cycle00001_VoltageOutput_001.xml       # Electrical stimulus protocol definition
+    ├── session_name_Cycle00001_VoltageRecording_001.csv    # Intracellular electrophysiology data
+    ├── session_name_Cycle00001_VoltageRecording_001.xml    # Electrophysiology metadata
+    ├── session_name.env                                    # Environment configuration
+    └── References/                                         # Calibration and reference files
+    ```
+
+    XML Metadata File Contents
+    --------------------------
+    The master XML file (session_name.xml) contains comprehensive experimental metadata including:
+
+    - **Timing Information**: Session start time with precise timestamps for synchronization
+    - **Optical Configuration**: Two-photon laser parameters (810 nm excitation), objective lens details
+    - **Channel Definitions**:
+        - Ch1: Fluo-4 calcium indicator (GaAsP PMT, 490-560 nm detection)
+        - Ch2: Alexa Fluor 568 structural dye (side-on PMT, 580-620 nm detection)
+    - **Line Scan Geometry**: Start/stop coordinates, line length, pixel dimensions
+    - **Acquisition Parameters**: Pixel dwell time (10 μs), lines per frame, scanning speed
+    - **Spatial Calibration**: Microns per pixel conversion factors for accurate measurements
+    - **File References**: Paths to raw TIFF data, processed CSV profiles, and source images
+
+    The interface processes one channel at a time to enable modular handling of structural vs.
+    calcium imaging data, allowing separate metadata organization and temporal alignment.
+
+    Experimental Context
+    -------------------
+    These recordings are part of dendritic excitability experiments where:
+    1. Neurons are patch clamped and filled with calcium-sensitive (Fluo-4) and structural (Alexa 568) dyes
+    2. Brief current steps (typically 3x 2nA injections, 2ms each, at 50Hz) trigger action potentials
+    3. Line scans capture calcium transients in dendrites as action potentials back-propagate
+    4. Simultaneous structural imaging provides anatomical reference for ROI placement
+    """
 
     keywords = ("ophys", "imaging", "line scan", "prairie view")
 
     def __init__(
         self,
-        xml_metadata_file_path: str | Path,
+        file_path: str | Path,
         channel_name: str,
         ophys_metadata_key: str = "PrairieView",
     ):
         """
-        Initialize the interface with path to the XML metadata file.
+        Initialize the interface with path to the master XML metadata file.
 
         Parameters
         ----------
-        xml_metadata_file_path : str | Path
-            Path to the XML metadata file containing line scan parameters
+        file_path : str | Path
+            Path to the master XML metadata file (session_name.xml) containing complete line scan
+            experimental metadata including timing, optical configuration, channel definitions,
+            scan geometry, and file references. This is the main experiment file that coordinates
+            all data streams for the recording session.
         channel_name : str
-            Channel name to process ("Ch1" for structural/Alexa568, "Ch2" for calcium/Fluo4)
+            Channel name to process. Must be one of:
+            - "Ch1": Fluo-4 calcium indicator channel (GaAsP PMT, 490-560 nm)
+            - "Ch2": Alexa Fluor 568 structural reference channel (PMT, 580-620 nm)
         ophys_metadata_key : str, default="PrairieView"
-            Key to use for organizing metadata in the NWB file
+            Unique key to use for organizing this channel's metadata in the NWB file.
+            Should be descriptive and include recording identifier for multi-channel experiments.
         """
-        self.xml_metadata_file_path = Path(xml_metadata_file_path)
+        self.xml_metadata_file_path = Path(file_path)
         self.channel_name = channel_name
         self.ophys_metadata_key = ophys_metadata_key
+        self._t_start = 0.0  # Default starting time
 
         parent_folder = self.xml_metadata_file_path.parent
         # Load XML metadata
@@ -180,14 +237,14 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         return metadata
 
     @staticmethod
-    def get_session_start_time_from_file(xml_metadata_file_path: str | Path) -> datetime:
+    def get_session_start_time_from_file(file_path: str | Path) -> datetime:
         """
-        Extract session start time from XML metadata file without creating interface instance.
+        Extract session start time from master XML metadata file without creating interface instance.
 
         Parameters
         ----------
-        xml_metadata_file_path : str | Path
-            Path to the XML metadata file
+        file_path : str | Path
+            Path to the master XML metadata file (session_name.xml)
 
         Returns
         -------
@@ -200,7 +257,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
 
         import xmltodict
 
-        xml_metadata_file_path = Path(xml_metadata_file_path)
+        xml_metadata_file_path = Path(file_path)
 
         # Load XML metadata
         with open(xml_metadata_file_path, "r") as xml_file:
@@ -264,14 +321,14 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         return session_start_time
 
     @staticmethod
-    def get_available_channels(xml_metadata_file_path: str | Path) -> list[str]:
+    def get_available_channels(file_path: str | Path) -> list[str]:
         """
-        Get available channels from XML metadata file without creating interface instance.
+        Get available channels from master XML metadata file without creating interface instance.
 
         Parameters
         ----------
-        xml_metadata_file_path : str | Path
-            Path to the XML metadata file
+        file_path : str | Path
+            Path to the master XML metadata file (session_name.xml)
 
         Returns
         -------
@@ -282,7 +339,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
 
         import xmltodict
 
-        xml_metadata_file_path = Path(xml_metadata_file_path)
+        xml_metadata_file_path = Path(file_path)
 
         # Load XML metadata
         with open(xml_metadata_file_path, "r") as xml_file:
@@ -299,6 +356,17 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         available_channels = [file["@channelName"] for file in file_metadata]
 
         return available_channels
+
+    def set_aligned_starting_time(self, aligned_starting_time: float) -> None:
+        """
+        Set the aligned starting time for all time series data.
+
+        Parameters
+        ----------
+        aligned_starting_time : float
+            Starting time in seconds relative to session start for temporal alignment
+        """
+        self._t_start = aligned_starting_time
 
     def add_to_nwbfile(self, nwbfile: NWBFile, metadata: dict | None = None):
         """
@@ -403,6 +471,9 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         profile_data = line_scan_data_df[profile_col].to_numpy()
         timestamps = line_scan_data_df[time_col].to_numpy(dtype=float) / 1000.0  # Convert to seconds
 
+        # Apply aligned starting time offset
+        timestamps = timestamps + self._t_start
+
         # Extract line scan geometry from XML for ROI creation
         prairie_view_metadata = self.xml_general_metadata_dict["PVScan"]
         sequence_metadata = prairie_view_metadata["Sequence"]
@@ -500,11 +571,23 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         timeseries_metadata = metadata["TimeSeries"][self.ophys_metadata_key]
 
         raw_line_scan_data = tifffile.imread(self.line_scan_raw_data_file_path)
-        raw_line_scan_data_series = TimeSeries(
-            name=timeseries_metadata["name"],
-            description=timeseries_metadata["description"],
-            data=raw_line_scan_data,
-            unit=timeseries_metadata["unit"],
-            rate=rate,
-        )
+
+        # Use aligned starting time if set, otherwise use rate-based timing
+        if self._t_start != 0.0:
+            raw_line_scan_data_series = TimeSeries(
+                name=timeseries_metadata["name"],
+                description=timeseries_metadata["description"],
+                data=raw_line_scan_data,
+                unit=timeseries_metadata["unit"],
+                starting_time=self._t_start,
+                rate=rate,
+            )
+        else:
+            raw_line_scan_data_series = TimeSeries(
+                name=timeseries_metadata["name"],
+                description=timeseries_metadata["description"],
+                data=raw_line_scan_data,
+                unit=timeseries_metadata["unit"],
+                rate=rate,
+            )
         nwbfile.add_acquisition(raw_line_scan_data_series)

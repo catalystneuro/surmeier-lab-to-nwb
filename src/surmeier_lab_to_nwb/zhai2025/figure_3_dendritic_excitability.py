@@ -135,7 +135,7 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
-def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWBFile:
+def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
     """
     Convert all dendritic excitability recordings from a session folder to a single NWB format file.
 
@@ -145,6 +145,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         Path to the session folder (corresponds to a single subject)
     condition : str
         Experimental condition (e.g., "LID off-state", "LID on-state", "LID on-state with sul")
+    verbose : bool, default=False
+        Enable verbose output showing detailed processing information
 
     Returns
     -------
@@ -167,11 +169,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     print(f"Processing session folder: {session_folder_path.name} (corresponds to one subject)")
     print(f"  Found {len(recording_folders)} recordings")
 
-    # Get session start times from both interfaces and validate consistency
-    session_start_times = []
-    recording_infos = []
+    # Calculate recording IDs, session start times, and create interface mappings
+    ophys_session_start_times = []  # (ophys_time, recording_folder, recording_id)
+    intracellular_session_start_times = []  # (intracellular_time, recording_folder, recording_id)
+    recording_id_to_location_id = {}
+    recording_id_to_folder = {}
+    t_starts = {}  # t_starts[recording_id][interface] = t_start_offset
 
-    print(f"  Validating session start times from different sources...")
+    if verbose:
+        print(f"  Validating session start times and calculating recording IDs...")
 
     for recording_folder in recording_folders:
         # Find main experiment XML file (ophys)
@@ -186,36 +192,84 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
         # Get session start times from both sources
         ophys_session_start_time = PrairieViewLineScanInterface.get_session_start_time_from_file(main_xml_file)
+        if ophys_session_start_time is None:
+            raise ValueError(f"Could not extract ophys session start time from {main_xml_file}")
+
         intracellular_session_start_time = PrairieViewCurrentClampInterface.get_session_start_time_from_file(
             electrophysiology_xml_file
         )
+        if intracellular_session_start_time is None:
+            raise ValueError(f"Could not extract intracellular session start time from {electrophysiology_xml_file}")
 
         # Compare session start times
-        if intracellular_session_start_time is not None:
-            time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-            if time_diff > 60:  # More than 1 minute difference
-                print(f"    WARNING: Large time difference for {recording_folder.name}:")
-                print(f"      Ophys time: {ophys_session_start_time}")
-                print(f"      Intracellular time: {intracellular_session_start_time}")
-                print(f"      Difference: {time_diff:.1f} seconds")
-            else:
-                print(f"    ✓ Session times consistent for {recording_folder.name} (diff: {time_diff:.1f}s)")
-        else:
-            print(f"    WARNING: No intracellular session time for {recording_folder.name}")
+        time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
+        if time_diff > 0.1:  # More than 0.1 seconds difference
+            print(f"    Times for {recording_folder.name}:")
+            print(f"      Ophys time: {ophys_session_start_time}")
+            print(f"      Intracellular time: {intracellular_session_start_time}")
+            print(f"      Difference: {time_diff:.1f} seconds")
 
+        # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
-        session_start_times.append((ophys_session_start_time, recording_folder))
-        recording_infos.append((recording_folder, recording_info))
+        repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"
+        location_id = f"{recording_info['location_full']}Dendrite{recording_info['location_number']}"
+        recording_id = f"{location_id}{repetition_id}"
 
-    if not session_start_times:
+        # Store mappings
+        recording_id_to_location_id[recording_id] = location_id
+        recording_id_to_folder[recording_id] = recording_folder
+
+        # Store session start times separately by interface type
+        ophys_session_start_times.append((ophys_session_start_time, recording_folder, recording_id))
+        intracellular_session_start_times.append((intracellular_session_start_time, recording_folder, recording_id))
+
+    if not ophys_session_start_times or not intracellular_session_start_times:
         raise ValueError(f"No valid recordings found in session folder: {session_folder_path}")
 
-    # Find the earliest session start time
-    session_start_time, earliest_folder = min(session_start_times, key=lambda x: x[0])
-    print(f"  Session start time: {session_start_time} (from {earliest_folder.name})")
+    # Find the earliest session start time from each interface type
+    earliest_ophys_time = min(ophys_session_start_times, key=lambda x: x[0])[0]
+    earliest_intracellular_time = min(intracellular_session_start_times, key=lambda x: x[0])[0]
 
-    # Create a dictionary of recording info for easy lookup
-    recording_info_dict = dict(recording_infos)
+    # Overall session start time is the earliest across all interfaces
+    session_start_time = min(earliest_ophys_time, earliest_intracellular_time)
+
+    # Determine which interface had the earliest time
+    if session_start_time == earliest_ophys_time:
+        earliest_folder = next(
+            folder for start_time, folder, _ in ophys_session_start_times if start_time == session_start_time
+        )
+        earliest_interface = "line_scan_ophys"
+    else:
+        earliest_folder = next(
+            folder for start_time, folder, _ in intracellular_session_start_times if start_time == session_start_time
+        )
+        earliest_interface = "intracellular_electrophysiology"
+
+    print(f"  Overall session start time: {session_start_time}")
+    print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
+    print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
+    print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
+
+    # Calculate t_start offsets for temporal alignment with interface-specific timing
+    for ophys_time, folder, recording_id in ophys_session_start_times:
+        intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
+
+        # Calculate offsets relative to overall session start time
+        ophys_t_start = (ophys_time - session_start_time).total_seconds()
+        intracellular_t_start = (intracellular_time - session_start_time).total_seconds()
+
+        # Initialize t_starts for this recording_id with interface-specific timing
+        # Use descriptive names for clarity about which channel/interface this refers to
+        t_starts[recording_id] = {
+            "intracellular": intracellular_t_start,
+            "line_scan_structural_channel": ophys_t_start,  # Ch1/Alexa568 line scan uses ophys timing
+            "line_scan_calcium_channel": ophys_t_start,  # Ch2/Fluo4 line scan uses ophys timing
+        }
+
+        if verbose:
+            print(f"    Recording {folder.name} ({recording_id}) temporal alignment:")
+            print(f"      Line scan interfaces (structural Ch1 + calcium Ch2) t_start = {ophys_t_start:.3f} seconds")
+            print(f"      Intracellular electrophysiology interface t_start = {intracellular_t_start:.3f} seconds")
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
@@ -225,7 +279,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
     # Get first recording info for session description, all of them are equal
-    first_recording_info = recording_infos[0][1]
+    first_recording_folder = next(iter(recording_id_to_folder.values()))
+    first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
     session_specific_metadata = {
         "NWBFile": {
@@ -244,12 +299,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             ),
             "session_id": f"{session_folder_path.name}_{condition.replace(' ', '_')}",
             "keywords": [
-                "intracellular electrophysiology",
-                "patch clamp",
-                "two-photon microscopy",
-                "calcium imaging",
                 "dendritic excitability",
-                "line scan",
                 "current injection",
             ],
         }
@@ -287,30 +337,45 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     )
     nwbfile.subject = subject
 
-    # Process each recording
-    for recording_folder in recording_folders:
-        recording_info = recording_info_dict[recording_folder]
+    # Process each recording using the calculated recording IDs
+    for recording_id, recording_folder in recording_id_to_folder.items():
+        location_id = recording_id_to_location_id[recording_id]
+        recording_info = parse_session_info_from_folder_name(recording_folder)
         main_xml_file = recording_folder / f"{recording_folder.name}.xml"
-
-        # Create recording_id for consistent naming
-        repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"
-        location_id = f"{recording_info['location_full']}Dendrite{recording_info['location_number']}"
-        recording_id = f"{location_id}{repetition_id}"
 
         # Create interfaces for the two known channels
         structural_ophys_key = f"PrairieViewLineScan{recording_id}Alexa568"
         calcium_ophys_key = f"PrairieViewLineScan{recording_id}Fluo4"
 
         structural_interface = PrairieViewLineScanInterface(
-            xml_metadata_file_path=main_xml_file, channel_name="Ch1", ophys_metadata_key=structural_ophys_key
+            file_path=main_xml_file,
+            channel_name="Ch1",
+            ophys_metadata_key=structural_ophys_key,
         )
 
         calcium_interface = PrairieViewLineScanInterface(
-            xml_metadata_file_path=main_xml_file, channel_name="Ch2", ophys_metadata_key=calcium_ophys_key
+            file_path=main_xml_file,
+            channel_name="Ch2",
+            ophys_metadata_key=calcium_ophys_key,
         )
 
-        print(f"  Processing recording for folder: {recording_folder.name}")
-        print(f"    Recording ID: {recording_id}")
+        # Apply temporal alignment offsets using precise mapping with descriptive interface names
+        structural_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_structural_channel"])
+        calcium_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_calcium_channel"])
+
+        if verbose:
+            print(f"  Processing recording for folder: {recording_folder.name}")
+            print(f"    Recording ID: {recording_id}")
+            print(f"    Location ID: {location_id}")
+            print(
+                f"    Line scan structural channel (Ch1/Alexa568) temporal alignment offset: {t_starts[recording_id]['line_scan_structural_channel']:.3f} seconds"
+            )
+            print(
+                f"    Line scan calcium channel (Ch2/Fluo4) temporal alignment offset: {t_starts[recording_id]['line_scan_calcium_channel']:.3f} seconds"
+            )
+            print(
+                f"    Intracellular electrophysiology temporal alignment offset: {t_starts[recording_id]['intracellular']:.3f} seconds"
+            )
 
         # Find electrophysiology XML file (exact name from Figure 3 notes)
         electrophysiology_xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
@@ -324,6 +389,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             file_path=electrophysiology_xml_file,
             icephys_metadata_key=icephys_metadata_key,
         )
+
+        # Apply temporal alignment offset
+        intracellular_interface.set_aligned_starting_time(t_starts[recording_id]["intracellular"])
 
         # Get and update intracellular metadata
         intracellular_metadata = intracellular_interface.get_metadata()
@@ -430,8 +498,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-        print(f"    Added line scan imaging data")
-        print(f"    Successfully processed recording: {recording_folder.name}")
+        if verbose:
+            print(f"    Added line scan imaging data")
+            print(f"    Successfully processed recording: {recording_folder.name}")
 
     print(f"Successfully processed all recordings from session: {session_folder_path.name}")
 
@@ -440,6 +509,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
 if __name__ == "__main__":
     import logging
+
+    # Control verbose output from here
+    VERBOSE = False  # Set to True for detailed output
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -482,6 +554,7 @@ if __name__ == "__main__":
             nwbfile = convert_session_to_nwbfile(
                 session_folder_path=session_folder,
                 condition=condition,
+                verbose=VERBOSE,
             )
 
             # Create output filename
