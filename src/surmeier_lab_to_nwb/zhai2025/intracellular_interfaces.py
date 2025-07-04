@@ -308,6 +308,43 @@ class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
 
         return metadata
 
+    @staticmethod
+    def get_session_start_time_from_file(file_path: str | Path) -> Optional[datetime]:
+        """
+        Extract session start time from XML file without creating interface instance.
+
+        Parameters
+        ----------
+        file_path : str | Path
+            Path to the XML file containing recording metadata
+
+        Returns
+        -------
+        Optional[datetime]
+            Session start time parsed from XML DateTime field, or None if not available
+        """
+        from pathlib import Path
+
+        import xmltodict
+
+        file_path = Path(file_path)
+
+        # Load XML data
+        with open(file_path, "r") as xml_file:
+            xml_content = xml_file.read()
+            xml_recording_dict = xmltodict.parse(xml_content)
+
+        # Extract session start time
+        datetime_str = xml_recording_dict["VRecSessionEntry"].get("DateTime", None)
+        if datetime_str is not None:
+            try:
+                # Parse ISO format datetime string
+                return datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                # If parsing fails, return None
+                pass
+        return None
+
     def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None):
         """
         Add the recording data to the NWB file.

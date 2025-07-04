@@ -68,14 +68,14 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 
 ## Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
-- [ ] Conversion script
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/15)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
-- [ ] Conversion script
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/16)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -114,8 +114,25 @@ Fluorescence imaging data from two-photon laser scanning microscopy.
 
 ## Figure 6:
 Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density and line scans.
-- [ ] Build needed interfaces
-- [ ] Conversion script
+Structure: Three experiment types (Dendritic excitability, Somatic excitability, Spine density), each with control and M1R antagonist conditions.
+
+### Dendritic Excitability
+- [ ] Build needed interfaces (already available: [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5), [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2))
+- [ ] Conversion script (handle both control and M1R antagonist conditions)
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Somatic Excitability
+- [ ] Build needed interfaces (already available: [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5))
+- [ ] Conversion script (handle both control and M1R antagonist conditions)
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Spine Density
+- [ ] Build needed interfaces (already available: [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365))
+- [ ] Conversion script (handle both control and M1R antagonist conditions)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data

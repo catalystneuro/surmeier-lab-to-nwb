@@ -1,24 +1,34 @@
 # Figure 8 Conversion Notes
 
 ## Overview
-Figure 8 examines the effects of M1R CRISPR deletion on iSPN properties and dyskinetic behaviors. The data includes:
+Figure 8 examines the effects of M1R CRISPR deletion on iSPN properties and dyskinetic behaviors using targeted gene editing. The data includes:
 - **M1R CRISPR somatic excitability**: Current injection protocols in M1R-deleted vs. control iSPNs
-- **M1R CRISPR spine density**: Two-photon microscopy Z-stacks comparing spine morphology
+- **M1R CRISPR spine density**: Two-photon microscopy Z-stacks comparing spine morphology in off-state
 - **AIM behavioral scoring**: Abnormal involuntary movement assessments in M1R CRISPR mice
 
-## Data Structure
+## Complete Data Structure
 
 ```
 Figure 8/
 ├── M1R CRISPR AIMs/
-│   └── AIM raw score_M1R CRISPR.xlsx
-├── M1R CRISPR SE/
-│   ├── interleaved control/
-│   └── M1R CRISPR/
-└── M1R CRISPR spine density/
-    ├── control/
-    └── M1R CRISPR/
+│   └── AIM raw score_M1R CRISPR.xlsx        # AIM scores like previous figures
+├── M1R CRISPR SE/                           # Figure 8C-D - Somatic excitability
+│   ├── interleaved control/                 # Control iSPNs somatic excitability data
+│   └── M1R CRISPR/                          # M1R-deleted iSPNs somatic excitability data
+└── M1R CRISPR spine density/                # Figure 8E-F - Spine morphology
+    ├── control/                             # Control iSPN spine morphology - off-state
+    └── M1R CRISPR/                          # M1R-deleted iSPN spine morphology - off-state
 ```
+
+## CRISPR-Cas9 Gene Editing Approach
+**M1R CRISPR** refers to the CRISPR-Cas9 gene editing technique used to delete M1 muscarinic receptors (M1Rs) specifically from iSPNs.
+
+**Experimental Groups**:
+- **M1R CRISPR group**: AAV-Cas9 + AAV-gRNA-FusionRed → M1R deletion
+- **Control group**: Saline + AAV-gRNA-FusionRed → No M1R deletion
+
+From the paper's methods:
+> Control mice were injected with only the gRNA-FR vector
 
 ## Experimental Protocols
 
@@ -73,44 +83,70 @@ Same as Figure 2:
 ### M1R CRISPR Somatic Excitability Data Structure
 
 **Directory Structure**:
-```
-interleaved control/
-├── 20221012a/          # October 12, 2022, animal "a"
-│   ├── cell1-001/      # -120 pA injection
-│   ├── cell1-002/      # -100 pA injection
-│   ...
-│   └── cell1-021/      # +300 pA injection
-├── 20221012b/
-├── 20221012c/
-├── 20221130a/
-├── 20221130b/
-└── 20221130c/
+These are somatic excitability experiments with M1R CRISPR mice. The structure is like Figure 1 with multiple sessions across recording dates:
 
-M1R CRISPR/
-├── 20221004b/
-│   ├── cell2-001/
-│   ├── cell2-002/
-│   ...
-│   └── cell2-021/
-├── 20221004c/
-├── 20221005a/
-├── 20221005c/
-├── 20221005d/
-├── 20221129a/
-├── 20221129b/
-└── 20221129c/
+```
+interleaved control/     # Control group (no M1R deletion)
+├── 20221012a/          # October 12, 2022, animal "a"
+├── 20221012b/          # October 12, 2022, animal "b"
+├── 20221012c/          # October 12, 2022, animal "c"
+├── 20221130a/          # November 30, 2022, animal "a"
+├── 20221130b/          # November 30, 2022, animal "b"
+└── 20221130c/          # November 30, 2022, animal "c"
+
+M1R CRISPR/             # M1R-deleted group
+├── 20221004b/          # October 4, 2022, animal "b"
+├── 20221004c/          # October 4, 2022, animal "c"
+├── 20221005a/          # October 5, 2022, animal "a"
+├── 20221005c/          # October 5, 2022, animal "c"
+├── 20221005d/          # October 5, 2022, animal "d"
+├── 20221129a/          # November 29, 2022, animal "a"
+├── 20221129b/          # November 29, 2022, animal "b"
+└── 20221129c/          # November 29, 2022, animal "c"
+
+Total: 17 directories (6 control + 8 M1R CRISPR sessions)
+```
+
+**Session Organization**:
+Each session folder contains current injection steps organized by stimulus intensity:
+```
+20221004b/              # Single session example
+├── cell2-001/          # -120 pA injection (step 1)
+├── cell2-002/          # -100 pA injection (step 2)
+├── cell2-003/          # -80 pA injection (step 3)
+├── cell2-004/          # -60 pA injection (step 4)
+├── cell2-005/          # -40 pA injection (step 5)
+├── cell2-006/          # -20 pA injection (step 6)
+├── cell2-007/          # 20 pA injection (step 7)
+├── cell2-008/          # 40 pA injection (step 8)
+├── cell2-009/          # 60 pA injection (step 9)
+├── cell2-010/          # 80 pA injection (step 10)
+├── cell2-011/          # 100 pA injection (step 11)
+├── cell2-012/          # 120 pA injection (step 12)
+├── cell2-013/          # 140 pA injection (step 13)
+├── cell2-014/          # 160 pA injection (step 14)
+├── cell2-015/          # 180 pA injection (step 15)
+├── cell2-016/          # 200 pA injection (step 16)
+├── cell2-017/          # 220 pA injection (step 17)
+├── cell2-018/          # 240 pA injection (step 18)
+├── cell2-019/          # 260 pA injection (step 19)
+├── cell2-020/          # 280 pA injection (step 20)
+└── cell2-021/          # 300 pA injection (step 21)
 ```
 
 **File Bundle per Current Level**:
+Each session folder (one per stimulus level) contains only patch clamp data:
 ```
 cell2-001/
-├── cell2-001_Cycle00001_VoltageOutput_001.xml       # Stimulus protocol
-├── cell2-001_Cycle00001_VoltageRecording_001.csv    # Voltage recording
+├── cell2-001_Cycle00001_VoltageOutput_001.xml       # Stimulus protocol definition
+├── cell2-001_Cycle00001_VoltageRecording_001.csv    # Raw voltage recording data
 ├── cell2-001_Cycle00001_VoltageRecording_001.xml    # Recording metadata
-├── cell2-001.env                                    # Environment config
-├── cell2-001.xml                                    # Experiment metadata
+├── cell2-001.env                                    # Environment configuration
+├── cell2-001.xml                                    # Master experiment metadata
 └── References/                                      # Calibration files
 ```
+
+This structure contains sessions of patch clamp data, with every session divided to account for the stimuli like in Figure 1.
 
 ### M1R CRISPR Spine Density Data Structure
 

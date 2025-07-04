@@ -167,20 +167,44 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     print(f"Processing session folder: {session_folder_path.name} (corresponds to one subject)")
     print(f"  Found {len(recording_folders)} recordings")
 
-    # Get session start times for all recordings to find the earliest one
+    # Get session start times from both interfaces and validate consistency
     session_start_times = []
     recording_infos = []
+
+    print(f"  Validating session start times from different sources...")
+
     for recording_folder in recording_folders:
-        # Find main experiment XML file
+        # Find main experiment XML file (ophys)
         main_xml_file = recording_folder / f"{recording_folder.name}.xml"
         if not main_xml_file.exists():
             raise FileNotFoundError(f"Expected main XML file does not exist: {main_xml_file}")
 
-        # Get session start time using static method
-        session_start_time = PrairieViewLineScanInterface.get_session_start_time_from_file(main_xml_file)
-        recording_info = parse_session_info_from_folder_name(recording_folder)
+        # Find electrophysiology XML file (intracellular)
+        electrophysiology_xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
+        if not electrophysiology_xml_file.exists():
+            raise FileNotFoundError(f"Expected electrophysiology XML file does not exist: {electrophysiology_xml_file}")
 
-        session_start_times.append((session_start_time, recording_folder))
+        # Get session start times from both sources
+        ophys_session_start_time = PrairieViewLineScanInterface.get_session_start_time_from_file(main_xml_file)
+        intracellular_session_start_time = PrairieViewCurrentClampInterface.get_session_start_time_from_file(
+            electrophysiology_xml_file
+        )
+
+        # Compare session start times
+        if intracellular_session_start_time is not None:
+            time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
+            if time_diff > 60:  # More than 1 minute difference
+                print(f"    WARNING: Large time difference for {recording_folder.name}:")
+                print(f"      Ophys time: {ophys_session_start_time}")
+                print(f"      Intracellular time: {intracellular_session_start_time}")
+                print(f"      Difference: {time_diff:.1f} seconds")
+            else:
+                print(f"    ✓ Session times consistent for {recording_folder.name} (diff: {time_diff:.1f}s)")
+        else:
+            print(f"    WARNING: No intracellular session time for {recording_folder.name}")
+
+        recording_info = parse_session_info_from_folder_name(recording_folder)
+        session_start_times.append((ophys_session_start_time, recording_folder))
         recording_infos.append((recording_folder, recording_info))
 
     if not session_start_times:
