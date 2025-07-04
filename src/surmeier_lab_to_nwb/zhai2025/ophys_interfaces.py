@@ -188,8 +188,8 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         if metadata is None:
             metadata = {}
 
-        trial_id = metadata.get("trial_id", "")
-        position = metadata.get("position", "")
+        location_id = metadata.get("location_id", "")
+        recording_id = metadata.get("recording_id", "")
 
         # Create two-photon imaging device
         microscope_name = "BrukerUltima"
@@ -234,14 +234,14 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             "Olympus 60X",
         )
         excitation_lambda = 810.0  # Chameleon Ultra II
-        imaging_plane_name = f"ImagingPlaneLineScan{position}Trial{trial_id}"
+        imaging_plane_name = f"ImagingPlaneLineScan{location_id}"
         available_imaging_planes = nwbfile.imaging_planes
         if imaging_plane_name in available_imaging_planes:
             imaging_plane = available_imaging_planes[imaging_plane_name]
         else:
             imaging_plane = nwbfile.create_imaging_plane(
                 name=imaging_plane_name,
-                description=f"Line scan imaging of {position} dendrite using {objective_lens} objective",
+                description=f"Line scan imaging of {location_id} dendrite using {objective_lens} objective",
                 optical_channel=optical_channels,
                 excitation_lambda=excitation_lambda,
                 indicator="Fluo-4",
@@ -270,7 +270,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             ophys_module = nwbfile.processing["ophys"]
 
         # Create image segmentation
-        image_segmentation_name = f"LineScanImageSegmentation{position}Trial{trial_id}"
+        image_segmentation_name = f"ImageSegmentationLineScan"
         if image_segmentation_name in ophys_module.data_interfaces:
             image_segmentation = ophys_module.data_interfaces[image_segmentation_name]
         else:
@@ -294,7 +294,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         )
 
         # Create plane segmentation with better description
-        plane_segmentation_name = f"LineScanPlaneSegmentation{position}Trial{trial_id}"
+        plane_segmentation_name = f"PlaneSegmentationLineScan{recording_id}"
         available_plane_segmentations = image_segmentation.plane_segmentations
         if plane_segmentation_name in available_plane_segmentations:
             plane_segmentation = available_plane_segmentations[plane_segmentation_name]
@@ -323,8 +323,9 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         )
 
         # Create ROI response series with better names and descriptions
+        series_name = f"RoiResponseSeriesLineScanStructural{recording_id}"
         alexa568_series = RoiResponseSeries(
-            name=f"ResponseSeriesAlexa568StructuralDye{position}Trial{trial_id}",
+            name=series_name,
             description=f"Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM)",
             data=alexa568_profile,
             rois=roi_table_region,
@@ -332,8 +333,9 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             timestamps=timestamps,
         )
 
+        series_name = f"RoiResponseSeriesLineScanCalcium{recording_id}"
         fluo4_series = RoiResponseSeries(
-            name=f"ResponseSeriesFluo4CalciumIndicator{position}Trial{trial_id}",
+            name=series_name,
             description=f"Calcium indicator fluorescence from Fluo-4 (100 μM)",
             data=fluo4_profile,
             rois=roi_table_region,
@@ -342,7 +344,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         )
 
         # Create fluorescence container
-        name = f"LineScanFluorescence"
+        name = f"FluorescenceLineScan"
         if name in ophys_module.data_interfaces:
             fluorescence = ophys_module.data_interfaces[name]
         else:
@@ -358,16 +360,16 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         # Define source image metadata dictionary
         source_image_metadata = {
             "Ch1": {
-                "name": f"Alexa568StructuralDyeSourceImage{position}Trial{trial_id}",
+                "name": f"ImageSourceAlexa568StructuralDye{recording_id}",
                 "description": f"Source image for Alexa Fluor 568 structural reference",
             },
             "Ch2": {
-                "name": f"Fluo4CalciumIndicatorSourceImage{position}Trial{trial_id}",
+                "name": f"ImageSourceCalcium{recording_id}",
                 "description": f"Source image for Fluo-4 calcium indicator",
             },
         }
 
-        name = f"LineScanSourceImages{position}Trial{trial_id}"
+        name = f"ImagesLineScan{recording_id}"
         if name in nwbfile.acquisition:
             image_container = nwbfile.acquisition[name]
         else:
@@ -401,11 +403,11 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         # Define channel metadata dictionary
         channel_metadata = {
             "Ch1": {
-                "name": f"Alexa568StructuralDyeLineScan{position}Trial{trial_id}",
+                "name": f"TimeSeriesLineScanRawDatatructural{recording_id}",
                 "description": f"Line scan raw data for Alexa Fluor 568 structural reference",
             },
             "Ch2": {
-                "name": f"Fluo4CalciumIndicatorLineScan{position}Trial{trial_id}",
+                "name": f"TimeSeriesLineScanRawDataCalcium{recording_id}",
                 "description": f"Line scan raw data for Fluo-4 calcium indicator",
             },
         }

@@ -271,16 +271,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         # Create line scan interface for this recording
         line_scan_interface = PrairieViewLineScanInterface(xml_metadata_file_path=main_xml_file)
 
-        trial_id = (
-            f"{recording_info['base_line_experiment_type']}{recording_info['trial_number']}{recording_info['variant']}"
-        )
-        location_id = f"{recording_info['location_full']}{recording_info['location_number']}"
-        recording_id = f"{location_id}{trial_id}"
+        repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"
+        location_id = f"{recording_info['location_full']}Dendrite{recording_info['location_number']}"
+        recording_id = f"{location_id}{repetition_id}"
 
         print(f"  Processing recording for folder: {recording_folder.name}")
-        print(
-            f"    Cell {recording_info['cell_number']}, {recording_info['location_description']}, Trial {recording_info['trial_number']}"
-        )
         print(f"    Recording ID: {recording_id}")
 
         # Find electrophysiology XML file (exact name from Figure 3 notes)
@@ -300,6 +295,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         intracellular_metadata = intracellular_interface.get_metadata()
 
         # Update electrode description for iSPN dendritic recording
+        # One electrode per location (not for trial)
         electrode_name = f"IntracellularElectrode{location_id}"
         intracellular_metadata["Icephys"]["IntracellularElectrodes"][icephys_metadata_key].update(
             {
@@ -332,16 +328,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         # Get line scan metadata and update with recording-specific information
         line_scan_metadata = line_scan_interface.get_metadata()
 
-        # Update metadata with recording-specific naming parameters
-        # Only include essential identifiers, not condition or cell_id in names
-        # Include recording folder name to ensure uniqueness across multiple recordings
-        line_scan_metadata["trial_id"] = f"{trial_id}"
-        line_scan_metadata["position"] = f"{location_id}"
-
-        # Include cell and date information for descriptions
-        line_scan_metadata["cell_info"] = (
-            f"Cell {recording_info['cell_number']} recorded on {recording_info['date'].strftime('%Y-%m-%d')}"
-        )
+        line_scan_metadata["recording_id"] = recording_id
+        line_scan_metadata["location_id"] = location_id
 
         # Add line scan data to NWB file with updated metadata
         line_scan_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=line_scan_metadata)

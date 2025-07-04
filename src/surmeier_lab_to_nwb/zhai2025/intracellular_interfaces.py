@@ -237,6 +237,27 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
 
         return electrode
 
+    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None):
+        """
+        Add device and electrode to NWBFile and return them for child classes.
+
+        Parameters
+        ----------
+        nwbfile : NWBFile
+            NWB file to add the device and electrode to
+        metadata : dict, optional
+            Metadata dictionary
+
+        Returns
+        -------
+        tuple
+            (device, electrode) objects for use by child classes
+        """
+        metadata = metadata or self.get_metadata()
+        device = self._get_or_create_device(nwbfile, metadata)
+        electrode = self._get_or_create_electrode(nwbfile, metadata, device)
+        return device, electrode
+
 
 class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
     """Interface for Prairie View current clamp data."""
@@ -298,14 +319,10 @@ class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
         metadata : dict
             Metadata dictionary
         """
-
+        device, electrode = super().add_to_nwbfile(nwbfile, metadata)
         metadata = metadata or self.get_metadata()
 
         patch_clamp_series_metadata = metadata["Icephys"]["CurrentClampSeries"][self.icephys_metadata_key]
-
-        # Create or get device and electrode using helper methods
-        device = self._get_or_create_device(nwbfile, metadata)
-        electrode = self._get_or_create_electrode(nwbfile, metadata, device)
 
         import pandas as pd
 
@@ -401,14 +418,10 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
             If None, uses timestamps from data. If provided, uses starting_time
             for absolute temporal synchronization within the experimental session.
         """
-
+        device, electrode = super().add_to_nwbfile(nwbfile, metadata)
         metadata = metadata or self.get_metadata()
 
         patch_clamp_series_metadata = metadata["Icephys"]["VoltageClampSeries"][self.icephys_metadata_key]
-
-        # Create or get device and electrode using helper methods
-        device = self._get_or_create_device(nwbfile, metadata)
-        electrode = self._get_or_create_electrode(nwbfile, metadata, device)
 
         import pandas as pd
 
