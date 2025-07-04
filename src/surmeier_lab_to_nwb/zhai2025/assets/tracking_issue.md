@@ -31,9 +31,12 @@ The data, however, was packaged per figure so I am gonna show progress per figur
 
 ## Figure 1:
 Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
+
 ### Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/1)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -41,6 +44,8 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -52,6 +57,8 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 ### Spine density image stacks
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -59,6 +66,8 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 ### Current clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [PrairieViewOptogeneticsInterface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -66,9 +75,11 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 ## Figure 3:
 Intracellular electrophysiology (VoltageClamp) and LineScan data.
 
-## Somatic Excitability
+### Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/15)
+- [x] Time alignment of the data [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/17)
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -76,7 +87,11 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/16)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
 - [ ] Inspector
 - [ ] Upload data
 
@@ -85,6 +100,8 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ### Current clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -92,6 +109,8 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ## Spine Density
 - [ ] Build needed interfaces
 - [ ] Conversion script
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -100,6 +119,8 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [ ] Conversion script
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -108,6 +129,8 @@ Image stacks (spine density) like figure 2 but they come in a different format a
 Fluorescence imaging data from two-photon laser scanning microscopy.
 - [x] Build needed interfaces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12)
 - [ ] Conversion script
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -117,38 +140,106 @@ Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spin
 Structure: Three experiment types (Dendritic excitability, Somatic excitability, Spine density), each with control and M1R antagonist conditions.
 
 ### Dendritic Excitability
-- [ ] Build needed interfaces (already available: [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5), [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2))
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [ ] Conversion script (handle both control and M1R antagonist conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Somatic Excitability
-- [ ] Build needed interfaces (already available: [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5))
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script (handle both control and M1R antagonist conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Spine Density
-- [ ] Build needed interfaces (already available: [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365))
+- [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle both control and M1R antagonist conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ## Figure 7:
-Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density, and line scans. Behavior scoring data (AIM) and behavioral videos.
-- [ ] Build needed interfaces
-- [ ] Conversion script
+CDGI knockout effects on iSPN function and behavior. Includes somatic excitability, dendritic excitability, spine density, and behavioral assessment comparing CDGI knockout vs wildtype mice.
+
+### Somatic Excitability (CDGI KO on vs off)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
+- [ ] Conversion script (handle CDGI KO off-state and on-state conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Dendritic Excitability (CDGI KO on vs off)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+- [ ] Conversion script (handle CDGI KO off-state and on-state conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Dendritic Excitability (oxoM response - CDGI KO vs WT)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+- [ ] Conversion script (handle paired before/after oxoM protocol for both KO and WT)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Spine Density (CDGI KO on vs off)
+- [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
+- [ ] Conversion script (handle CDGI KO off-state and on-state conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Behavioral Assessment (AIM scoring and contralateral rotations)
+- [ ] Build needed interfaces (behavioral scoring interface needed)
+- [ ] Conversion script (AIM scores and rotation videos)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ## Figure 8:
-Behavioral scoring, intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spine density, and line scans.
-- [ ] Build needed interfaces
-- [ ] Conversion script
+M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using targeted gene editing. Includes somatic excitability, spine density, and behavioral assessment comparing M1R CRISPR vs control mice.
+
+### Somatic Excitability (M1R CRISPR vs interleaved control)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
+- [ ] Conversion script (handle M1R CRISPR and interleaved control conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Spine Density (M1R CRISPR vs control - off-state)
+- [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
+- [ ] Conversion script (handle M1R CRISPR and control conditions)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+
+### Behavioral Assessment (AIM scoring)
+- [ ] Build needed interfaces (behavioral scoring interface needed)
+- [ ] Conversion script (AIM scores for M1R CRISPR mice)
+- [ ] Time alignment
+- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
