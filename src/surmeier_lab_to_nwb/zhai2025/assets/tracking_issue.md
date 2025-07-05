@@ -160,8 +160,6 @@ Structure: Three experiment types (Dendritic excitability, Somatic excitability,
 ### Spine Density
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle both control and M1R antagonist conditions)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data

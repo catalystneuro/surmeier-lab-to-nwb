@@ -90,7 +90,7 @@ class NikonImageStackInterface(BaseDataInterface):
 
         nwbfile.add_acquisition(images_container)
 
-    def _get_session_start_time(self) -> datetime:
+    def get_session_start_time(self) -> datetime:
 
         frame_index = 0
         first_frame_metadata = self.file_handle.frame_metadata(frame_index)
