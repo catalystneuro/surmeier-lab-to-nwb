@@ -138,9 +138,9 @@ Structure: Three experiment types (Dendritic excitability, Somatic excitability,
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
-- [ ] Conversion script (handle both control and M1R antagonist conditions)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure
+- [x] Conversion script (handle both control and M1R antagonist conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
