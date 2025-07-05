@@ -45,7 +45,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/19)
-- [ ] Add icephys table hierarchical structure
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/20)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -58,7 +58,6 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)
 - [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -90,8 +89,6 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/17)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/18)
 - [ ] Double check metadata
-- [ ] Inspector
-- [ ] Upload data
 - [ ] Inspector
 - [ ] Upload data
 
