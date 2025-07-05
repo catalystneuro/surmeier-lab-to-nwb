@@ -6,7 +6,7 @@ NWBFile:
     - dSPNs
     - iSPNs
     - indirect pathway
-
+    - direct pathway
   related_publications:
     - "https://doi.org/10.1016/j.neuron.2025.01.xxx"
   institution: Northwestern University

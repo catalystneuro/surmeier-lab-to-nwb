@@ -163,34 +163,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     print(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
 
-    # Find all recording folders by looking for folders that contain a "References" subdirectory
-    def find_recording_folders(path: Path) -> list[Path]:
-        """Recursively find all folders that contain a 'References' subdirectory."""
-        recording_folders = []
-
-        for item in path.iterdir():
-            if not item.is_dir():
-                continue
-
-            # Check if this folder contains a "References" subdirectory
-            references_path = item / "References"
-            if references_path.exists() and references_path.is_dir():
-                recording_folders.append(item)
-                if verbose:
-                    print(f"    Found recording folder: {item.name}")
-            else:
-                # Recursively search subdirectories
-                recording_folders.extend(find_recording_folders(item))
-
-        return recording_folders
-
-    all_recording_folders = find_recording_folders(session_folder_path)
+    # Get all recording folders within the session folder
+    all_recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
     all_recording_folders.sort()
 
     if not all_recording_folders:
-        raise ValueError(
-            f"No recording folders (with References subdirectory) found in session folder: {session_folder_path}"
-        )
+        raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
 
     print(f"  Total recordings found: {len(all_recording_folders)}")
 
@@ -228,11 +206,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
         # Compare session start times
         time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-        if time_diff > 0.1:  # More than 0.1 seconds difference
-            print(f"    Times for {recording_folder.name}:")
-            print(f"      Ophys time: {ophys_session_start_time}")
-            print(f"      Intracellular time: {intracellular_session_start_time}")
-            print(f"      Difference: {time_diff:.1f} seconds")
+        print(f"    Times for {recording_folder.name}:")
+        print(f"      Ophys time: {ophys_session_start_time}")
+        print(f"      Intracellular time: {intracellular_session_start_time}")
+        print(f"      Difference: {time_diff:.1f} seconds")
 
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
@@ -314,7 +291,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"for condition '{condition}'. Combined patch clamp electrophysiology and two-photon "
                 f"laser scanning microscopy (2PLSM). Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) "
                 f"with simultaneous Ca2+ imaging to assess back-propagating action potential invasion. "
-                f"Animal {session_folder_path.name} recorded on {session_date_str}. "
+                f"Recorded on {session_date_str}. "
                 f"Total recordings: {len(all_recording_folders)}."
             ),
             "identifier": f"zhai2025_fig1_dendritic_{session_folder_path.name}_{condition.replace(' ', '_')}",
@@ -330,21 +307,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             ),
             "session_id": f"{session_folder_path.name}_{condition.replace(' ', '_')}",
             "keywords": [
-                "intracellular electrophysiology",
-                "patch clamp",
-                "two-photon microscopy",
                 "calcium imaging",
                 "dendritic excitability",
-                "line scan",
                 "current injection",
                 "back-propagating action potentials",
                 "Fluo-4",
                 "Alexa Fluor 568",
-                "dSPN",
-                "direct pathway",
-                "spiny projection neurons",
-                "Parkinson's disease",
-                "levodopa-induced dyskinesia",
             ],
         }
     }
