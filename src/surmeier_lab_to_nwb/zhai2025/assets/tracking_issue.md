@@ -44,7 +44,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
-- [ ] Time alignment
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/19)
 - [ ] Add icephys table hierarchical structure
 - [ ] Double check metadata
 - [ ] Inspector
