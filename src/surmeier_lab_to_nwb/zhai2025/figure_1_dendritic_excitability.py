@@ -352,6 +352,33 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     )
     nwbfile.subject = subject
 
+    # Add custom columns to intracellular recording table for dendritic experiment annotations
+    intracellular_recording_table = nwbfile.get_intracellular_recordings()
+    intracellular_recording_table.add_column(
+        name="stimulus_protocol", description="Current injection protocol used for dendritic excitability testing"
+    )
+    intracellular_recording_table.add_column(
+        name="dendrite_distance_um", description="Approximate distance from soma in micrometers"
+    )
+    intracellular_recording_table.add_column(
+        name="dendrite_type", description="Type of dendritic location: Distal or Proximal"
+    )
+    intracellular_recording_table.add_column(
+        name="dendrite_number", description="Number identifier for the specific dendritic location (1, 2, etc.)"
+    )
+    intracellular_recording_table.add_column(
+        name="trial_number", description="Trial number for this dendritic location (1, 2, 3)"
+    )
+    intracellular_recording_table.add_column(
+        name="recording_id", description="Full recording identifier containing location and trial information"
+    )
+
+    # Data structures for tracking icephys table indices
+    recording_indices = []  # Store all intracellular recording indices
+    recording_to_metadata = {}  # Map recording index to metadata for table building
+    location_to_recording_indices = {}  # Group recordings by location for repetitions table
+    sequential_recording_indices = []  # Store sequential recording indices
+
     # Process each recording using the calculated recording IDs
     for recording_id, recording_folder in recording_id_to_folder.items():
         location_id = recording_id_to_location_id[recording_id]
@@ -445,6 +472,38 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add intracellular data to NWB file
         intracellular_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=intracellular_metadata)
 
+        # Add intracellular recording to icephys table with custom annotations
+        current_clamp_series = nwbfile.acquisition[series_name]
+
+        # Calculate dendrite distance based on location type (approximate values from literature)
+        dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40  # distal ~90μm, proximal ~40μm
+
+        # Add intracellular recording entry with essential metadata annotations
+        recording_index = nwbfile.add_intracellular_recording(
+            electrode=current_clamp_series.electrode,
+            response=current_clamp_series,
+            stimulus_protocol="3x2nA_2ms_50Hz_dendritic_excitability",
+            dendrite_distance_um=dendrite_distance_um,
+            dendrite_type=recording_info["location_full"],  # "Distal" or "Proximal"
+            dendrite_number=int(recording_info["location_number"]),
+            trial_number=int(recording_info["trial_number"]),
+            recording_id=recording_id,
+        )
+
+        # Track recording index and metadata for table building
+        recording_indices.append(recording_index)
+        recording_to_metadata[recording_index] = {
+            "recording_id": recording_id,
+            "location_id": location_id,
+            "recording_info": recording_info,
+            "series_name": series_name,
+        }
+
+        # Group recordings by location for repetitions table
+        if location_id not in location_to_recording_indices:
+            location_to_recording_indices[location_id] = []
+        location_to_recording_indices[location_id].append(recording_index)
+
         # Process structural channel (Ch1/Alexa568)
         structural_metadata = structural_interface.get_metadata()
         # Apply fluorophore-specific metadata based on experimental knowledge
@@ -522,6 +581,81 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     print(f"Successfully processed all recordings from session: {session_folder_path.name}")
 
+    # Build icephys table hierarchical structure following PyNWB best practices
+    if verbose:
+        print(f"  Building icephys table structure for {len(recording_indices)} recordings...")
+
+    # Step 1: Build simultaneous recordings (each trial is its own simultaneous group)
+    simultaneous_recording_indices = []
+    for recording_index in recording_indices:
+        metadata = recording_to_metadata[recording_index]
+        simultaneous_index = nwbfile.add_icephys_simultaneous_recording(
+            recordings=[recording_index]  # Each trial is its own simultaneous group
+        )
+        simultaneous_recording_indices.append(simultaneous_index)
+
+    # Step 2: Build sequential recordings (each trial is its own sequence)
+    for simultaneous_index in simultaneous_recording_indices:
+        sequential_index = nwbfile.add_icephys_sequential_recording(
+            simultaneous_recordings=[simultaneous_index],  # Each trial is its own sequence as requested
+            stimulus_type="dendritic_excitability_current_injection",
+        )
+        sequential_recording_indices.append(sequential_index)
+
+    # Step 3: Build repetitions table (group trials by dendritic location)
+    repetitions_table = nwbfile.get_icephys_repetitions()
+    repetitions_table.add_column(
+        name="dendrite_distance_um", description="Approximate distance from soma in micrometers for this location"
+    )
+    repetitions_table.add_column(name="dendrite_type", description="Type of dendritic location: Distal or Proximal")
+    repetitions_table.add_column(
+        name="dendrite_number", description="Number identifier for the specific dendritic location"
+    )
+
+    repetition_indices = []
+    for location_id, location_recording_indices in location_to_recording_indices.items():
+        # Get metadata from first recording at this location for location info
+        first_recording_index = location_recording_indices[0]
+        first_metadata = recording_to_metadata[first_recording_index]
+        recording_info = first_metadata["recording_info"]
+
+        # Get corresponding sequential recording indices for this location
+        location_sequential_indices = []
+        for recording_index in location_recording_indices:
+            # Find the sequential index that corresponds to this recording
+            seq_index = recording_indices.index(recording_index)
+            location_sequential_indices.append(sequential_recording_indices[seq_index])
+
+        dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40
+
+        repetition_index = nwbfile.add_icephys_repetition(
+            sequential_recordings=location_sequential_indices,
+            dendrite_distance_um=dendrite_distance_um,
+            dendrite_type=recording_info["location_full"],  # "Distal" or "Proximal"
+            dendrite_number=int(recording_info["location_number"]),
+        )
+        repetition_indices.append(repetition_index)
+
+    # Step 4: Build experimental conditions table (group all repetitions by LID condition)
+    # Note: Cell information is per-session data, stored at NWBFile level, not per-recording
+    experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
+    experimental_conditions_table.add_column(
+        name="condition", description="Experimental condition for L-DOPA induced dyskinesia study"
+    )
+
+    experimental_condition_index = nwbfile.add_icephys_experimental_condition(
+        repetitions=repetition_indices, condition=condition
+    )
+
+    if verbose:
+        print(f"    Added experimental condition '{condition}' with {len(repetition_indices)} repetitions")
+        print(f"  Successfully built icephys table hierarchy:")
+        print(f"    - {len(recording_indices)} intracellular recordings")
+        print(f"    - {len(simultaneous_recording_indices)} simultaneous recordings")
+        print(f"    - {len(sequential_recording_indices)} sequential recordings")
+        print(f"    - {len(repetition_indices)} repetitions (grouped by location)")
+        print(f"    - 1 experimental condition ('{condition}')")
+
     return nwbfile
 
 
@@ -560,7 +694,7 @@ if __name__ == "__main__":
         print(f"Processing dendritic excitability data for: {condition}")
 
         # Get all folders under condition and determine session folders
-        # Rule: if a folder has more than 3 children, it is a session_folder
+        # Heuristic: if a folder has more than 3 children, it is a session_folder
         # otherwise its children are session_folders
         all_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         all_folders.sort()
