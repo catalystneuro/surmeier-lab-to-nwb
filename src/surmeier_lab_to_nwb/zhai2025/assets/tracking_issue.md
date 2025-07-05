@@ -45,7 +45,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/19)
-- [ ] Add icephys table hierarchical structure
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/20)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
