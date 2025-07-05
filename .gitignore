@@ -155,8 +155,8 @@ dmypy.json
 **.nwb
 
 # Research articles
-src/surmeier_lab_to_nwb/zhai2025/assets/surmeier_article_bioarxiv.pdf
-src/surmeier_lab_to_nwb/zhai2025/assets/surmeier_article_bioarxiv.txt
+src/surmeier_lab_to_nwb/zhai2025/assets/paper/surmeier_article_bioarxiv.pdf
+src/surmeier_lab_to_nwb/zhai2025/assets/paper/surmeier_article_bioarxiv.txt
 
 # Communication
 email_communication.md
