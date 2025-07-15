@@ -77,8 +77,8 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ### Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/15)
-- [ ] Time alignment of the data
-- [ ] Add icephys table hierarchical structure
+- [x] Time alignment of the data [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
