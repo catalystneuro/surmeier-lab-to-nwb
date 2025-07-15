@@ -35,8 +35,8 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 ### Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/1)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -103,7 +103,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [ ] Inspector
 - [ ] Upload data
 
-## Spine Density
+### Spine Density
 - [ ] Build needed interfaces
 - [ ] Conversion script
 - [ ] Time alignment
@@ -112,7 +112,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [ ] Inspector
 - [ ] Upload data
 
-## Confocal Spine Density
+### Confocal Spine Density
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [ ] Conversion script
