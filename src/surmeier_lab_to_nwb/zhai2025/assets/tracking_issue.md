@@ -166,9 +166,9 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 
 ### Somatic Excitability (CDGI KO on vs off)
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
-- [ ] Conversion script (handle CDGI KO off-state and on-state conditions)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure
+- [x] Conversion script (handle CDGI KO off-state and on-state conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
