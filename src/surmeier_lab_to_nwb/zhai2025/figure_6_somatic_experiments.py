@@ -15,13 +15,13 @@ from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
 
 def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any]:
     """
-    Parse essential recording information from somatic excitability recording folder names.
+    Parse essential recording information from M1R antagonist somatic excitability recording folder names.
     Session start time comes from XML metadata.
 
     Expected folder name format: cell[N]-[XXX] (e.g., cell1-001, cell2-015)
 
-    The session folder structure is: MMDDYYYY_N/cell[N]-[XXX]/
-    - MMDDYYYY_N: Date and cell number (e.g., 05232016_1)
+    The session folder structure is: [MMDD][letter]/cell[N]-[XXX]/
+    - [MMDD][letter]: Date and animal identifier (e.g., 0217a, 0218b)
     - cell[N]-[XXX]: Recording folder with cell number and protocol step
 
     Protocol steps:
@@ -42,31 +42,32 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     folder_name = recording_folder.name
     session_folder = recording_folder.parent
 
-    # Parse session folder (parent) for date and cell info
-    # Format: MMDDYYYY_N
+    # Parse session folder (parent) for date and animal info
+    # Format: [MMDD][letter] (e.g., 0217a, 0721b)
     session_folder_name = session_folder.name
-    if "_" in session_folder_name:
-        _, cell_number = session_folder_name.split("_")
-    else:
+
+    # Extract date and animal identifier
+    # Pattern: 4 digits (MMDD) followed by a letter
+    session_pattern = r"(\d{4})([a-z])"
+    session_match = re.match(session_pattern, session_folder_name)
+
+    if not session_match:
         raise ValueError(f"Could not parse session folder name: {session_folder_name}")
+
+    animal_letter = session_match.group(2)  # letter (a, b, c, etc.)
 
     # Note: Date will be extracted from XML session start time, not from folder name
 
     # Parse recording folder name for protocol step
-    # Format: cell[N]-[XXX] or cell[N]_sul-[XXX]
-    # Use regex to handle optional "_sul" suffix
-    pattern = r"cell(\d+)(?:_sul)?-(\d+)"
+    # Format: cell[N]-[XXX] (no suffixes for Figure 6)
+    pattern = r"cell(\d+)-(\d+)"
     match = re.match(pattern, folder_name)
 
     if not match:
         raise ValueError(f"Could not parse recording folder name: {folder_name}")
 
-    cell_number_from_recording = match.group(1)
+    cell_number = match.group(1)
     protocol_step = match.group(2)
-
-    # Verify cell number matches session
-    if cell_number_from_recording != cell_number:
-        raise ValueError(f"Cell number mismatch: session {cell_number} vs recording {cell_number_from_recording}")
 
     # Get current value for this protocol step using shared constant
     if protocol_step not in PROTOCOL_STEP_TO_CURRENT:
@@ -84,6 +85,7 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
 
     return {
         "cell_number": cell_number,
+        "animal_letter": animal_letter,
         "protocol_step": protocol_step,
         "current_pA": current_pA,
         "current_formatted": current_formatted,
@@ -94,14 +96,14 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
 
 def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
     """
-    Convert a single session of Figure 3 somatic excitability data to NWB format with time alignment.
+    Convert a single session of Figure 6 M1R antagonist somatic excitability data to NWB format with time alignment.
 
     Parameters
     ----------
     session_folder_path : Path
         Path to the session folder containing cell recordings
     condition : str
-        Experimental condition (e.g., "LID off-state", "LID on-state", "LID on-state with sul (iSPN)")
+        Experimental condition (e.g., "control", "M1R antagonist")
     verbose : bool, default=False
         Enable verbose output showing detailed processing information
 
@@ -127,9 +129,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_info = parse_session_info_from_folder_name(recording_folders[0])
     session_info = {
         "cell_number": first_recording_info["cell_number"],
+        "animal_letter": first_recording_info["animal_letter"],
     }
 
-    print(f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']})")
+    print(
+        f"Processing session folder: {session_folder_path.name} (Animal {session_info['animal_letter']}, Cell {session_info['cell_number']})"
+    )
     print(f"  Found {len(recording_folders)} current step recordings")
 
     # Calculate recording IDs, session start times, and create interface mappings
@@ -191,7 +196,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
-    session_id = f"{session_start_time.strftime('%Y%m%d')}_Cell{session_info['cell_number']}"
+    session_id = (
+        f"{session_start_time.strftime('%Y%m%d')}_{session_info['animal_letter']}_Cell{session_info['cell_number']}"
+    )
     session_info.update(
         {
             "date_str": session_date_str,
@@ -207,26 +214,40 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Create session-specific metadata using precise session start time from XML
 
+    # Determine treatment description based on condition
+    if condition == "M1R antagonist":
+        treatment_description = (
+            "M1R antagonist trihexyphenidyl hydrochloride (THP, 3 mg/kg, i.p.) administered "
+            "at beginning of LID off-state, with recording 16 hours later"
+        )
+        condition_description = "M1R antagonist treatment effects on iSPN somatic excitability"
+    else:
+        treatment_description = "Saline control injection with matched timing and volume"
+        condition_description = "Control condition for M1R antagonist study of iSPN somatic excitability"
+
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
-                f"Somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) "
-                f"for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode "
-                f"with current injection steps from -120 pA to +300 pA (500 ms duration each). "
-                f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+                f"Somatic excitability assessment in iSPNs for condition '{condition}'. "
+                f"Whole-cell patch clamp recording in current clamp mode with current injection steps "
+                f"from -120 pA to +300 pA (500 ms duration each). {treatment_description}. "
+                f"Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
             ),
-            "identifier": f"zhai2025_fig3_somatic_{session_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": f"zhai2025_fig6_somatic_{session_info['session_id']}_{condition.replace(' ', '_')}",
             "session_start_time": session_start_time,
             "experiment_description": (
-                f"Somatic excitability changes in iSPNs during condition '{condition}'. "
-                f"This experiment is part of Figure 3 from Zhai et al. 2025, investigating how LID affects "
-                f"iSPN excitability and the role of D2 receptor signaling. F-I protocol with {len(recording_folders)} current steps."
+                f"{condition_description} during LID off-state. "
+                f"This experiment is part of Figure 6 from Zhai et al. 2025, investigating whether "
+                f"M1R signaling mediates dendritic vs somatic alterations in iSPNs during dyskinesia. "
+                f"F-I protocol with {len(recording_folders)} current steps."
             ),
             "session_id": session_info["session_id"],
             "keywords": [
                 "somatic excitability",
                 "F-I relationship",
                 "rheobase",
+                "M1R antagonist",
+                "trihexyphenidyl",
             ],
         }
     }
@@ -247,14 +268,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for iSPN experiments
+    # Create subject metadata for M1R antagonist experiments (Figure 6)
     subject = Subject(
-        subject_id=f"iSPN_mouse_{session_info['session_id']}",
+        subject_id=f"M1R_antagonist_mouse_{session_info['session_id']}",
         species="Mus musculus",
         strain="C57Bl/6",
         description=(
             f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
             f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
+            f"{treatment_description}. Animal {session_info['animal_letter']}, "
             f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
         ),
         genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
@@ -263,7 +285,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     )
     nwbfile.subject = subject
 
-    # Add custom columns to intracellular recording table for somatic experiment annotations
+    # Add custom columns to intracellular recording table for M1R antagonist experiment annotations
     intracellular_recording_table = nwbfile.get_intracellular_recordings()
     intracellular_recording_table.add_column(
         name="stimulus_current_pA",
@@ -274,6 +296,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     )
     intracellular_recording_table.add_column(
         name="recording_id", description="Full recording identifier containing step and current information"
+    )
+    intracellular_recording_table.add_column(
+        name="animal_letter", description="Animal identifier letter for this experimental session"
     )
 
     # Data structures for tracking icephys table indices
@@ -296,28 +321,31 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Get and update interface metadata
         interface_metadata = interface.get_metadata()
 
-        # Update electrode description for iSPN somatic recording (consistent name for all recordings)
+        # Update electrode description for M1R antagonist iSPN somatic recording (consistent name for all recordings)
         electrode_name = "IntracellularElectrode"
         interface_metadata["Icephys"]["IntracellularElectrodes"][icephys_metadata_key].update(
             {
                 "name": electrode_name,
                 "description": (
                     f"Whole-cell patch clamp electrode recording from iSPN soma in the dorsolateral striatum - "
-                    f"{condition} - Cell {session_info['cell_number']} - F-I protocol with {len(recording_folders)} current steps"
+                    f"{condition} - Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} - "
+                    f"F-I protocol with {len(recording_folders)} current steps"
                 ),
                 "cell_id": session_info["cell_number"],
+                "animal_id": session_info["animal_letter"],
                 "location": "soma",
             }
         )
 
         # Update current clamp series metadata
-        series_name = f"CurrentClampSeries{recording_info['protocol_step']}"
+        series_name = f"CurrentClamp{recording_info['protocol_step']}Series"
         interface_metadata["Icephys"]["CurrentClampSeries"][icephys_metadata_key].update(
             {
                 "name": series_name,
                 "description": (
                     f"Current clamp recording from iSPN - {condition} - "
-                    f"Cell {session_info['cell_number']} - {recording_info['current_formatted']} current injection - "
+                    f"Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} - "
+                    f"{recording_info['current_formatted']} current injection - "
                     f"F-I protocol step {recording_info['protocol_step']}"
                 ),
             }
@@ -342,6 +370,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             stimulus_current_pA=recording_info["current_pA"],
             protocol_step=recording_info["protocol_step"],
             recording_id=recording_id,
+            animal_letter=session_info["animal_letter"],
         )
 
         # Track recording index and metadata for table building
@@ -372,23 +401,27 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Step 2: Build sequential recording (group all current steps for this cell)
     sequential_index = nwbfile.add_icephys_sequential_recording(
         simultaneous_recordings=simultaneous_recording_indices,
-        stimulus_type="F-I_protocol_somatic_excitability",
+        stimulus_type="F-I_protocol_somatic_excitability_M1R_antagonist",
     )
     sequential_recording_indices.append(sequential_index)
 
     # Step 3: Build repetitions table (for this single cell, it's just one repetition)
     repetitions_table = nwbfile.get_icephys_repetitions()
     repetitions_table.add_column(name="cell_number", description="Cell number identifier for this recording session")
+    repetitions_table.add_column(
+        name="animal_letter", description="Animal identifier letter for this experimental session"
+    )
 
     repetition_index = nwbfile.add_icephys_repetition(
         sequential_recordings=sequential_recording_indices,
         cell_number=int(session_info["cell_number"]),
+        animal_letter=session_info["animal_letter"],
     )
 
-    # Step 4: Build experimental conditions table (group by LID condition)
+    # Step 4: Build experimental conditions table (group by M1R antagonist condition)
     experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
     experimental_conditions_table.add_column(
-        name="condition", description="Experimental condition for L-DOPA induced dyskinesia study"
+        name="condition", description="Experimental condition for M1R antagonist LID study"
     )
 
     experimental_condition_index = nwbfile.add_icephys_experimental_condition(
@@ -401,7 +434,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         print(f"    - {len(recording_indices)} intracellular recordings")
         print(f"    - {len(simultaneous_recording_indices)} simultaneous recordings")
         print(f"    - {len(sequential_recording_indices)} sequential recordings")
-        print(f"    - 1 repetition (Cell {session_info['cell_number']})")
+        print(f"    - 1 repetition (Animal {session_info['animal_letter']}, Cell {session_info['cell_number']})")
         print(f"    - 1 experimental condition ('{condition}')")
 
     return nwbfile
@@ -422,15 +455,15 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
 
     # Set the base path to your data
-    base_path = Path("./link_to_raw_data/Figure 3/Somatic excitability")
+    base_path = Path("./link_to_raw_data/Figure 6/Somatic excitability")
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_3_somatic_excitability"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_6_somatic_excitability"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    # Figure 3 somatic excitability conditions
-    conditions = ["LID off-state", "LID on-state", "LID on-state with sul (iSPN)"]
+    # Figure 6 M1R antagonist somatic excitability conditions
+    conditions = ["control", "M1R antagonist"]
 
     for condition in conditions:
         condition_path = base_path / condition
@@ -438,9 +471,9 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
-        print(f"Processing somatic excitability data for: {condition}")
+        print(f"Processing M1R antagonist somatic excitability data for: {condition}")
 
-        # Get all session folders (each session = one cell)
+        # Get all session folders (each session = one animal/cell)
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
@@ -457,8 +490,8 @@ if __name__ == "__main__":
             )
 
             # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
-            nwbfile_path = nwb_files_dir / f"figure3_somatic_excitability_{condition_safe}_{session_folder.name}.nwb"
+            condition_safe = condition.replace(" ", "_").replace("-", "_")
+            nwbfile_path = nwb_files_dir / f"figure6_somatic_excitability_{condition_safe}_{session_folder.name}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

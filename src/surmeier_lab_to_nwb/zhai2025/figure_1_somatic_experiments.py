@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -47,26 +46,11 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     # Format: MMDDYYYY_N
     session_folder_name = session_folder.name
     if "_" in session_folder_name:
-        date_str, cell_number = session_folder_name.split("_")
+        _, cell_number = session_folder_name.split("_")
     else:
         raise ValueError(f"Could not parse session folder name: {session_folder_name}")
 
-    # Parse date (MMDDYYYY format)
-    if len(date_str) == 8:
-        month = int(date_str[:2])
-        day = int(date_str[2:4])
-        year = int(date_str[4:8])
-    else:
-        raise ValueError(f"Could not parse date from session folder name: {session_folder_name}")
-
-    # Validate date components
-    if month < 1 or month > 12:
-        raise ValueError(f"Invalid month '{month}' in date '{date_str}' from folder '{session_folder_name}'")
-    if day < 1 or day > 31:
-        raise ValueError(f"Invalid day '{day}' in date '{date_str}' from folder '{session_folder_name}'")
-
-    # Create datetime object for the date
-    session_date = datetime(year, month, day)
+    # Note: Date will be extracted from XML session start time, not from folder name
 
     # Parse recording folder name for protocol step
     # Format: cell[N]-[XXX] or cell[N]_SCH-[XXX] or cell[N]_sul-[XXX]
@@ -100,8 +84,6 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
 
     return {
         "cell_number": cell_number,
-        "date_str": f"{year}-{month:02d}-{day:02d}",
-        "session_id": f"{year}{month:02d}{day:02d}_Cell{cell_number}",
         "protocol_step": protocol_step,
         "current_pA": current_pA,
         "current_formatted": current_formatted,
@@ -145,12 +127,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_info = parse_session_info_from_folder_name(recording_folders[0])
     session_info = {
         "cell_number": first_recording_info["cell_number"],
-        "date_str": first_recording_info["date_str"],
-        "session_id": first_recording_info["session_id"],
     }
 
     print(f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']})")
-    print(f"Session date: {session_info['date_str']}")
     print(f"  Found {len(recording_folders)} current step recordings")
 
     # Calculate recording IDs, session start times, and create interface mappings
@@ -210,12 +189,23 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
+    # Extract date from actual session start time and update session info
+    session_date_str = session_start_time.strftime("%Y-%m-%d")
+    session_id = f"{session_start_time.strftime('%Y%m%d')}_Cell{session_info['cell_number']}"
+    session_info.update(
+        {
+            "date_str": session_date_str,
+            "session_id": session_id,
+        }
+    )
+
+    print(f"Session date: {session_info['date_str']}")
+
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using precise session start time from XML
-    session_date_str = session_start_time.strftime("%Y-%m-%d")
 
     session_specific_metadata = {
         "NWBFile": {
@@ -223,7 +213,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) "
                 f"for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode "
                 f"with current injection steps from -120 pA to +300 pA (500 ms duration each). "
-                f"Cell {session_info['cell_number']} recorded on {session_date_str}."
+                f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
             ),
             "identifier": f"zhai2025_fig1_somatic_{session_info['session_id']}_{condition.replace(' ', '_')}",
             "session_start_time": session_start_time,
@@ -265,7 +255,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         description=(
             f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
             f"dSPNs identified by Drd1-Tdtomato expression (positive selection). "
-            f"Cell {session_info['cell_number']} recorded on {session_date_str}."
+            f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
         ),
         genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
         sex="M",

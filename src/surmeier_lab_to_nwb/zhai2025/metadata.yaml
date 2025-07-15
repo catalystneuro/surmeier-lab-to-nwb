@@ -8,7 +8,7 @@ NWBFile:
     - indirect pathway
     - direct pathway
   related_publications:
-    - "https://doi.org/10.1016/j.neuron.2025.01.xxx"
+    - "https://doi.org/10.1101/2025.01.02.631090"
   institution: Northwestern University
   lab: Surmeier Lab
   experimenter:
@@ -29,6 +29,3 @@ NWBFile:
 Subject:
   species: Mus musculus
   description: A rich text description of the subject
-  age: TBD  # in ISO 8601, such as "P1W2D"
-  sex: TBD  # One of M, F, U, or O
-  date_of_birth: 2014-06-22 00:00:00-04:00  # Example
