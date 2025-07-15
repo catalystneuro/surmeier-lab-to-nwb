@@ -9,30 +9,28 @@ from pynwb.file import NWBFile
 from pynwb.icephys import CurrentClampSeries, VoltageClampSeries
 
 # Protocol step to current mapping for F-I (frequency-current) relationship experiments
+# Mapping of protocol step numbers to current injection values in picoamps (pA).
+#
+# This protocol is used for somatic excitability experiments in Figures 1 and 3
+# of Zhai et al. 2025. The protocol involves stepping current injections from
+# -120 pA to +300 pA in 20 pA increments for 500 ms duration each.
+#
+# Key experimental details:
+# - Step duration: 500 ms
+# - Current range: -120 pA to +300 pA
+# - Step size: 20 pA
+# - Total steps: 21 (some cells may have additional steps beyond +300 pA)
+# - Used for F-I relationship analysis and rheobase measurements
+#
+# Protocol steps:
+# - 001-006: Hyperpolarizing currents (-120 to -20 pA)
+# - 007-021: Depolarizing currents (+20 to +300 pA)
+# - 022-026: Extended depolarizing currents (+320 to +400 pA, not all cells)
+#
+# References:
+# - Figure 1: dSPN somatic excitability in LID model
+# - Figure 3: iSPN somatic excitability and D2 receptor signaling
 PROTOCOL_STEP_TO_CURRENT: Dict[str, int] = {
-    """
-    Mapping of protocol step numbers to current injection values in picoamps (pA).
-
-    This protocol is used for somatic excitability experiments in Figures 1 and 3
-    of Zhai et al. 2025. The protocol involves stepping current injections from
-    -120 pA to +300 pA in 20 pA increments for 500 ms duration each.
-
-    Key experimental details:
-    - Step duration: 500 ms
-    - Current range: -120 pA to +300 pA
-    - Step size: 20 pA
-    - Total steps: 21 (some cells may have additional steps beyond +300 pA)
-    - Used for F-I relationship analysis and rheobase measurements
-
-    Protocol steps:
-    - 001-006: Hyperpolarizing currents (-120 to -20 pA)
-    - 007-021: Depolarizing currents (+20 to +300 pA)
-    - 022-026: Extended depolarizing currents (+320 to +400 pA, not all cells)
-
-    References:
-    - Figure 1: dSPN somatic excitability in LID model
-    - Figure 3: iSPN somatic excitability and D2 receptor signaling
-    """
     "001": -120,  # pA - Strong hyperpolarization
     "002": -100,  # pA
     "003": -80,  # pA
