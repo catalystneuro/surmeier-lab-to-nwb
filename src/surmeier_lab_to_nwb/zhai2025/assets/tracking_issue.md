@@ -97,10 +97,10 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 
 ### Voltage clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
-- [ ] Conversion script
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure
-- [ ] Use ndx-optogenetics extension
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
+- [x] Use ndx-optogenetics extension [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
