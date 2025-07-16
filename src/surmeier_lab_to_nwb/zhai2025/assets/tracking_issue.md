@@ -65,8 +65,8 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 ### Voltage clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [PrairieViewOptogeneticsInterface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data

@@ -99,7 +99,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         metadata = super().get_metadata()
 
         # Device metadata
-        device_name = "BlueLED_470nm"
+        device_name = "BlueLED470nm"
         metadata["Devices"][device_name] = {
             "name": device_name,
             "description": (

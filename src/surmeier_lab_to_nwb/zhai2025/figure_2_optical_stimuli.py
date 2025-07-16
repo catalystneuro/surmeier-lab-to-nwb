@@ -377,10 +377,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
 
         # Update voltage clamp series metadata
-        series_name = f"VoltageClampSeriesSweep{recording_info['sweep_number']}"
+        voltage_clamp_series_name = f"VoltageClampSeriesSweep{recording_info['sweep_number']}"
         interface_metadata["Icephys"]["VoltageClampSeries"][icephys_metadata_key].update(
             {
-                "name": series_name,
+                "name": voltage_clamp_series_name,
                 "description": (
                     f"Voltage clamp recording from dSPN - {condition} - "
                     f"Session {session_info['session_letter']}, Cell {recording_info['cell_number']} - "
@@ -433,7 +433,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
 
         # Add intracellular recording to icephys table with custom annotations
-        voltage_clamp_series = nwbfile.acquisition[series_name]
+        voltage_clamp_series = nwbfile.acquisition[voltage_clamp_series_name]
 
         # Add intracellular recording entry with enhanced metadata
         recording_index = nwbfile.add_intracellular_recording(
