@@ -51,12 +51,12 @@ Figure 2/
 **Directory Structure**:
 ```
 LID on-state dSPN/
-├── 0411a2019/      # April 11, 2019, animal "a"
-├── 04122019a/      # April 12, 2019, animal "a"
-├── 05012019a/      # May 1, 2019, animal "a"
-├── 0706a/          # July 6, 2017, animal "a"
-├── 0706b/          # July 6, 2017, animal "b"
-├── 0707a/          # July 7, 2017, animal "a"
+├── 0411a2019/      # April 11, 2019, session "a"
+├── 04122019a/      # April 12, 2019, session "a"
+├── 05012019a/      # May 1, 2019, session "a"
+├── 0706a/          # July 6, 2017, session "a"
+├── 0706b/          # July 6, 2017, session "b"
+├── 0707a/          # July 7, 2017, session "a"
 ...
 ```
 
