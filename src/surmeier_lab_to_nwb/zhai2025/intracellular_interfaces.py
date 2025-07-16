@@ -268,6 +268,43 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
         """
         self._t_start = aligned_starting_time
 
+    @staticmethod
+    def get_session_start_time_from_file(file_path: str | Path) -> Optional[datetime]:
+        """
+        Extract session start time from XML file without creating interface instance.
+
+        Parameters
+        ----------
+        file_path : str | Path
+            Path to the XML file containing recording metadata. This is the VoltageRecording XML file.
+
+        Returns
+        -------
+        Optional[datetime]
+            Session start time parsed from XML DateTime field, or None if not available
+        """
+        from pathlib import Path
+
+        import xmltodict
+
+        file_path = Path(file_path)
+
+        # Load XML data
+        with open(file_path, "r") as xml_file:
+            xml_content = xml_file.read()
+            xml_recording_dict = xmltodict.parse(xml_content)
+
+        # Extract session start time
+        datetime_str = xml_recording_dict["VRecSessionEntry"].get("DateTime", None)
+        if datetime_str is not None:
+            try:
+                # Parse ISO format datetime string
+                return datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                # If parsing fails, return None
+                pass
+        return None
+
 
 class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
     """Interface for Prairie View current clamp data."""
@@ -317,43 +354,6 @@ class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
         }
 
         return metadata
-
-    @staticmethod
-    def get_session_start_time_from_file(file_path: str | Path) -> Optional[datetime]:
-        """
-        Extract session start time from XML file without creating interface instance.
-
-        Parameters
-        ----------
-        file_path : str | Path
-            Path to the XML file containing recording metadata
-
-        Returns
-        -------
-        Optional[datetime]
-            Session start time parsed from XML DateTime field, or None if not available
-        """
-        from pathlib import Path
-
-        import xmltodict
-
-        file_path = Path(file_path)
-
-        # Load XML data
-        with open(file_path, "r") as xml_file:
-            xml_content = xml_file.read()
-            xml_recording_dict = xmltodict.parse(xml_content)
-
-        # Extract session start time
-        datetime_str = xml_recording_dict["VRecSessionEntry"].get("DateTime", None)
-        if datetime_str is not None:
-            try:
-                # Parse ISO format datetime string
-                return datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                # If parsing fails, return None
-                pass
-        return None
 
     def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None):
         """
@@ -488,8 +488,8 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
         )
         timestamps = recording_data_df["Time(ms)"] / 1_000.0  # Convert to seconds
         current_pA = recording_data_df[" Primary"] * multiplier / divisor
-        nano_amperes_factor = 1e9
-        current_amps = current_pA.values / nano_amperes_factor
+        pico_amperes_factor = 1e12
+        current_amps = current_pA.values / pico_amperes_factor
 
         name = patch_clamp_series_metadata["name"]
 

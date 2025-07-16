@@ -164,7 +164,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         device_metadata = metadata["Devices"]
 
         # Create LED device
-        device_name = "BlueLED_470nm"
+        device_name = "BlueLED470nm"
         if device_name not in nwbfile.devices:
             device_info = device_metadata[device_name]
             led_device = nwbfile.create_device(name=device_info["name"], description=device_info["description"])

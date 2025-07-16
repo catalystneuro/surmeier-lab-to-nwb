@@ -62,7 +62,7 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 - [ ] Inspector
 - [ ] Upload data
 
-### Current clamp with optogenetic stimulation
+### Voltage clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [PrairieViewOptogeneticsInterface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [ ] Time alignment
@@ -94,7 +94,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 
 ## Figure 4:
 
-### Current clamp with optogenetic stimulation
+### Voltage clamp with optogenetic stimulation
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [ ] Conversion script
 - [ ] Time alignment
@@ -184,9 +184,9 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 
 ### Dendritic Excitability (oxoM response - CDGI KO vs WT)
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
-- [ ] Conversion script (handle paired before/after oxoM protocol for both KO and WT)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure
+- [x] Conversion script (handle paired before/after oxoM protocol for both KO and WT) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
