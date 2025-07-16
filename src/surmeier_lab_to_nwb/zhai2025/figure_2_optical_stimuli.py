@@ -343,8 +343,16 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     recording_to_metadata = {}  # Map recording index to metadata for table building
 
     # Process each recording using the calculated recording IDs and temporal alignment
-    for recording_id, recording_folder in recording_id_to_folder.items():
+    recording_ids = list(recording_id_to_folder.keys())
+
+    for recording_index, (recording_id, recording_folder) in enumerate(recording_id_to_folder.items()):
         recording_info = recording_id_to_info[recording_id]
+
+        # Calculate next recording start time (None for last recording)
+        next_recording_start_time = None
+        if recording_index < len(recording_ids) - 1:  # Not the last recording
+            next_recording_id = recording_ids[recording_index + 1]
+            next_recording_start_time = t_starts[next_recording_id]
 
         # Find XML files
         xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
@@ -406,34 +414,72 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             voltage_output_xml_path
         ), f"Expected voltage output XML file does not exist in {recording_folder}: {voltage_output_xml_path}"
 
-        optogenetics_metadata_key = f"Optogenetic{recording_id}"
         optogenetics_interface = PrairieViewOptogeneticsInterface(
             voltage_output_xml_path=voltage_output_xml_path,
-            optogenetics_metadata_key=optogenetics_metadata_key,
         )
 
         metadata = optogenetics_interface.get_metadata()
-        series_name = f"OptogeneticSeriesSweep{recording_info['sweep_number']}"
-        metadata["OptogeneticSeries"][optogenetics_metadata_key].update(
+
+        # Configure specific virus and injection metadata for Zhai2025 experiment
+        metadata["OptogeneticExperimentMetadata"]["virus"].update(
             {
-                "name": series_name,
+                "name": "AAV5-hSyn-hChR2-H134R-EYFP",
+                "construct_name": "AAV5-hSyn-hChR2(H134R)-EYFP",
                 "description": (
-                    f"Optogenetic stimulation series for dSPN - {condition} - "
-                    f"Session {session_info['session_letter']}, Cell {recording_info['cell_number']} - "
-                    f"LED intensity {recording_info['led_intensity']}, Sweep {recording_info['sweep_number']} - "
-                    f"Sr²⁺-oEPSC protocol with 0.3 ms blue LED pulses"
+                    "Adeno-associated virus serotype 5 expressing channelrhodopsin-2 (H134R variant) "
+                    "fused to enhanced yellow fluorescent protein under the human synapsin promoter. "
+                    "Used for optogenetic activation of corticostriatal terminals. "
+                    "Addgene #26973."
                 ),
+                "manufacturer": "Addgene",
+                "titer_in_vg_per_ml": 1e13,  # Typical AAV titer for this construct
+            }
+        )
+
+        metadata["OptogeneticExperimentMetadata"]["virus_injection"].update(
+            {
+                "name": "M1_cortex_injection",
+                "description": (
+                    "Stereotaxic injection of AAV5-hSyn-hChR2(H134R)-EYFP into M1 motor cortex "
+                    "ipsilateral to 6-OHDA lesion for corticostriatal terminal labeling. "
+                    "Coordinates: AP +1.15mm, ML -1.60mm, DV -1.55mm relative to Bregma. "
+                    "Volume: 0.15 µL. Expression time: 4 weeks."
+                ),
+                "location": "M1 motor cortex",
+                "hemisphere": "ipsilateral to 6-OHDA lesion",
+                "reference": "Bregma at the cortical surface",
+                "ap_in_mm": 1.15,  # mm anterior to Bregma
+                "ml_in_mm": -1.60,  # mm medial to Bregma (negative = left)
+                "dv_in_mm": -1.55,  # mm ventral to cortical surface (negative = deeper)
+                "pitch_in_deg": 0.0,  # Vertical injection
+                "yaw_in_deg": 0.0,  # No lateral angle
+                "roll_in_deg": 0.0,  # No roll angle
+                "volume_in_uL": 0.15,  # 0.15 µL injection volume
+                "injection_date": None,  # Would need session-specific dates
             }
         )
 
         # Add optogenetic stimulus with 20ms delay (pulse occurs 20ms into the sweep)
         pulse_delay_seconds = 0.020
+
+        # Get recording duration from voltage clamp series for proper epoch timing
+        voltage_clamp_series = nwbfile.acquisition[voltage_clamp_series_name]
+        if hasattr(voltage_clamp_series, "timestamps") and voltage_clamp_series.timestamps is not None:
+            recording_duration = voltage_clamp_series.timestamps[-1] - voltage_clamp_series.timestamps[0]
+        elif hasattr(voltage_clamp_series, "rate") and voltage_clamp_series.rate is not None:
+            recording_duration = len(voltage_clamp_series.data) / voltage_clamp_series.rate
+        else:
+            recording_duration = 0.42  # Default to 420ms if duration cannot be determined
+
         optogenetics_interface.add_to_nwbfile(
-            nwbfile=nwbfile, starting_time=t_starts[recording_id] + pulse_delay_seconds
+            nwbfile=nwbfile,
+            metadata=metadata,
+            starting_time=t_starts[recording_id] + pulse_delay_seconds,
+            recording_duration=recording_duration,
+            next_recording_start_time=next_recording_start_time,
         )
 
         # Add intracellular recording to icephys table with custom annotations
-        voltage_clamp_series = nwbfile.acquisition[voltage_clamp_series_name]
 
         # Add intracellular recording entry with enhanced metadata
         recording_index = nwbfile.add_intracellular_recording(
@@ -450,7 +496,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         recording_to_metadata[recording_index] = {
             "recording_id": recording_id,
             "recording_info": recording_info,
-            "series_name": series_name,
         }
 
         if verbose:
