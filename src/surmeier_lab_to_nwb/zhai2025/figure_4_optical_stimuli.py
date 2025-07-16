@@ -1,70 +1,40 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 """
-Figure 2 Optical Stimuli Conversion Script - Zhai et al. 2025
-============================================================
+Figure 4 Optical Stimuli Conversion Script
 
-This script converts Sr²⁺-oEPSC (strontium-substituted optogenetically evoked
-postsynaptic current) experimental data from Figure 2 of Zhai et al. 2025 into
-NWB (Neurodata Without Borders) format.
+This script converts Figure 4 Sr²⁺-oEPSC data from the Zhai et al. 2025 paper.
+This data tests iSPN (indirect spiny projection neurons) responses to optogenetic
+stimulation of corticostriatal terminals in the LID (L-DOPA-induced dyskinesia) model.
 
-EXPERIMENTAL CONTEXT:
-===================
-The data comes from experiments investigating corticostriatal synaptic strength
-in a Parkinson's disease model with levodopa-induced dyskinesia (LID). Mice
-received:
-- Unilateral 6-OHDA lesions (>95% dopamine depletion)
-- Dyskinesiogenic levodopa treatment
-- AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex
+The experiment uses the same Sr²⁺-oEPSC protocol as Figure 2 but on iSPNs instead of dSPNs.
+Optogenetic stimulation is delivered via whole-field LED (470nm) targeting ChR2-expressing
+corticostriatal terminals, with 0.3ms pulses at 20ms into each 30-second inter-sweep interval.
 
-Two experimental conditions were compared:
-- LID on-state: Sacrificed 30 min post-levodopa dose
-- LID off-state: Sacrificed 24-48h post-levodopa dose
+Data structure:
+- Figure 4_SF1B_SF5/Sr-oEPSC/LID on-state/: Sessions with LID-inducing L-DOPA treatment
+- Figure 4_SF1B_SF5/Sr-oEPSC/LID off-state/: Sessions without L-DOPA treatment
+- Each session contains 10 sweep recordings from iSPN cells
 
-DATA STRUCTURE:
-==============
-The raw data follows a hierarchical organization:
+Key differences from Figure 2:
+- Cell type: iSPN (indirect spiny projection neurons) instead of dSPN
+- Different experimental sessions and dates
+- Same optogenetic protocol and LED stimulation parameters
+- Same virus (AAV5-hSyn-hChR2(H134R)-EYFP) and injection coordinates
 
-Base Path/
-├── LID on-state/
-│   ├── 07052023a/          # Session A on July 5, 2023
-│   │   ├── cell1_LED14-001/    # Cell 1, LED intensity 14, sweep 001
-│   │   │   ├── *_VoltageRecording_*.xml/csv  # Electrophysiology data
-│   │   │   ├── *_VoltageOutput_*.xml         # Optogenetic parameters
-│   │   │   └── *_Environment.xml             # Recording configuration
-│   │   ├── cell1_LED14-002/    # Next sweep (30 seconds later)
-│   │   └── ...
-│   ├── 07062023a/          # Session A on July 6, 2023
-│   └── ...
-└── LID off-state/
-    ├── 07132023a/          # Different session dates
-    └── ...
-
-TIMING VERIFICATION:
-Actual timestamps from XML files confirm 30-second intervals:
-2023-07-05T15:19:12 → cell1_LED14-001
-2023-07-05T15:19:42 → cell1_LED14-002 (+30 seconds)
-2023-07-05T15:20:12 → cell1_LED14-003 (+30 seconds)
-...
-
-OPTOGENETIC PARAMETERS:
-=====================
-From VoltageOutput XML metadata:
-- Pulse duration: 0.3 milliseconds (matches paper specification)
-- LED voltage: 5V
-- Pulse timing: 20ms delay + 0.3ms pulse + recording window
-- Repetitions: Single pulse per sweep
-- Inter-sweep interval: 30 seconds
-
+Author: Generated with Claude Code
+Date: 2025
 """
+
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Dict
 
-from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
+# Import interfaces from the codebase
 from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
     PrairieViewVoltageClampInterface,
 )
@@ -73,15 +43,15 @@ from surmeier_lab_to_nwb.zhai2025.optogenetics_interfaces import (
 )
 
 
-def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any]:
+def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, str]:
     """
-    Parse essential recording information from Figure 2 Sr²⁺-oEPSC recording folder names.
+    Parse essential recording information from Figure 4 Sr²⁺-oEPSC recording folder names.
     Session start time comes from XML metadata.
 
-    Expected folder name format: cell{N}_LED{X}-{YYY} (e.g., cell1_LED14-001, cell2_LED12-006)
+    Expected folder name format: cell{N}_LED{X}-{YYY} (e.g., cell1_LED16-001, cell2_LED12-006)
 
     The session folder structure is: MMDDYYYY{letter}/cell{N}_LED{X}-{YYY}/
-    - MMDDYYYY{letter}: Date and animal identifier (e.g., 07052023a, 07062023b)
+    - MMDDYYYY{letter}: Date and animal identifier (e.g., 02282023a, 03012023b)
     - cell{N}_LED{X}-{YYY}: Recording folder with cell number, LED intensity, and sweep number
 
     Parameters
@@ -91,14 +61,14 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
 
     Returns
     -------
-    Dict[str, Any]
+    Dict[str, str]
         Dictionary containing recording information
     """
     folder_name = recording_folder.name
     session_folder = recording_folder.parent
 
     # Parse session folder (parent) for date and animal info
-    # Format: MMDDYYYY{letter} (e.g., 07052023a, 07062023b)
+    # Format: MMDDYYYY{letter} (e.g., 02282023a, 03012023b)
     session_folder_name = session_folder.name
 
     # Extract date and animal identifier
@@ -122,7 +92,9 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     # - cell{N}_LED{X}{letter}-{YYY} (LED with letters)
     # - cell{N}_LED{X.Y}-{YYY} (LED with decimals)
     # - cell{N}_LED{X}_{additional}-{YYY} (LED with additional parameters)
-    pattern = r"(?:cell(\d+)_)?LED([\d.]+[a-z]*(?:_\w+)*)-(\d+)"
+    # - cell{N}_LEDint{X}-{YYY} (LED with 'int' prefix)
+    # - cell{N}LED{X}-{YYY} (missing underscore)
+    pattern = r"(?:cell(\d+)_?)?LED(?:int)?([0-9.]+[a-z]*(?:_\w+)*)-(\d+)"
     match = re.match(pattern, folder_name)
 
     if not match:
@@ -145,30 +117,28 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
-def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
+def convert_session_to_nwbfile(
+    session_folder_path: Path,
+    condition: str,
+    verbose: bool = False,
+) -> NWBFile:
     """
-    Convert a single session of Figure 2 Sr²⁺-oEPSC data to NWB format with time alignment.
+    Convert a Figure 4 Sr²⁺-oEPSC session to NWB format with time alignment.
 
     Parameters
     ----------
     session_folder_path : Path
         Path to the session folder containing sweep recordings
     condition : str
-        Experimental condition (e.g., "LID off-state", "LID on-state")
-    verbose : bool, default=False
-        Enable verbose output showing detailed processing information
+        Experimental condition ("LID on-state" or "LID off-state")
+    verbose : bool
+        Whether to print verbose output
 
     Returns
     -------
     NWBFile
-        NWB file with the converted data
-
-    Notes
-    -----
-    This function implements temporal alignment by extracting precise timestamps from XML files
-    and calculating t_start offsets for each recording relative to the earliest recording.
+        Complete NWB file with all recordings from this session
     """
-
     # Find all recording folders (sweeps) for this session
     recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
     recording_folders.sort()
@@ -182,7 +152,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "session_letter": first_recording_info["session_letter"],
     }
 
-    print(f"Processing session folder: {session_folder_path.name} (Session {session_info['session_letter']})")
+    print(
+        f"Processing session folder: {session_folder_path.name} (Session {session_info['session_letter']}) ({condition})"
+    )
     print(f"  Found {len(recording_folders)} sweep recordings")
 
     # Calculate recording IDs, session start times, and create interface mappings
@@ -260,17 +232,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
-                f"Sr²⁺-oEPSC recordings from dSPNs in dorsolateral striatum under {condition} condition. "
+                f"Sr²⁺-oEPSC recordings from iSPNs in dorsolateral striatum under {condition} condition. "
                 f"Voltage clamp at -70 mV in Ca²⁺-free ACSF containing 3 mM SrCl₂ and 10 μM gabazine. "
                 f"Optogenetic stimulation of ChR2-expressing corticostriatal terminals with 0.3 ms blue LED pulses "
                 f"every 30 seconds. Analysis of asynchronous EPSCs between 40-400 ms post-stimulation to measure "
                 f"unitary synaptic strength. Session {session_info['session_letter']}, {len(recording_folders)} sweeps."
             ),
-            "identifier": f"zhai2025_fig2_sr_oepsc_{session_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": f"zhai2025_fig4_sr_oepsc_{session_info['session_id']}_{condition.replace(' ', '_')}",
             "session_start_time": session_start_time,
             "experiment_description": (
-                f"Figure 2 Sr²⁺-oEPSC experiment from Zhai et al. 2025 investigating corticostriatal synaptic strength "
-                f"changes between LID off-state and on-state. Strontium substitution enables detection of individual "
+                f"Figure 4 Sr²⁺-oEPSC experiment from Zhai et al. 2025 investigating corticostriatal synaptic strength "
+                f"changes between LID off-state and on-state in iSPN cells. Strontium substitution enables detection of individual "
                 f"synaptic events rather than summed responses, revealing state-dependent changes in synaptic amplitude "
                 f"that correlate with spine morphology changes during dyskinesia."
             ),
@@ -279,7 +251,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "Sr2+-oEPSC",
                 "voltage clamp",
                 "corticostriatal synapses",
-                "dSPN",
+                "iSPN",
                 "optogenetics",
                 "ChR2",
                 "levodopa-induced dyskinesia",
@@ -305,18 +277,18 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for Sr²⁺-oEPSC experiments (Figure 2)
+    # Create subject metadata for Sr²⁺-oEPSC experiments (Figure 4)
     subject = Subject(
-        subject_id=f"dSPN_mouse_{session_info['session_id']}",
+        subject_id=f"iSPN_mouse_{session_info['session_id']}",
         species="Mus musculus",
-        strain="Drd1-Tdtomato transgenic",
+        strain="Drd2-EGFP transgenic",
         description=(
-            f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
+            f"Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
             f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP "
-            f"injection into motor cortex for optogenetic experiments. dSPNs identified by Drd1-Tdtomato expression. "
+            f"injection into motor cortex for optogenetic experiments. iSPNs identified by lack of Drd2-EGFP expression. "
             f"Session {session_info['session_letter']} recorded on {session_info['date_str']}."
         ),
-        genotype="Drd1-Tdtomato+",
+        genotype="Drd2-EGFP+",
         sex="M",
         age="P56/P84",  # Adult mice, 8-12 weeks
     )
@@ -368,19 +340,18 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Get and update interface metadata
         interface_metadata = interface.get_metadata()
 
-        # Update electrode description for dSPN voltage clamp recording (consistent name for all recordings)
+        # Update electrode description for iSPN voltage clamp recording (consistent name for all recordings)
         electrode_name = "IntracellularElectrode"
         interface_metadata["Icephys"]["IntracellularElectrodes"][icephys_metadata_key].update(
             {
                 "name": electrode_name,
                 "description": (
-                    f"Whole-cell patch clamp electrode recording from dSPN in the dorsolateral striatum - "
+                    f"Whole-cell patch clamp electrode recording from iSPN in the dorsolateral striatum - "
                     f"{condition} - Session {session_info['session_letter']} - "
                     f"Sr²⁺-oEPSC protocol with LED {recording_info['led_intensity']} intensity"
                 ),
                 "cell_id": recording_info["cell_number"],
                 "session_id": session_info["session_letter"],
-                "location": "soma",
             }
         )
 
@@ -390,7 +361,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             {
                 "name": voltage_clamp_series_name,
                 "description": (
-                    f"Voltage clamp recording from dSPN - {condition} - "
+                    f"Voltage clamp recording from iSPN - {condition} - "
                     f"Session {session_info['session_letter']}, Cell {recording_info['cell_number']} - "
                     f"LED intensity {recording_info['led_intensity']}, Sweep {recording_info['sweep_number']} - "
                     f"Sr²⁺-oEPSC protocol at -70 mV holding potential"
@@ -407,11 +378,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add intracellular data to NWB file
         interface.add_to_nwbfile(nwbfile=nwbfile, metadata=interface_metadata)
 
-        # Add optogenetic stimulus for this sweep
-        voltage_output_files = list(recording_folder.glob("*_VoltageOutput_*.xml"))
-        voltage_output_xml_path = voltage_output_files[0] if voltage_output_files else None
+        # Add optogenetic stimulation data
+        voltage_output_xml_path = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageOutput_001.xml"
         assert (
-            voltage_output_xml_path
+            voltage_output_xml_path.exists()
         ), f"Expected voltage output XML file does not exist in {recording_folder}: {voltage_output_xml_path}"
 
         optogenetics_interface = PrairieViewOptogeneticsInterface(
@@ -420,7 +390,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
         metadata = optogenetics_interface.get_metadata()
 
-        # Configure specific virus and injection metadata for Zhai2025 experiment
+        # Configure specific virus and injection metadata for Figure 4 (same as Figure 2)
         metadata["OptogeneticExperimentMetadata"]["virus"].update(
             {
                 "name": "AAV5-hSyn-hChR2-H134R-EYFP",
@@ -537,69 +507,62 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     nwbfile.add_icephys_experimental_condition(repetitions=[repetition_index], condition=condition)
 
     if verbose:
-        print(f"    Added experimental condition '{condition}' with 1 repetition")
-        print(f"  Successfully built icephys table hierarchy:")
-        print(f"    - {len(recording_indices)} intracellular recordings")
-        print(f"    - {len(simultaneous_recording_indices)} simultaneous recordings")
-        print(f"    - 1 sequential recording")
-        print(f"    - 1 repetition (Session {session_info['session_letter']})")
-        print(f"    - 1 experimental condition ('{condition}')")
+        print(f"  Successfully built icephys table structure")
 
     return nwbfile
 
 
-if __name__ == "__main__":
-    import logging
-    import warnings
+def main():
+    """Main conversion function for Figure 4 Sr²⁺-oEPSC data."""
 
-    # Control verbose output from here
-    VERBOSE = False  # Set to True for detailed output
+    # Define raw data and output paths
+    raw_data_root = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Sr-oEPSC")
+    output_root = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/figure_4_sr_oepsc")
 
-    # Suppress tifffile warnings
-    logging.getLogger("tifffile").setLevel(logging.ERROR)
+    # Create output directory
+    output_root.mkdir(parents=True, exist_ok=True)
 
-    # Suppress specific warnings
-    warnings.filterwarnings("ignore", message="invalid value encountered in divide")
-    warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
-
-    # Define the base path to the data
-    base_path = Path("./link_to_raw_data/Figure 2_SF1A/Sr-oEPSC")
-    if not base_path.exists():
-        raise FileNotFoundError(f"Base path does not exist: {base_path}")
-
-    # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_2_sr_oepsc"
-    nwb_files_dir.mkdir(parents=True, exist_ok=True)
-
+    # Define conditions to process
     conditions = ["LID on-state", "LID off-state"]
 
+    # Process each condition
     for condition in conditions:
-        condition_path = base_path / condition
-        if not condition_path.exists():
-            raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
-
         print(f"Processing Sr²⁺-oEPSC data for: {condition}")
 
-        # Get all session folders
-        session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
-        session_folders.sort()
+        condition_path = raw_data_root / condition
+        if not condition_path.exists():
+            print(f"  Condition path does not exist: {condition_path}")
+            continue
+
+        # Find all session folders
+        session_folders = [
+            folder for folder in condition_path.iterdir() if folder.is_dir() and re.match(r"\d{8}[a-z]", folder.name)
+        ]
+
+        session_folders.sort()  # Sort by session name
 
         print(f"Found {len(session_folders)} session folders")
 
+        # Process each session
         for session_folder in session_folders:
-            print(f"\nProcessing session: {session_folder.name}")
+            print(f"\\nProcessing session: {session_folder.name}")
 
-            # Convert data to NWB format
+            # Convert session to NWB
             nwbfile = convert_session_to_nwbfile(
                 session_folder_path=session_folder,
                 condition=condition,
-                verbose=VERBOSE,
+                verbose=True,
             )
 
-            # Create output filename
+            # Generate output filename
             condition_safe = condition.replace(" ", "_").replace("-", "_")
-            nwbfile_path = nwb_files_dir / f"figure2_sr_oepsc_{condition_safe}_{session_folder.name}.nwb"
+            nwbfile_path = output_root / f"figure4_sr_oepsc_{condition_safe}_{session_folder.name}.nwb"
 
+            # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+
             print(f"Successfully saved: {nwbfile_path}")
+
+
+if __name__ == "__main__":
+    main()

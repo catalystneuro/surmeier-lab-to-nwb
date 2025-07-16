@@ -67,6 +67,7 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
+- [x] Use ndx-optogenetics extension [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/29)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -99,6 +100,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [ ] Conversion script
 - [ ] Time alignment
 - [ ] Add icephys table hierarchical structure
+- [ ] Use ndx-optogenetics extension
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
