@@ -11,6 +11,10 @@ from ndx_optogenetics import (
     OpticalFiberModel,
     OptogeneticEpochsTable,
     OptogeneticExperimentMetadata,
+    OptogeneticVirus,
+    OptogeneticViruses,
+    OptogeneticVirusInjection,
+    OptogeneticVirusInjections,
 )
 from neuroconv.basedatainterface import BaseDataInterface
 from neuroconv.utils import DeepDict
@@ -22,16 +26,23 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
     """Interface for Prairie View optogenetic stimulation data from Sr2+-oEPSC experiments.
 
     This interface processes optogenetic stimulation data using the ndx-optogenetics extension,
-    creating detailed OptogeneticEpochsTable entries with precise timing information for each
-    sweep and stimulus pulse. The interface extracts LED stimulus parameters from Prairie View
-    XML files and creates comprehensive metadata including excitation sources, optical fibers,
-    and stimulus sites.
+    creating comprehensive metadata including virus information, injection coordinates, device
+    specifications, and detailed timing information for each sweep phase. The interface extracts
+    LED stimulus parameters from Prairie View XML files and creates a complete representation
+    of the optogenetic experimental setup.
 
     Key features:
     - Extracts stimulus timing and parameters from Prairie View VoltageOutput XML files
-    - Creates OptogeneticEpochsTable with one row per sweep/recording
-    - Provides detailed device metadata using ndx-optogenetics structure
+    - Creates OptogeneticEpochsTable with four rows per sweep/recording:
+      1. Baseline Period (0-20ms): Pre-stimulus baseline measurement
+      2. Stimulation Period (20-20.3ms): 0.3ms LED pulse activation
+      3. Detection Window (40-400ms post-stimulus): Critical EPSC analysis period
+      4. Inter-Sweep Interval (420ms-30s): Recovery period between sweeps
+    - Creates comprehensive virus metadata (AAV5-hSyn-hChR2(H134R)-EYFP, Addgene #26973)
+    - Records stereotaxic injection coordinates (M1 motor cortex: AP +1.15, ML -1.60, DV -1.55mm)
+    - Provides detailed device metadata (LED sources, stimulation sites)
     - Maintains temporal synchronization with voltage clamp recordings
+    - Follows ndx-optogenetics best practices for structured optogenetic metadata
     """
 
     keywords = ("optogenetics", "led stimulation", "prairie view", "sr-oepsc")
@@ -158,46 +169,72 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
                 "wavelength_in_nm": 470.0,
                 "power_in_W": 0.001,  # Placeholder - actual power unknown
             },
+            "virus": {
+                "name": "DefaultOptogeneticVirus",
+                "construct_name": "Default optogenetic virus construct",
+                "description": "Default optogenetic virus - should be overridden in script metadata",
+                "manufacturer": "Unknown",
+                "titer_in_vg_per_ml": 1e12,  # Default titer
+            },
+            "virus_injection": {
+                "name": "DefaultVirusInjection",
+                "description": "Default virus injection - should be overridden in script metadata",
+                "location": "Unknown",
+                "hemisphere": "Unknown",
+                "reference": "Bregma at the cortical surface",
+                "ap_in_mm": 0.0,
+                "ml_in_mm": 0.0,
+                "dv_in_mm": 0.0,
+                "pitch_in_deg": 0.0,
+                "yaw_in_deg": 0.0,
+                "roll_in_deg": 0.0,
+                "volume_in_uL": 0.0,
+                "injection_date": None,
+            },
             "optical_fiber_model": {
-                "name": "WholeFieldFiberModel",
-                "description": "Whole-field illumination setup for optogenetic stimulation",
-                "fiber_name": "Whole-field LED",
-                "manufacturer": "Prairie View",
-                "numerical_aperture": 0.0,  # Not applicable for whole-field
-                "core_diameter_in_um": 0.0,  # Not applicable for whole-field
+                "name": "PlaceholderFiberModel",
+                "description": "Placeholder fiber model - no actual optical fiber used in this experiment",
+                "fiber_name": "Whole-field LED (no fiber)",
+                "manufacturer": "Not applicable",
+                "numerical_aperture": 0.0,  # Not applicable for whole-field LED
+                "core_diameter_in_um": 0.0,  # Not applicable for whole-field LED
             },
             "optical_fiber": {
-                "name": "WholeFieldFiber",
-                "description": "Whole-field illumination optical system",
+                "name": "PlaceholderFiber",
+                "description": "Placeholder fiber device - no actual optical fiber used, LED provides whole-field illumination",
             },
-            "optical_fiber_locations": {
+            "stimulation_location": {
                 "reference": "Dorsal striatum slice preparation - Sr2+-oEPSC protocol",
-                "locations": [
-                    {
-                        "implanted_fiber_description": (
-                            "Whole-field LED illumination targeting ChR2-expressing corticostriatal terminals. "
-                            "Protocol: 0.3ms blue LED pulse at 20ms into 420ms sweep. "
-                            "Detection window: 40-400ms post-stimulus. "
-                            "Inter-sweep interval: 30 seconds for Sr2+ clearance."
-                        ),
-                        "location": "dorsal striatum",
-                        "hemisphere": "ipsilateral to 6-OHDA lesion",
-                        "ap_in_mm": 0.0,  # Not applicable for slice preparation
-                        "ml_in_mm": 0.0,  # Not applicable for slice preparation
-                        "dv_in_mm": 0.0,  # Not applicable for slice preparation
-                    }
-                ],
+                "location": "dorsal striatum",
+                "hemisphere": "ipsilateral to 6-OHDA lesion",
+                "description": (
+                    "Whole-field LED illumination targeting ChR2-expressing corticostriatal terminals. "
+                    "Protocol: 0.3ms blue LED pulse at 20ms into 420ms sweep. "
+                    "Detection window: 40-400ms post-stimulus. "
+                    "Inter-sweep interval: 30 seconds for Sr2+ clearance. "
+                    "No optical fiber used - LED provides broad illumination of brain slice."
+                ),
+                "ap_in_mm": 0.0,  # Not applicable for slice preparation
+                "ml_in_mm": 0.0,  # Not applicable for slice preparation
+                "dv_in_mm": 0.0,  # Not applicable for slice preparation
             },
         }
 
         return metadata
 
-    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None, starting_time: Optional[float] = None):
+    def add_to_nwbfile(
+        self,
+        nwbfile: NWBFile,
+        metadata: Optional[dict] = None,
+        starting_time: Optional[float] = None,
+        recording_duration: Optional[float] = None,
+        next_recording_start_time: Optional[float] = None,
+    ):
         """
         Add optogenetic stimulation metadata and epoch data to NWB file using ndx-optogenetics structure.
 
-        This method creates comprehensive optogenetic metadata including excitation sources,
-        optical fibers, and stimulus sites. It also adds a row to the OptogeneticEpochsTable
+        This method creates comprehensive optogenetic metadata including excitation sources
+        and stimulus sites. It also adds a row to the OptogeneticEpochsTable
         for this specific sweep/recording with detailed timing and stimulus parameters.
 
         Parameters
@@ -212,6 +249,15 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             Start time of the optogenetic stimulus relative to session start (in seconds).
             This should include the sweep offset + pulse delay (typically 20ms) for
             proper temporal synchronization with the voltage clamp recording.
+
+        recording_duration : float, optional
+            Duration of the voltage clamp recording in seconds. If not provided,
+            defaults to 0.42 seconds (420ms) which is typical for Sr2+-oEPSC recordings.
+
+        next_recording_start_time : float, optional
+            Start time of the next recording in the session (in seconds). If provided,
+            the inter_sweep_interval stage will end at this time. If None, no
+            inter_sweep_interval stage will be added (for the last recording).
         """
         metadata = metadata or self.get_metadata()
 
@@ -257,7 +303,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         else:
             excitation_source = nwbfile.devices[excitation_source_name]
 
-        # Optical fiber model
+        # Create placeholder optical fiber model (required by ndx-optogenetics API)
+        # NOTE: No actual optical fiber is used - this is a placeholder to satisfy API requirements
         optical_fiber_model_info = ndx_metadata["optical_fiber_model"]
         optical_fiber_model_name = optical_fiber_model_info["name"]
         if optical_fiber_model_name not in nwbfile.devices:
@@ -273,7 +320,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         else:
             optical_fiber_model = nwbfile.devices[optical_fiber_model_name]
 
-        # Optical fiber
+        # Create placeholder optical fiber (required by ndx-optogenetics API)
+        # NOTE: No actual optical fiber is used - this is a placeholder to satisfy API requirements
         optical_fiber_info = ndx_metadata["optical_fiber"]
         optical_fiber_name = optical_fiber_info["name"]
         if optical_fiber_name not in nwbfile.devices:
@@ -286,32 +334,85 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         else:
             optical_fiber = nwbfile.devices[optical_fiber_name]
 
-        # Optical fiber locations table
-        fiber_locations_info = ndx_metadata["optical_fiber_locations"]
+        # Create OpticalFiberLocationsTable for excitation source tracking
+        # NOTE: This table is required by ndx-optogenetics but no actual optical fibers are used
+        # The table tracks the excitation source location for whole-field LED illumination
+        stimulation_location_info = ndx_metadata["stimulation_location"]
         optical_fiber_locations_table = OpticalFiberLocationsTable(
             name="optical_fiber_locations_table",
-            description="Optical fiber locations for optogenetic stimulation",
-            reference=fiber_locations_info["reference"],
+            description="Stimulation location tracking for whole-field LED illumination (no optical fibers used)",
+            reference=stimulation_location_info["reference"],
         )
 
-        # Add location data
-        for location_data in fiber_locations_info["locations"]:
-            optical_fiber_locations_table.add_row(
-                implanted_fiber_description=location_data["implanted_fiber_description"],
-                location=location_data["location"],
-                hemisphere=location_data["hemisphere"],
-                ap_in_mm=location_data["ap_in_mm"],
-                ml_in_mm=location_data["ml_in_mm"],
-                dv_in_mm=location_data["dv_in_mm"],
-                excitation_source=excitation_source,
-                optical_fiber=optical_fiber,
-            )
+        # Add stimulation location data (excitation source and placeholder fiber)
+        optical_fiber_locations_table.add_row(
+            implanted_fiber_description=stimulation_location_info["description"],
+            location=stimulation_location_info["location"],
+            hemisphere=stimulation_location_info["hemisphere"],
+            ap_in_mm=stimulation_location_info["ap_in_mm"],
+            ml_in_mm=stimulation_location_info["ml_in_mm"],
+            dv_in_mm=stimulation_location_info["dv_in_mm"],
+            excitation_source=excitation_source,
+            optical_fiber=optical_fiber,  # Placeholder fiber to satisfy API requirements
+        )
+
+        # Create OptogeneticVirus and OptogeneticVirusInjection objects
+        virus_info = ndx_metadata["virus"]
+        injection_info = ndx_metadata["virus_injection"]
+
+        # Create OptogeneticVirus object with comprehensive description
+        enhanced_virus_description = (
+            f"{virus_info['description']} "
+            f"Construct: {virus_info['construct_name']} from {virus_info['manufacturer']}. "
+            f"Titer: {virus_info['titer_in_vg_per_ml']:.0e} vg/ml."
+        )
+
+        optogenetic_virus = OptogeneticVirus(
+            name=virus_info["name"],
+            construct_name=virus_info["construct_name"],
+            description=enhanced_virus_description,
+            manufacturer=virus_info["manufacturer"],
+            titer_in_vg_per_ml=virus_info["titer_in_vg_per_ml"],
+        )
+
+        # Create OptogeneticVirusInjection object with comprehensive description
+        enhanced_injection_description = (
+            f"{injection_info['description']} "
+            f"Coordinates: AP {injection_info['ap_in_mm']}mm, ML {injection_info['ml_in_mm']}mm, "
+            f"DV {injection_info['dv_in_mm']}mm relative to {injection_info['reference']}. "
+            f"Injection volume: {injection_info['volume_in_uL']}µL."
+        )
+
+        optogenetic_virus_injection = OptogeneticVirusInjection(
+            name=injection_info["name"],
+            description=enhanced_injection_description,
+            location=injection_info["location"],
+            hemisphere=injection_info["hemisphere"],
+            reference=injection_info["reference"],
+            ap_in_mm=injection_info["ap_in_mm"],
+            ml_in_mm=injection_info["ml_in_mm"],
+            dv_in_mm=injection_info["dv_in_mm"],
+            pitch_in_deg=injection_info["pitch_in_deg"],
+            yaw_in_deg=injection_info["yaw_in_deg"],
+            roll_in_deg=injection_info["roll_in_deg"],
+            volume_in_uL=injection_info["volume_in_uL"],
+            injection_date=injection_info["injection_date"],
+            virus=optogenetic_virus,
+        )
+
+        # Create OptogeneticViruses and OptogeneticVirusInjections containers
+        optogenetic_viruses = OptogeneticViruses(optogenetic_virus=[optogenetic_virus])
+        optogenetic_virus_injections = OptogeneticVirusInjections(
+            optogenetic_virus_injections=[optogenetic_virus_injection]
+        )
 
         # Create OptogeneticExperimentMetadata
         if "optogenetic_experiment_metadata" not in nwbfile.lab_meta_data:
             optogenetic_experiment_metadata = OptogeneticExperimentMetadata(
                 stimulation_software=ndx_metadata["stimulation_software"],
                 optical_fiber_locations_table=optical_fiber_locations_table,
+                optogenetic_viruses=optogenetic_viruses,
+                optogenetic_virus_injections=optogenetic_virus_injections,
             )
             nwbfile.add_lab_meta_data(optogenetic_experiment_metadata)
 
@@ -322,40 +423,123 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
                 description="Optogenetic stimulation epochs with detailed parameters",
                 target_tables={"optical_fiber_locations": optical_fiber_locations_table},
             )
+
+            # Add custom column for stage name
+            optogenetic_epochs_table.add_column(
+                name="stage_name",
+                description="Name of the experimental stage: pre_stimulation, stimulation, detection, post_detection, or inter_sweep_interval",
+            )
+
             nwbfile.add_time_intervals(optogenetic_epochs_table)
         else:
             optogenetic_epochs_table = nwbfile.intervals["optogenetic_epochs_table"]
 
-        # Add epoch data for this specific sweep/recording with detailed timing
+        # Add epoch rows for this specific sweep/recording with detailed timing
+        # Number of rows depends on whether next_recording_start_time is provided
         pulse_width_ms = self.stimulus_params["pulse_width_ms"]  # 0.3ms pulse
         pulse_delay_ms = self.stimulus_params["first_pulse_delay_ms"]  # 20ms delay
 
         # Use provided starting_time for temporal synchronization, or default to 0.0
         stimulus_starting_time = starting_time if starting_time is not None else 0.0
 
-        # Each epoch represents one complete sweep with detailed timing structure
-        # Based on Sr2+-oEPSC experimental protocol:
-        # - Sweep starts at stimulus_starting_time - pulse_delay (to capture baseline)
-        # - LED pulse occurs at 20ms into sweep (stimulus_starting_time)
-        # - Critical detection window: 40-400ms post-stimulus (20.04-20.4s into sweep)
-        # - Total sweep duration: ~0.42 seconds (420ms) to capture full analysis window
+        # Use provided recording_duration, or default to 0.42 seconds (420ms)
+        voltage_clamp_duration = recording_duration if recording_duration is not None else 0.42
 
+        # Calculate absolute times for each phase based on Sr2+-oEPSC experimental protocol
         sweep_start_time = stimulus_starting_time - (pulse_delay_ms / 1000.0)  # 20ms before pulse
-        sweep_duration_s = 0.42  # 420ms total sweep duration (baseline + pulse + detection window)
-        sweep_stop_time = sweep_start_time + sweep_duration_s
+        stimulus_start_time = stimulus_starting_time  # LED pulse start
+        stimulus_end_time = stimulus_starting_time + (pulse_width_ms / 1000.0)  # LED pulse end
+        detection_start_time = stimulus_starting_time + 0.040  # 40ms post-stimulus
+        detection_end_time = stimulus_starting_time + 0.400  # 400ms post-stimulus
+        voltage_clamp_end_time = sweep_start_time + voltage_clamp_duration  # End of voltage clamp recording
+        inter_sweep_start_time = voltage_clamp_end_time  # Start of inter-sweep interval
 
+        # Ensure post_detection phase has duration if voltage clamp extends beyond detection
+        if voltage_clamp_end_time <= detection_end_time:
+            # If voltage clamp ends before or at detection end, extend it slightly
+            voltage_clamp_end_time = detection_end_time + 0.020  # Add 20ms buffer
+            inter_sweep_start_time = voltage_clamp_end_time
+
+        # Phase 1: Baseline Period (0-20ms)
         optogenetic_epochs_table.add_row(
             start_time=sweep_start_time,
-            stop_time=sweep_stop_time,
-            stimulation_on=True,
-            pulse_length_in_ms=pulse_width_ms,  # 0.3ms LED pulse
-            period_in_ms=30000.0,  # 30 seconds between pulses (inter-sweep interval)
-            number_pulses_per_pulse_train=1,  # Single pulse per sweep
-            number_trains=1,  # Single train per sweep
-            optical_fiber_locations=[0],  # Reference to first row in fiber locations table
+            stop_time=stimulus_start_time,
+            stimulation_on=False,  # No stimulation during baseline
+            pulse_length_in_ms=float("nan"),  # NaN when stimulation is off
+            period_in_ms=float("nan"),  # NaN when stimulation is off
+            number_pulses_per_pulse_train=-1,  # -1 when stimulation is off
+            number_trains=-1,  # -1 when stimulation is off
+            intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
+            power_in_mW=0.0,  # No power during baseline
+            optical_fiber_locations=[0],  # References excitation source location
+            stage_name="pre_stimulation",
         )
 
+        # Phase 2: Stimulation Period (20-20.3ms)
+        optogenetic_epochs_table.add_row(
+            start_time=stimulus_start_time,
+            stop_time=stimulus_end_time,
+            stimulation_on=True,
+            pulse_length_in_ms=pulse_width_ms,  # 0.3ms LED pulse
+            period_in_ms=float("nan"),  # NaN because only single pulse per train
+            number_pulses_per_pulse_train=1,  # Single pulse per train
+            number_trains=1,  # Single train per epoch
+            intertrain_interval_in_ms=float("nan"),  # Not applicable for single train
+            power_in_mW=float("nan"),  # Power not measured/known
+            optical_fiber_locations=[0],  # References excitation source location
+            stage_name="stimulation",
+        )
+
+        # Phase 3: Detection Window (40-400ms post-stimulus)
+        optogenetic_epochs_table.add_row(
+            start_time=detection_start_time,
+            stop_time=detection_end_time,
+            stimulation_on=False,  # No stimulation during detection
+            pulse_length_in_ms=float("nan"),  # NaN when stimulation is off
+            period_in_ms=float("nan"),  # NaN when stimulation is off
+            number_pulses_per_pulse_train=-1,  # -1 when stimulation is off
+            number_trains=-1,  # -1 when stimulation is off
+            intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
+            power_in_mW=0.0,  # No power during detection
+            optical_fiber_locations=[0],  # References excitation source location
+            stage_name="detection",
+        )
+
+        # Phase 4: Post-Detection Period (400ms - end of voltage clamp)
+        optogenetic_epochs_table.add_row(
+            start_time=detection_end_time,
+            stop_time=voltage_clamp_end_time,
+            stimulation_on=False,  # No stimulation during post-detection
+            pulse_length_in_ms=float("nan"),  # NaN when stimulation is off
+            period_in_ms=float("nan"),  # NaN when stimulation is off
+            number_pulses_per_pulse_train=-1,  # -1 when stimulation is off
+            number_trains=-1,  # -1 when stimulation is off
+            intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
+            power_in_mW=0.0,  # No power during post-detection
+            optical_fiber_locations=[0],  # References excitation source location
+            stage_name="post_detection",
+        )
+
+        # Phase 5: Inter-Sweep Interval (end of voltage clamp - next sweep)
+        # Only add this phase if next_recording_start_time is provided (not the last recording)
+        if next_recording_start_time is not None:
+            optogenetic_epochs_table.add_row(
+                start_time=inter_sweep_start_time,
+                stop_time=next_recording_start_time,  # Use actual next recording start time
+                stimulation_on=False,  # No stimulation during inter-sweep
+                pulse_length_in_ms=float("nan"),  # NaN when stimulation is off
+                period_in_ms=float("nan"),  # NaN when stimulation is off
+                number_pulses_per_pulse_train=-1,  # -1 when stimulation is off
+                number_trains=-1,  # -1 when stimulation is off
+                intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
+                power_in_mW=0.0,  # No power during inter-sweep
+                optical_fiber_locations=[0],  # References excitation source location
+                stage_name="inter_sweep_interval",
+            )
+
         # Create optogenetic stimulus site (maintaining compatibility)
+        # This is used to add location data as that is done in the fibers and this
+        # experiment does not have fibers
         site_name = "corticostriatal_terminals"
         if site_name not in nwbfile.ogen_sites:
             site_info = optogenetics_metadata["OptogeneticStimulusSites"][site_name]
