@@ -24,7 +24,9 @@ dependencies = [
   "roiextractors>=0.5.13",
   "hdmf==4.0.0",
   "astropy>=6.1.7",
+  "ndx-optogenetics",
 ]
+# Astropy I use for the date
 
 [project.urls]
 Repository="https://github.com/catalystneuro/surmeier-lab-to-nwb"
@@ -93,6 +95,7 @@ known-first-party = ["surmeier_lab_to_nwb"]
 [tool.uv.sources]
 neuroconv = { path = "../neuroconv", editable = true }
 roiextractors = { path = "../roiextractors", editable = true }
+ndx-optogenetics = { path = "../ndx-optogenetics", editable = true }
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }

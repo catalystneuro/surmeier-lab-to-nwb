@@ -91,7 +91,51 @@ class NikonImageStackInterface(BaseDataInterface):
         nwbfile.add_acquisition(images_container)
 
     def get_session_start_time(self) -> datetime:
+        """
+        Extract the session start time from the first frame of the ND2 image stack.
 
+        This method retrieves timing metadata from the first frame of the Nikon ND2 image file
+        and converts it to a standard datetime object. The timing information is extracted from
+        the frame metadata which contains both an absolute Julian day number and a relative
+        time offset in milliseconds within that day.
+
+        The conversion process involves:
+        1. Retrieving metadata from the first frame (index 0)
+        2. Extracting timing information from the specified channel
+        3. Getting the Julian day number (absolute reference point)
+        4. Getting the relative time offset in milliseconds within that day
+        5. Converting milliseconds to fractional days
+        6. Combining Julian day + fractional day offset
+        7. Converting from Julian date format to UTC datetime
+
+        Returns
+        -------
+        datetime
+            The session start time as a timezone-aware datetime object in UTC.
+            This represents the exact timestamp when the first frame of the
+            image stack was acquired.
+
+        Notes
+        -----
+        The method assumes that:
+        - The ND2 file contains at least one frame
+        - The specified channel index exists in the frame metadata
+        - The timing metadata is available and valid
+
+        The Julian date system is used as an intermediate format because it provides
+        a continuous count of days since a fixed epoch, making it suitable for
+        high-precision astronomical and scientific timing calculations.
+
+        This implementation uses the astropy.time.Time module to handle the Julian
+        date to datetime conversion, avoiding potential errors in manual date/time
+
+        Examples
+        --------
+        >>> interface = NikonImageStackInterface("path/to/image.nd2")
+        >>> start_time = interface.get_session_start_time()
+        >>> print(start_time)
+        2023-07-15 14:30:25.123000+00:00
+        """
         frame_index = 0
         first_frame_metadata = self.file_handle.frame_metadata(frame_index)
         time_info_first_frame = first_frame_metadata.channels[self.channel_index].time

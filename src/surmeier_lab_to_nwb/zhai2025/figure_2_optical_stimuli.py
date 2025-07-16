@@ -406,25 +406,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             voltage_output_xml_path
         ), f"Expected voltage output XML file does not exist in {recording_folder}: {voltage_output_xml_path}"
 
-        optogenetics_metadata_key = f"Optogenetic{recording_id}"
         optogenetics_interface = PrairieViewOptogeneticsInterface(
             voltage_output_xml_path=voltage_output_xml_path,
-            optogenetics_metadata_key=optogenetics_metadata_key,
         )
 
         metadata = optogenetics_interface.get_metadata()
-        series_name = f"OptogeneticSeriesSweep{recording_info['sweep_number']}"
-        metadata["OptogeneticSeries"][optogenetics_metadata_key].update(
-            {
-                "name": series_name,
-                "description": (
-                    f"Optogenetic stimulation series for dSPN - {condition} - "
-                    f"Session {session_info['session_letter']}, Cell {recording_info['cell_number']} - "
-                    f"LED intensity {recording_info['led_intensity']}, Sweep {recording_info['sweep_number']} - "
-                    f"Sr²⁺-oEPSC protocol with 0.3 ms blue LED pulses"
-                ),
-            }
-        )
 
         # Add optogenetic stimulus with 20ms delay (pulse occurs 20ms into the sweep)
         pulse_delay_seconds = 0.020
@@ -450,7 +436,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         recording_to_metadata[recording_index] = {
             "recording_id": recording_id,
             "recording_info": recording_info,
-            "series_name": series_name,
         }
 
         if verbose:

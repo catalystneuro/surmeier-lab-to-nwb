@@ -3,21 +3,42 @@ from pathlib import Path
 from typing import Optional
 
 import xmltodict
+from ndx_optogenetics import (
+    ExcitationSource,
+    ExcitationSourceModel,
+    OpticalFiber,
+    OpticalFiberLocationsTable,
+    OpticalFiberModel,
+    OptogeneticEpochsTable,
+    OptogeneticExperimentMetadata,
+)
 from neuroconv.basedatainterface import BaseDataInterface
 from neuroconv.utils import DeepDict
 from pynwb.file import NWBFile
-from pynwb.ogen import OptogeneticSeries, OptogeneticStimulusSite
+from pynwb.ogen import OptogeneticStimulusSite
 
 
 class PrairieViewOptogeneticsInterface(BaseDataInterface):
-    """Interface for Prairie View optogenetic stimulation data from Sr2+-oEPSC experiments."""
+    """Interface for Prairie View optogenetic stimulation data from Sr2+-oEPSC experiments.
+
+    This interface processes optogenetic stimulation data using the ndx-optogenetics extension,
+    creating detailed OptogeneticEpochsTable entries with precise timing information for each
+    sweep and stimulus pulse. The interface extracts LED stimulus parameters from Prairie View
+    XML files and creates comprehensive metadata including excitation sources, optical fibers,
+    and stimulus sites.
+
+    Key features:
+    - Extracts stimulus timing and parameters from Prairie View VoltageOutput XML files
+    - Creates OptogeneticEpochsTable with one row per sweep/recording
+    - Provides detailed device metadata using ndx-optogenetics structure
+    - Maintains temporal synchronization with voltage clamp recordings
+    """
 
     keywords = ("optogenetics", "led stimulation", "prairie view", "sr-oepsc")
 
     def __init__(
         self,
         voltage_output_xml_path: str | Path,
-        optogenetics_metadata_key: str = "PrairieViewOptogenetics",
     ):
         """
         Initialize the optogenetics interface.
@@ -27,12 +48,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         voltage_output_xml_path : str | Path
             Path to the Prairie View VoltageOutput XML configuration file.
             Expected format: '*_Cycle00001_VoltageOutput_001.xml'
-
-        optogenetics_metadata_key : str, default="PrairieViewOptogenetics"
-            Unique identifier for this optogenetics interface instance.
         """
         self.voltage_output_xml_path = Path(voltage_output_xml_path)
-        self.optogenetics_metadata_key = optogenetics_metadata_key
 
         # Parse stimulus parameters from XML
         self.stimulus_params = self._parse_optogenetic_stimulus()
@@ -89,7 +106,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
 
     def get_metadata(self) -> DeepDict:
         """
-        Extract optogenetic metadata for NWB file.
+        Extract optogenetic metadata for NWB file using ndx-optogenetics structure.
 
         Returns
         -------
@@ -98,7 +115,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         """
         metadata = super().get_metadata()
 
-        # Device metadata
+        # Device metadata - using ndx-optogenetics structure
         device_name = "BlueLED470nm"
         metadata["Devices"][device_name] = {
             "name": device_name,
@@ -108,7 +125,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             ),
         }
 
-        # Optogenetic stimulus site metadata
+        # Optogenetic stimulus site metadata - maintaining compatibility with existing structure
         site_name = "corticostriatal_terminals"
         metadata["Optogenetics"] = {
             "OptogeneticStimulusSites": {
@@ -124,18 +141,52 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
                     "location": "dorsal striatum (ipsilateral to 6-OHDA lesion)",
                 }
             },
-            "OptogeneticSeries": {
-                self.optogenetics_metadata_key: {
-                    "name": self.optogenetics_metadata_key,
-                    "description": (
-                        f"LED stimulus: {self.stimulus_params['pulse_width_ms']} ms blue LED pulse "
-                        f"delivered at {self.stimulus_params['first_pulse_delay_ms']} ms delay. "
-                        f"Control voltage: {self.stimulus_params['pulse_amplitude_v']} V. "
-                        f"NOTE: Actual optical power unknown - only electrical control parameters available. "
-                        f"Pulses occur every 30 seconds to evoke asynchronous EPSCs."
-                    ),
-                    "site": site_name,
-                }
+        }
+
+        # Add ndx-optogenetics metadata structure
+        metadata["OptogeneticExperimentMetadata"] = {
+            "stimulation_software": "Prairie View",
+            "excitation_source_model": {
+                "name": "LED470nmModel",
+                "description": "Blue LED model for 470nm optogenetic stimulation",
+                "illumination_type": "LED",
+                "wavelength_range_in_nm": [455.0, 485.0],  # Typical blue LED FWHM range
+            },
+            "excitation_source": {
+                "name": "LED470nmSource",
+                "description": "Blue LED excitation source for ChR2 activation",
+                "wavelength_in_nm": 470.0,
+                "power_in_W": 0.001,  # Placeholder - actual power unknown
+            },
+            "optical_fiber_model": {
+                "name": "WholeFieldFiberModel",
+                "description": "Whole-field illumination setup for optogenetic stimulation",
+                "fiber_name": "Whole-field LED",
+                "manufacturer": "Prairie View",
+                "numerical_aperture": 0.0,  # Not applicable for whole-field
+                "core_diameter_in_um": 0.0,  # Not applicable for whole-field
+            },
+            "optical_fiber": {
+                "name": "WholeFieldFiber",
+                "description": "Whole-field illumination optical system",
+            },
+            "optical_fiber_locations": {
+                "reference": "Dorsal striatum slice preparation - Sr2+-oEPSC protocol",
+                "locations": [
+                    {
+                        "implanted_fiber_description": (
+                            "Whole-field LED illumination targeting ChR2-expressing corticostriatal terminals. "
+                            "Protocol: 0.3ms blue LED pulse at 20ms into 420ms sweep. "
+                            "Detection window: 40-400ms post-stimulus. "
+                            "Inter-sweep interval: 30 seconds for Sr2+ clearance."
+                        ),
+                        "location": "dorsal striatum",
+                        "hemisphere": "ipsilateral to 6-OHDA lesion",
+                        "ap_in_mm": 0.0,  # Not applicable for slice preparation
+                        "ml_in_mm": 0.0,  # Not applicable for slice preparation
+                        "dv_in_mm": 0.0,  # Not applicable for slice preparation
+                    }
+                ],
             },
         }
 
@@ -143,7 +194,11 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
 
     def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None, starting_time: Optional[float] = None):
         """
-        Add optogenetic stimulation data and metadata to NWB file.
+        Add optogenetic stimulation metadata and epoch data to NWB file using ndx-optogenetics structure.
+
+        This method creates comprehensive optogenetic metadata including excitation sources,
+        optical fibers, and stimulus sites. It also adds a row to the OptogeneticEpochsTable
+        for this specific sweep/recording with detailed timing and stimulus parameters.
 
         Parameters
         ----------
@@ -162,8 +217,9 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
 
         optogenetics_metadata = metadata["Optogenetics"]
         device_metadata = metadata["Devices"]
+        ndx_metadata = metadata["OptogeneticExperimentMetadata"]
 
-        # Create LED device
+        # Create LED device (maintaining compatibility)
         device_name = "BlueLED470nm"
         if device_name not in nwbfile.devices:
             device_info = device_metadata[device_name]
@@ -171,7 +227,135 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         else:
             led_device = nwbfile.devices[device_name]
 
-        # Create optogenetic stimulus site
+        # Create ndx-optogenetics devices
+        # Excitation source model
+        excitation_source_model_info = ndx_metadata["excitation_source_model"]
+        excitation_source_model_name = excitation_source_model_info["name"]
+        if excitation_source_model_name not in nwbfile.devices:
+            excitation_source_model = ExcitationSourceModel(
+                name=excitation_source_model_name,
+                description=excitation_source_model_info["description"],
+                illumination_type=excitation_source_model_info["illumination_type"],
+                wavelength_range_in_nm=excitation_source_model_info["wavelength_range_in_nm"],
+            )
+            nwbfile.add_device(excitation_source_model)
+        else:
+            excitation_source_model = nwbfile.devices[excitation_source_model_name]
+
+        # Excitation source
+        excitation_source_info = ndx_metadata["excitation_source"]
+        excitation_source_name = excitation_source_info["name"]
+        if excitation_source_name not in nwbfile.devices:
+            excitation_source = ExcitationSource(
+                name=excitation_source_name,
+                description=excitation_source_info["description"],
+                wavelength_in_nm=excitation_source_info["wavelength_in_nm"],
+                power_in_W=excitation_source_info["power_in_W"],
+                model=excitation_source_model,
+            )
+            nwbfile.add_device(excitation_source)
+        else:
+            excitation_source = nwbfile.devices[excitation_source_name]
+
+        # Optical fiber model
+        optical_fiber_model_info = ndx_metadata["optical_fiber_model"]
+        optical_fiber_model_name = optical_fiber_model_info["name"]
+        if optical_fiber_model_name not in nwbfile.devices:
+            optical_fiber_model = OpticalFiberModel(
+                name=optical_fiber_model_name,
+                description=optical_fiber_model_info["description"],
+                fiber_name=optical_fiber_model_info["fiber_name"],
+                manufacturer=optical_fiber_model_info["manufacturer"],
+                numerical_aperture=optical_fiber_model_info["numerical_aperture"],
+                core_diameter_in_um=optical_fiber_model_info["core_diameter_in_um"],
+            )
+            nwbfile.add_device(optical_fiber_model)
+        else:
+            optical_fiber_model = nwbfile.devices[optical_fiber_model_name]
+
+        # Optical fiber
+        optical_fiber_info = ndx_metadata["optical_fiber"]
+        optical_fiber_name = optical_fiber_info["name"]
+        if optical_fiber_name not in nwbfile.devices:
+            optical_fiber = OpticalFiber(
+                name=optical_fiber_name,
+                description=optical_fiber_info["description"],
+                model=optical_fiber_model,
+            )
+            nwbfile.add_device(optical_fiber)
+        else:
+            optical_fiber = nwbfile.devices[optical_fiber_name]
+
+        # Optical fiber locations table
+        fiber_locations_info = ndx_metadata["optical_fiber_locations"]
+        optical_fiber_locations_table = OpticalFiberLocationsTable(
+            name="optical_fiber_locations_table",
+            description="Optical fiber locations for optogenetic stimulation",
+            reference=fiber_locations_info["reference"],
+        )
+
+        # Add location data
+        for location_data in fiber_locations_info["locations"]:
+            optical_fiber_locations_table.add_row(
+                implanted_fiber_description=location_data["implanted_fiber_description"],
+                location=location_data["location"],
+                hemisphere=location_data["hemisphere"],
+                ap_in_mm=location_data["ap_in_mm"],
+                ml_in_mm=location_data["ml_in_mm"],
+                dv_in_mm=location_data["dv_in_mm"],
+                excitation_source=excitation_source,
+                optical_fiber=optical_fiber,
+            )
+
+        # Create OptogeneticExperimentMetadata
+        if "optogenetic_experiment_metadata" not in nwbfile.lab_meta_data:
+            optogenetic_experiment_metadata = OptogeneticExperimentMetadata(
+                stimulation_software=ndx_metadata["stimulation_software"],
+                optical_fiber_locations_table=optical_fiber_locations_table,
+            )
+            nwbfile.add_lab_meta_data(optogenetic_experiment_metadata)
+
+        # Create or get OptogeneticEpochsTable
+        if "optogenetic_epochs_table" not in nwbfile.intervals:
+            optogenetic_epochs_table = OptogeneticEpochsTable(
+                name="optogenetic_epochs_table",
+                description="Optogenetic stimulation epochs with detailed parameters",
+                target_tables={"optical_fiber_locations": optical_fiber_locations_table},
+            )
+            nwbfile.add_time_intervals(optogenetic_epochs_table)
+        else:
+            optogenetic_epochs_table = nwbfile.intervals["optogenetic_epochs_table"]
+
+        # Add epoch data for this specific sweep/recording with detailed timing
+        pulse_width_ms = self.stimulus_params["pulse_width_ms"]  # 0.3ms pulse
+        pulse_delay_ms = self.stimulus_params["first_pulse_delay_ms"]  # 20ms delay
+
+        # Use provided starting_time for temporal synchronization, or default to 0.0
+        stimulus_starting_time = starting_time if starting_time is not None else 0.0
+
+        # Each epoch represents one complete sweep with detailed timing structure
+        # Based on Sr2+-oEPSC experimental protocol:
+        # - Sweep starts at stimulus_starting_time - pulse_delay (to capture baseline)
+        # - LED pulse occurs at 20ms into sweep (stimulus_starting_time)
+        # - Critical detection window: 40-400ms post-stimulus (20.04-20.4s into sweep)
+        # - Total sweep duration: ~0.42 seconds (420ms) to capture full analysis window
+
+        sweep_start_time = stimulus_starting_time - (pulse_delay_ms / 1000.0)  # 20ms before pulse
+        sweep_duration_s = 0.42  # 420ms total sweep duration (baseline + pulse + detection window)
+        sweep_stop_time = sweep_start_time + sweep_duration_s
+
+        optogenetic_epochs_table.add_row(
+            start_time=sweep_start_time,
+            stop_time=sweep_stop_time,
+            stimulation_on=True,
+            pulse_length_in_ms=pulse_width_ms,  # 0.3ms LED pulse
+            period_in_ms=30000.0,  # 30 seconds between pulses (inter-sweep interval)
+            number_pulses_per_pulse_train=1,  # Single pulse per sweep
+            number_trains=1,  # Single train per sweep
+            optical_fiber_locations=[0],  # Reference to first row in fiber locations table
+        )
+
+        # Create optogenetic stimulus site (maintaining compatibility)
         site_name = "corticostriatal_terminals"
         if site_name not in nwbfile.ogen_sites:
             site_info = optogenetics_metadata["OptogeneticStimulusSites"][site_name]
@@ -186,44 +370,6 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         else:
             ogen_site = nwbfile.ogen_sites[site_name]
 
-        # Create stimulus time series data
-        pulse_width_s = self.stimulus_params["pulse_width_ms"] / 1000.0
-        pulse_delay_s = self.stimulus_params["first_pulse_delay_ms"] / 1000.0
-
-        # NOTE: Optical power not available in source data
-        # The XML files only contain LED control voltage (5V), not actual optical power
-        # For NWB compliance, we use a placeholder value and document the limitation
-        optical_power_unknown = 0.001  # Placeholder: 1 mW (typical optogenetics range)
-
-        # Create simple pulse stimulus data
-        # Assuming typical recording duration of ~1 second
-        sampling_rate = 10000  # 10 kHz
-        duration_s = 1.0
-        n_samples = int(duration_s * sampling_rate)
-
-        stimulus_data = [0.0] * n_samples
-        pulse_start_sample = int(pulse_delay_s * sampling_rate)
-        pulse_end_sample = int((pulse_delay_s + pulse_width_s) * sampling_rate)
-
-        # Set optical power during pulse period (placeholder value)
-        # Actual optical power unknown - only control voltage ({control_voltage}V) available
-        for i in range(pulse_start_sample, min(pulse_end_sample, n_samples)):
-            stimulus_data[i] = optical_power_unknown
-
-        # Create OptogeneticSeries with proper timing
-        series_info = optogenetics_metadata["OptogeneticSeries"][self.optogenetics_metadata_key]
-
-        # Use provided starting_time for temporal synchronization, or default to 0.0
-        stimulus_starting_time = starting_time if starting_time is not None else 0.0
-
-        stimulus_series = OptogeneticSeries(
-            name=series_info["name"],
-            description=series_info["description"],
-            data=stimulus_data,
-            site=ogen_site,
-            starting_time=stimulus_starting_time,
-            rate=float(sampling_rate),
-        )
-
-        # Add stimulus series to NWB file
-        nwbfile.add_stimulus(stimulus_series)
+        # NOTE: OptogeneticSeries removed - timing information now handled by OptogeneticEpochsTable
+        # The epochs table provides more detailed and accurate stimulus timing information
+        # including pulse parameters, inter-pulse intervals, and precise temporal alignment
