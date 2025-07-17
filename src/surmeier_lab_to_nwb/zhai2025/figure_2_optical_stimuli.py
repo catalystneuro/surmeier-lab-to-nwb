@@ -552,8 +552,10 @@ if __name__ == "__main__":
     import logging
     import warnings
 
+    from tqdm import tqdm
+
     # Control verbose output from here
-    VERBOSE = False  # Set to True for detailed output
+    verbose = False  # Set to True for detailed output
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -587,14 +589,20 @@ if __name__ == "__main__":
 
         print(f"Found {len(session_folders)} session folders")
 
-        for session_folder in session_folders:
-            print(f"\nProcessing session: {session_folder.name}")
+        # Use tqdm for progress bar when verbose is disabled
+        session_iterator = (
+            tqdm(session_folders, desc=f"Processing {condition}", disable=verbose) if not verbose else session_folders
+        )
+
+        for session_folder in session_iterator:
+            if verbose:
+                print(f"\nProcessing session: {session_folder.name}")
 
             # Convert data to NWB format
             nwbfile = convert_session_to_nwbfile(
                 session_folder_path=session_folder,
                 condition=condition,
-                verbose=VERBOSE,
+                verbose=verbose,
             )
 
             # Create output filename
