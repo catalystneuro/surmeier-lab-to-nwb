@@ -5,7 +5,7 @@ Figure 7 examines the role of CalDAG-GEFI (CDGI) in iSPN function using knockout
 - **Somatic excitability**: Current clamp electrophysiology in CDGI knockout vs wildtype mice
 - **Dendritic excitability**: Combined patch clamp + two-photon line scan imaging with oxotremorine-M (oxoM) testing
 - **Spine density**: Two-photon image stacks for morphological analysis
-- **Behavioral assessment**: AIM scoring and contralateral rotation analysis
+- **Behavioral assessment**: AIM (lower abnormal involuntary movement) scoring and contralateral rotation analysis
 - **Genetic validation**: CDGI knockout vs. wild-type comparison across multiple domains
 
 ## Complete Data Structure
