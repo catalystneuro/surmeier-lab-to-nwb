@@ -15,19 +15,18 @@ from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
 
 def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any]:
     """
-    Parse essential recording information from M1R antagonist somatic excitability recording folder names.
+    Parse essential recording information from M1R CRISPR somatic excitability recording folder names.
     Session start time comes from XML metadata.
 
     Expected folder name format: cell[N]-[XXX] (e.g., cell1-001, cell2-015)
 
-    The session folder structure is: [MMDD][letter]/cell[N]-[XXX]/
-    - [MMDD][letter]: Date and animal identifier (e.g., 0217a, 0218b)
+    The session folder structure is: YYYYMMDD[X]/cell[N]-[XXX]/
+    - YYYYMMDD[X]: Date and animal identifier (e.g., 20221004b, 20221012a)
     - cell[N]-[XXX]: Recording folder with cell number and protocol step
 
     Protocol steps:
     - 001-006: Hyperpolarizing currents (-120 to -20 pA)
     - 007-021: Depolarizing currents (+20 to +300 pA)
-    - 022-026: Extended depolarizing currents (+320 to +400 pA, not all cells)
 
     Parameters
     ----------
@@ -43,23 +42,17 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     session_folder = recording_folder.parent
 
     # Parse session folder (parent) for date and animal info
-    # Format: [MMDD][letter] (e.g., 0217a, 0721b)
+    # Format: YYYYMMDD[X] (e.g., 20221004b, 20221012a)
     session_folder_name = session_folder.name
-
-    # Extract date and animal identifier
-    # Pattern: 4 digits (MMDD) followed by a letter
-    session_pattern = r"(\d{4})([a-z])"
-    session_match = re.match(session_pattern, session_folder_name)
-
-    if not session_match:
+    # Extract animal identifier (letter at the end)
+    if len(session_folder_name) >= 9 and session_folder_name[-1].isalpha():
+        animal_id = session_folder_name[-1]
+        date_part = session_folder_name[:-1]
+    else:
         raise ValueError(f"Could not parse session folder name: {session_folder_name}")
 
-    animal_letter = session_match.group(2)  # letter (a, b, c, etc.)
-
-    # Note: Date will be extracted from XML session start time, not from folder name
-
     # Parse recording folder name for protocol step
-    # Format: cell[N]-[XXX] (no suffixes for Figure 6)
+    # Format: cell[N]-[XXX]
     pattern = r"cell(\d+)-(\d+)"
     match = re.match(pattern, folder_name)
 
@@ -85,7 +78,8 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
 
     return {
         "cell_number": cell_number,
-        "animal_letter": animal_letter,
+        "animal_id": animal_id,
+        "date_part": date_part,
         "protocol_step": protocol_step,
         "current_pA": current_pA,
         "current_formatted": current_formatted,
@@ -96,14 +90,14 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
 
 def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
     """
-    Convert a single session of Figure 6 M1R antagonist somatic excitability data to NWB format with time alignment.
+    Convert a single session of Figure 8 M1R CRISPR somatic excitability data to NWB format with time alignment.
 
     Parameters
     ----------
     session_folder_path : Path
         Path to the session folder containing cell recordings
     condition : str
-        Experimental condition (e.g., "control", "M1R antagonist")
+        Experimental condition (e.g., "M1R CRISPR", "interleaved control")
     verbose : bool, default=False
         Enable verbose output showing detailed processing information
 
@@ -129,11 +123,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_info = parse_session_info_from_folder_name(recording_folders[0])
     session_info = {
         "cell_number": first_recording_info["cell_number"],
-        "animal_letter": first_recording_info["animal_letter"],
+        "animal_id": first_recording_info["animal_id"],
+        "date_part": first_recording_info["date_part"],
     }
 
     print(
-        f"Processing session folder: {session_folder_path.name} (Animal {session_info['animal_letter']}, Cell {session_info['cell_number']})"
+        f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']}, Animal {session_info['animal_id']})"
     )
     print(f"  Found {len(recording_folders)} current step recordings")
 
@@ -197,7 +192,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
     session_id = (
-        f"{session_start_time.strftime('%Y%m%d')}_{session_info['animal_letter']}_Cell{session_info['cell_number']}"
+        f"{session_start_time.strftime('%Y%m%d')}_Cell{session_info['cell_number']}_{session_info['animal_id']}"
     )
     session_info.update(
         {
@@ -212,33 +207,39 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
-    # Create session-specific metadata using precise session start time from XML
-
-    # Determine treatment description based on condition
-    if condition == "M1R antagonist":
-        treatment_description = (
-            "M1R antagonist trihexyphenidyl hydrochloride (THP, 3 mg/kg, i.p.) administered "
-            "at beginning of LID off-state, with recording 16 hours later"
+    # Determine cell type and description based on condition
+    if condition == "M1R CRISPR":
+        cell_type = "iSPN"
+        cell_description = (
+            f"iSPNs with M1R CRISPR deletion identified by lack of Drd1-Tdtomato expression (negative selection) "
+            f"and confirmed M1R protein loss through CRISPR-Cas9 gene editing. "
+            f"Cell {session_info['cell_number']} from animal {session_info['animal_id']} recorded on {session_info['date_str']}."
         )
-        condition_description = "M1R antagonist treatment effects on iSPN somatic excitability"
-    else:
-        treatment_description = "Saline control injection with matched timing and volume"
-        condition_description = "Control condition for M1R antagonist study of iSPN somatic excitability"
+        genetic_manipulation = "M1R deletion via CRISPR-Cas9 (AAV-Cas9 + AAV-gRNA-FusionRed)"
+    else:  # interleaved control
+        cell_type = "iSPN"
+        cell_description = (
+            f"Control iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
+            f"Control group received gRNA-FusionRed only (no Cas9). "
+            f"Cell {session_info['cell_number']} from animal {session_info['animal_id']} recorded on {session_info['date_str']}."
+        )
+        genetic_manipulation = "Control (AAV-gRNA-FusionRed only, no M1R deletion)"
 
+    # Create session-specific metadata using precise session start time from XML
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
-                f"Somatic excitability assessment in iSPNs for condition '{condition}'. "
-                f"Whole-cell patch clamp recording in current clamp mode with current injection steps "
-                f"from -120 pA to +300 pA (500 ms duration each). {treatment_description}. "
-                f"Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+                f"M1R CRISPR somatic excitability assessment in {cell_type}s "
+                f"for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode "
+                f"with current injection steps from -120 pA to +300 pA (500 ms duration each). "
+                f"Cell {session_info['cell_number']} from animal {session_info['animal_id']} recorded on {session_info['date_str']}."
             ),
-            "identifier": f"zhai2025_fig6_somatic_{session_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": f"zhai2025_fig8_somatic_{session_info['session_id']}_{condition.replace(' ', '_')}",
             "session_start_time": session_start_time,
             "experiment_description": (
-                f"{condition_description} during LID off-state. "
-                f"This experiment is part of Figure 6 from Zhai et al. 2025, investigating whether "
-                f"M1R signaling mediates dendritic vs somatic alterations in iSPNs during dyskinesia. "
+                f"M1R CRISPR effects on {cell_type} somatic excitability during condition '{condition}'. "
+                f"This experiment is part of Figure 8 from Zhai et al. 2025, investigating how M1R deletion "
+                f"affects {cell_type} excitability and dyskinetic behaviors using CRISPR-Cas9 gene editing. "
                 f"F-I protocol with {len(recording_folders)} current steps."
             ),
             "session_id": session_info["session_id"],
@@ -246,8 +247,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "somatic excitability",
                 "F-I relationship",
                 "rheobase",
-                "M1R antagonist",
-                "trihexyphenidyl",
+                "M1R CRISPR",
+                "CRISPR-Cas9",
+                "gene editing",
             ],
         }
     }
@@ -268,24 +270,19 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for M1R antagonist experiments (Figure 6)
+    # Create subject metadata for M1R CRISPR experiments (Figure 8)
     subject = Subject(
-        subject_id=f"M1R_antagonist_mouse_{session_info['session_id']}",
+        subject_id=f"{cell_type}_M1R_CRISPR_mouse_{session_info['session_id']}",
         species="Mus musculus",
         strain="C57Bl/6",
-        description=(
-            f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-            f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
-            f"{treatment_description}. Animal {session_info['animal_letter']}, "
-            f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
-        ),
-        genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+        description=cell_description,
+        genotype=f"Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic; {genetic_manipulation}",
         sex="M",
         age="P49-P84",  # ISO format for 7-12 weeks (postnatal days)
     )
     nwbfile.subject = subject
 
-    # Add custom columns to intracellular recording table for M1R antagonist experiment annotations
+    # Add custom columns to intracellular recording table for M1R CRISPR somatic experiment annotations
     intracellular_recording_table = nwbfile.get_intracellular_recordings()
     intracellular_recording_table.add_column(
         name="stimulus_current_pA",
@@ -298,7 +295,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         name="recording_id", description="Full recording identifier containing step and current information"
     )
     intracellular_recording_table.add_column(
-        name="animal_letter", description="Animal identifier letter for this experimental session"
+        name="animal_id", description="Animal identifier for tracking across experimental sessions"
     )
 
     # Data structures for tracking icephys table indices
@@ -321,18 +318,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Get and update interface metadata
         interface_metadata = interface.get_metadata()
 
-        # Update electrode description for M1R antagonist iSPN somatic recording (consistent name for all recordings)
+        # Update electrode description for M1R CRISPR somatic recording (consistent name for all recordings)
         electrode_name = "IntracellularElectrode"
         interface_metadata["Icephys"]["IntracellularElectrodes"][icephys_metadata_key].update(
             {
                 "name": electrode_name,
                 "description": (
-                    f"Whole-cell patch clamp electrode recording from iSPN soma in the dorsolateral striatum - "
-                    f"{condition} - Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} - "
+                    f"Whole-cell patch clamp electrode recording from {cell_type} soma in the dorsolateral striatum - "
+                    f"{condition} - Cell {session_info['cell_number']} from animal {session_info['animal_id']} - "
                     f"F-I protocol with {len(recording_folders)} current steps"
                 ),
                 "cell_id": session_info["cell_number"],
-                "animal_id": session_info["animal_letter"],
                 "location": "soma",
             }
         )
@@ -343,8 +339,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             {
                 "name": series_name,
                 "description": (
-                    f"Current clamp recording from iSPN - {condition} - "
-                    f"Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} - "
+                    f"Current clamp recording from {cell_type} - {condition} - "
+                    f"Cell {session_info['cell_number']} from animal {session_info['animal_id']} - "
                     f"{recording_info['current_formatted']} current injection - "
                     f"F-I protocol step {recording_info['protocol_step']}"
                 ),
@@ -370,7 +366,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             stimulus_current_pA=recording_info["current_pA"],
             protocol_step=recording_info["protocol_step"],
             recording_id=recording_id,
-            animal_letter=session_info["animal_letter"],
+            animal_id=session_info["animal_id"],
         )
 
         # Track recording index and metadata for table building
@@ -401,7 +397,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Step 2: Build sequential recording (group all current steps for this cell)
     sequential_index = nwbfile.add_icephys_sequential_recording(
         simultaneous_recordings=simultaneous_recording_indices,
-        stimulus_type="F-I_protocol_somatic_excitability_M1R_antagonist",
+        stimulus_type="F-I_protocol_M1R_CRISPR_somatic_excitability",
     )
     sequential_recording_indices.append(sequential_index)
 
@@ -409,24 +405,22 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     repetitions_table = nwbfile.get_icephys_repetitions()
     repetitions_table.add_column(name="cell_number", description="Cell number identifier for this recording session")
     repetitions_table.add_column(
-        name="animal_letter", description="Animal identifier letter for this experimental session"
+        name="animal_id", description="Animal identifier for tracking across experimental sessions"
     )
 
     repetition_index = nwbfile.add_icephys_repetition(
         sequential_recordings=sequential_recording_indices,
         cell_number=int(session_info["cell_number"]),
-        animal_letter=session_info["animal_letter"],
+        animal_id=session_info["animal_id"],
     )
 
-    # Step 4: Build experimental conditions table (group by M1R antagonist condition)
+    # Step 4: Build experimental conditions table (group by M1R CRISPR condition)
     experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
     experimental_conditions_table.add_column(
-        name="condition", description="Experimental condition for M1R antagonist LID study"
+        name="condition", description="M1R CRISPR experimental condition (M1R deletion vs. control)"
     )
 
-    experimental_condition_index = nwbfile.add_icephys_experimental_condition(
-        repetitions=[repetition_index], condition=condition
-    )
+    nwbfile.add_icephys_experimental_condition(repetitions=[repetition_index], condition=condition)
 
     if verbose:
         print(f"    Added experimental condition '{condition}' with 1 repetition")
@@ -434,7 +428,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         print(f"    - {len(recording_indices)} intracellular recordings")
         print(f"    - {len(simultaneous_recording_indices)} simultaneous recordings")
         print(f"    - {len(sequential_recording_indices)} sequential recordings")
-        print(f"    - 1 repetition (Animal {session_info['animal_letter']}, Cell {session_info['cell_number']})")
+        print(f"    - 1 repetition (Cell {session_info['cell_number']}, Animal {session_info['animal_id']})")
         print(f"    - 1 experimental condition ('{condition}')")
 
     return nwbfile
@@ -457,15 +451,15 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
 
     # Set the base path to your data
-    base_path = Path("./link_to_raw_data/Figure 6/Somatic excitability")
+    base_path = Path("./link_to_raw_data/Figure 8/M1R CRISPR SE")
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_6_somatic_excitability"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_8_somatic_excitability"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    # Figure 6 M1R antagonist somatic excitability conditions
-    conditions = ["control", "M1R antagonist"]
+    # Figure 8 M1R CRISPR somatic excitability conditions
+    conditions = ["M1R CRISPR", "interleaved control"]
 
     for condition in conditions:
         condition_path = base_path / condition
@@ -473,9 +467,9 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
-        print(f"Processing M1R antagonist somatic excitability data for: {condition}")
+        print(f"Processing M1R CRISPR somatic excitability data for: {condition}")
 
-        # Get all session folders (each session = one animal/cell)
+        # Get all session folders (each session = one cell from one animal on one date)
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
@@ -498,8 +492,8 @@ if __name__ == "__main__":
             )
 
             # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("-", "_")
-            nwbfile_path = nwb_files_dir / f"figure6_somatic_excitability_{condition_safe}_{session_folder.name}.nwb"
+            condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
+            nwbfile_path = nwb_files_dir / f"figure8_somatic_excitability_{condition_safe}_{session_folder.name}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

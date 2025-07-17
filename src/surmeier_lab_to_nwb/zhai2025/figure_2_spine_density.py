@@ -186,6 +186,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str) -> NWBFile:
 if __name__ == "__main__":
     import logging
 
+    from tqdm import tqdm
+
+    # Control verbose output
+    verbose = False  # Set to True for detailed output
+
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
     # Define the base path to the data
@@ -205,8 +210,14 @@ if __name__ == "__main__":
 
         print(f"Found {len(session_folders)} session folders")
 
-        for session_folder in session_folders:
-            print(f"\nProcessing session: {session_folder.name}")
+        # Use tqdm for progress bar when verbose is disabled
+        session_iterator = (
+            tqdm(session_folders, desc=f"Processing {condition}", disable=verbose) if not verbose else session_folders
+        )
+
+        for session_folder in session_iterator:
+            if verbose:
+                print(f"\nProcessing session: {session_folder.name}")
 
             # Convert data to NWB format
             nwbfile = convert_data_to_nwb(

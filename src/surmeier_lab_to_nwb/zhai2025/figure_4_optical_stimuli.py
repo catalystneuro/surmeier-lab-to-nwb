@@ -514,6 +514,10 @@ def convert_session_to_nwbfile(
 
 def main():
     """Main conversion function for Figure 4 Sr²⁺-oEPSC data."""
+    from tqdm import tqdm
+
+    # Control verbose output
+    verbose = False  # Set to True for detailed output
 
     # Define raw data and output paths
     raw_data_root = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Sr-oEPSC")
@@ -543,15 +547,21 @@ def main():
 
         print(f"Found {len(session_folders)} session folders")
 
+        # Use tqdm for progress bar when verbose is disabled
+        session_iterator = (
+            tqdm(session_folders, desc=f"Processing {condition}", disable=verbose) if not verbose else session_folders
+        )
+
         # Process each session
-        for session_folder in session_folders:
-            print(f"\\nProcessing session: {session_folder.name}")
+        for session_folder in session_iterator:
+            if verbose:
+                print(f"\nProcessing session: {session_folder.name}")
 
             # Convert session to NWB
             nwbfile = convert_session_to_nwbfile(
                 session_folder_path=session_folder,
                 condition=condition,
-                verbose=True,
+                verbose=verbose,
             )
 
             # Generate output filename
