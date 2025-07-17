@@ -216,9 +216,9 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 
 ### Somatic Excitability (M1R CRISPR vs interleaved control)
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
-- [ ] Conversion script (handle M1R CRISPR and interleaved control conditions)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure
+- [x] Conversion script (handle M1R CRISPR and interleaved control conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
+- [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
+- [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
