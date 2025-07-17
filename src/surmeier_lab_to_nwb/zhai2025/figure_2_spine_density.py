@@ -1,5 +1,4 @@
 import re
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -24,45 +23,22 @@ def parse_xml_metadata(xml_file: Path) -> Dict[str, Any]:
         Dictionary containing acquisition parameters
     """
     if not xml_file.exists():
-        return {}
+        raise FileNotFoundError(f"XML metadata file does not exist: {xml_file}")
 
     # Try xmltodict first, fall back to pure XML parsing
-    try:
-        with open(xml_file, "r", encoding="utf-8", errors="ignore") as f:
-            xml_content = f.read()
-            # Remove BOM if present
-            if xml_content.startswith("\ufeff"):
-                xml_content = xml_content[1:]
-            # Clean invalid XML characters and HTML entities that can cause parsing errors
-            xml_content = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", xml_content)
-            # Also clean up HTML encoded null characters
-            xml_content = re.sub(r"&#x0;", "", xml_content)
-            xml_dict = xmltodict.parse(xml_content)
+    with open(xml_file, "r", encoding="utf-8", errors="ignore") as f:
+        xml_content = f.read()
+        # Remove BOM if present
+        if xml_content.startswith("\ufeff"):
+            xml_content = xml_content[1:]
+        # Clean invalid XML characters and HTML entities that can cause parsing errors
+        xml_content = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", xml_content)
+        # Also clean up HTML encoded null characters
+        xml_content = re.sub(r"&#x0;", "", xml_content)
+        xml_dict = xmltodict.parse(xml_content)
 
-        # Extract metadata using xmltodict approach
-        return _extract_metadata_from_dict(xml_dict)
-
-    except Exception as e:
-        print(f"Warning: xmltodict parsing failed for {xml_file}: {e}")
-        print("Falling back to pure XML parsing...")
-
-        # Fall back to pure XML parsing
-        try:
-            with open(xml_file, "r", encoding="utf-8", errors="ignore") as f:
-                xml_content = f.read()
-                # Remove BOM if present
-                if xml_content.startswith("\ufeff"):
-                    xml_content = xml_content[1:]
-                # Clean invalid XML characters and HTML entities for ET parsing as well
-                xml_content = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", xml_content)
-                xml_content = re.sub(r"&#x0;", "", xml_content)
-
-            # Parse cleaned XML content
-            root = ET.fromstring(xml_content)
-            return _extract_metadata_from_xml(root)
-        except Exception as xml_e:
-            print(f"Warning: Pure XML parsing also failed for {xml_file}: {xml_e}")
-            return {}
+    # Extract metadata using xmltodict approach
+    return _extract_metadata_from_dict(xml_dict)
 
 
 def _extract_metadata_from_dict(xml_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -148,131 +124,6 @@ def _extract_metadata_from_dict(xml_dict: Dict[str, Any]) -> Dict[str, Any]:
         parameter_tables = xml_dict.get("cDatasetXSD", {}).get("ParameterTable", [])
         if isinstance(parameter_tables, dict):
             parameter_tables = [parameter_tables]
-
-        for param_table in parameter_tables:
-            name = param_table.get("NameString", "")
-            value = param_table.get("ValueString", "")
-
-            if name == "XSpacing" and value:
-                try:
-                    metadata["pixel_size_x"] = float(value)
-                except (ValueError, TypeError):
-                    pass
-            elif name == "YSpacing" and value:
-                try:
-                    metadata["pixel_size_y"] = float(value)
-                except (ValueError, TypeError):
-                    pass
-            elif name == "BitDepth" and value:
-                try:
-                    metadata["bit_depth"] = int(value)
-                except (ValueError, TypeError):
-                    pass
-            elif name == "DWidth" and value:
-                try:
-                    metadata["pixels_per_line"] = int(value)
-                except (ValueError, TypeError):
-                    pass
-            elif name == "DHeight" and value:
-                try:
-                    metadata["lines_per_frame"] = int(value)
-                except (ValueError, TypeError):
-                    pass
-            elif name == "DDepth" and value:
-                try:
-                    metadata["z_slices"] = int(value)
-                except (ValueError, TypeError):
-                    pass
-
-    return metadata
-
-
-def _extract_metadata_from_xml(root: ET.Element) -> Dict[str, Any]:
-    """Extract metadata from pure XML ElementTree parsing."""
-    metadata = {}
-
-    # Check if this is PVScan or AutoQuant format
-    if root.tag == "PVScan":
-        # PVScan format
-        if root.get("version"):
-            metadata["system_version"] = root.get("version")
-
-        # Find all PVStateValue elements
-        pv_state_values = root.findall(".//PVStateValue")
-
-        for state_value in pv_state_values:
-            key = state_value.get("key")
-
-            if key == "micronsPerPixel":
-                # Extract X and Y pixel sizes from IndexedValue entries
-                indexed_values = state_value.findall("IndexedValue")
-
-                for indexed_value in indexed_values:
-                    if indexed_value.get("index") == "XAxis":
-                        try:
-                            metadata["pixel_size_x"] = float(indexed_value.get("value"))
-                        except (ValueError, TypeError):
-                            pass
-                    elif indexed_value.get("index") == "YAxis":
-                        try:
-                            metadata["pixel_size_y"] = float(indexed_value.get("value"))
-                        except (ValueError, TypeError):
-                            pass
-
-            elif key == "dwellTime":
-                try:
-                    metadata["dwell_time"] = float(state_value.get("value"))
-                except (ValueError, TypeError):
-                    pass
-
-            elif key == "objectiveLens":
-                metadata["objective_lens"] = state_value.get("value")
-
-            elif key == "objectiveLensNA":
-                try:
-                    metadata["numerical_aperture"] = float(state_value.get("value"))
-                except (ValueError, TypeError):
-                    pass
-
-            elif key == "objectiveLensMag":
-                try:
-                    metadata["magnification"] = float(state_value.get("value"))
-                except (ValueError, TypeError):
-                    pass
-
-            elif key == "opticalZoom":
-                try:
-                    metadata["optical_zoom"] = float(state_value.get("value"))
-                except (ValueError, TypeError):
-                    pass
-
-            elif key == "pixelsPerLine":
-                try:
-                    metadata["pixels_per_line"] = int(state_value.get("value"))
-                except (ValueError, TypeError):
-                    pass
-
-            elif key == "linesPerFrame":
-                try:
-                    metadata["lines_per_frame"] = int(state_value.get("value"))
-                except (ValueError, TypeError):
-                    pass
-
-            elif key == "bitDepth":
-                try:
-                    metadata["bit_depth"] = int(state_value.get("value"))
-                except (ValueError, TypeError):
-                    pass
-
-            elif key == "activeMode":
-                metadata["scan_mode"] = state_value.get("value")
-
-    elif root.tag == "cDatasetXSD":
-        # AutoQuant format
-        metadata["system_version"] = "AutoQuant X3.0.4"
-
-        # Find all ParameterTable elements
-        parameter_tables = root.findall("ParameterTable")
 
         for param_table in parameter_tables:
             name = param_table.get("NameString", "")
