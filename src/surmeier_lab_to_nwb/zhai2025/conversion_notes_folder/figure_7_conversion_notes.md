@@ -230,18 +230,28 @@ Same as Figure 1 - three 2 nA current injections, 2 ms each, at ~50 Hz frequency
 **Methodology**:
 > AIM scoring assesses dyskinesia severity across multiple behavioral domains using a validated rating scale. Animals receive L-DOPA injections and are scored at regular intervals for abnormal movements in different body regions.
 
+**Behavioral Testing Protocol**:
+> Behavioral testing was performed every other day for a total of five test sessions. AIMs (axial, limb, and orolingual movements) were scored as previously described: abnormal axial, limb, and orolingual behaviors were observed for one minute every 20 min and rated on a scale from 0-4 for each parameter on the basis of duration and continuity.
+
 **Scoring Categories**:
 - **Axial (Ax)**: Dystonic posturing and twisting of the neck and trunk
 - **Limb (Li)**: Abnormal movements of forelimbs and hindlimbs
 - **Orolingual (Ol)**: Abnormal jaw movements, tongue protrusion, and chewing
 - **Total**: Sum of all three categories
 
-**Scoring Scale**: 0-4 scale where:
-- 0: No abnormal movements
-- 1: Occasional abnormal movements (< 50% of observation period)
-- 2: Frequent abnormal movements (> 50% of observation period)
-- 3: Continuous abnormal movements interrupted by normal behavior
-- 4: Continuous abnormal movements not interrupted by normal behavior
+
+**Scoring Scale** (adapted from *Behavioral and Cellular Modulation of l-DOPA-Induced Dyskinesia by β-Adrenoceptor Blockade in the 6-Hydroxydopamine-Lesioned Rat*, DOI: 10.1124/jpet.111.179416):
+
+| Score | Criteria | Description |
+|-------|----------|-------------|
+| **0** | Not present | No abnormal movements observed |
+| **1** | Present <50% | Occasional abnormal movements during observation period |
+| **2** | Present >50% but <100% | Frequent abnormal movements, but with interruptions |
+| **3** | Present 100%, interruptible | Continuous movements throughout period, stopped by loud stimulus (pencil tap) |
+| **4** | Present 100%, non-interruptible | Continuous movements throughout period, not stopped by stimulus |
+
+
+**Stimulus Test Protocol**: A standardized loud stimulus (pencil tap on cylinder) was applied to test whether continuous movements (score 3) could be interrupted, distinguishing them from the most severe dyskinesia (score 4).
 
 **Time Protocol**:
 - Scoring at 20, 40, 60, 80, 100, and 120 minutes post-L-DOPA injection
