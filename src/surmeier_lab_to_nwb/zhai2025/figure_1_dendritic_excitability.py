@@ -665,7 +665,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Control verbose output from here
-    VERBOSE = True  # Set to True for detailed output
+    verbose = False  # Set to True for detailed output
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -708,12 +708,12 @@ if __name__ == "__main__":
             if len(subdirs) > 3:
                 # This folder is a session_folder (like 0707b with 6 recording folders)
                 session_folders.append(folder)
-                if VERBOSE:
+                if verbose:
                     print(f"  Folder {folder.name} has {len(subdirs)} subdirs - is a session_folder")
             else:
                 # This folder's children are session_folders (like 0706a with 0706a1, 0706a2)
                 session_folders.extend(subdirs)
-                if VERBOSE:
+                if verbose:
                     print(f"  Folder {folder.name} has {len(subdirs)} subdirs - its children are session_folders")
 
         session_folders.sort()
@@ -728,7 +728,7 @@ if __name__ == "__main__":
                 nwbfile = convert_session_to_nwbfile(
                     session_folder_path=session_folder,
                     condition=condition,
-                    verbose=VERBOSE,
+                    verbose=verbose,
                 )
 
                 # Create output filename
