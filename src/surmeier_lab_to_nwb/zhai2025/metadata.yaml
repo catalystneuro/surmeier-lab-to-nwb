@@ -21,11 +21,7 @@ NWBFile:
     - Graybiel, Ann M.
     - Surmeier, D. James
   experiment_description: |
-    Corticostriatal synaptic strength analysis in levodopa-induced dyskinesia using Sr2+-oEPSC measurements.
-    This study examines state-dependent modulation of synaptic connectivity in a Parkinson's disease model
-    by comparing on-state and off-state recordings. Mice received dyskinesiogenic levodopa treatment and were sacrificed
-    either 30 min post-dose (on-state) or 24-48h post-dose (off-state). Data corresponds to Figure 2
-    from Zhai et al. 2025.
+    """Generic description of the experiment."""
 Subject:
   species: Mus musculus
   description: A rich text description of the subject
