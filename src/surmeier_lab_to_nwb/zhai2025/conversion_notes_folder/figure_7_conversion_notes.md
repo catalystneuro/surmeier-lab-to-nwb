@@ -5,7 +5,7 @@ Figure 7 examines the role of CalDAG-GEFI (CDGI) in iSPN function using knockout
 - **Somatic excitability**: Current clamp electrophysiology in CDGI knockout vs wildtype mice
 - **Dendritic excitability**: Combined patch clamp + two-photon line scan imaging with oxotremorine-M (oxoM) testing
 - **Spine density**: Two-photon image stacks for morphological analysis
-- **Behavioral assessment**: AIM scoring and contralateral rotation analysis
+- **Behavioral assessment**: AIM (lower abnormal involuntary movement) scoring and contralateral rotation analysis
 - **Genetic validation**: CDGI knockout vs. wild-type comparison across multiple domains
 
 ## Complete Data Structure
@@ -222,9 +222,94 @@ Same as Figure 1 - three 2 nA current injections, 2 ms each, at ~50 Hz frequency
 
 ### 5. Behavioral Assessment (Figure 7I, 7J)
 **Location**: `Figure 7/AIM rating/` and `Figure 7/contralateral rotations/`
-- **AIM testing_CDGI KO.xlsx**: Abnormal Involuntary Movement scores
-- **CDGI KO videos/**: Video recordings for rotation quantification
-- **Purpose**: Assess behavioral phenotype of CDGI knockout mice
+
+#### AIM Scoring Protocol (Figure 7J)
+**Data file**: `AIM testing_CDGI KO.xlsx`
+**Purpose**: Quantify dyskinesia severity using Abnormal Involuntary Movement scale
+
+**Methodology**:
+> AIM scoring assesses dyskinesia severity across multiple behavioral domains using a validated rating scale. Animals receive L-DOPA injections and are scored at regular intervals for abnormal movements in different body regions.
+
+**Behavioral Testing Protocol**:
+> Behavioral testing was performed every other day for a total of five test sessions. AIMs (axial, limb, and orolingual movements) were scored as previously described: abnormal axial, limb, and orolingual behaviors were observed for one minute every 20 min and rated on a scale from 0-4 for each parameter on the basis of duration and continuity.
+
+**Scoring Categories**:
+- **Axial (Ax)**: Dystonic posturing and twisting of the neck and trunk
+- **Limb (Li)**: Abnormal movements of forelimbs and hindlimbs
+- **Orolingual (Ol)**: Abnormal jaw movements, tongue protrusion, and chewing
+- **Total**: Sum of all three categories
+
+
+**Scoring Scale** (adapted from *Behavioral and Cellular Modulation of l-DOPA-Induced Dyskinesia by β-Adrenoceptor Blockade in the 6-Hydroxydopamine-Lesioned Rat*, DOI: 10.1124/jpet.111.179416):
+
+| Score | Criteria | Description |
+|-------|----------|-------------|
+| **0** | Not present | No abnormal movements observed |
+| **1** | Present <50% | Occasional abnormal movements during observation period |
+| **2** | Present >50% but <100% | Frequent abnormal movements, but with interruptions |
+| **3** | Present 100%, interruptible | Continuous movements throughout period, stopped by loud stimulus (pencil tap) |
+| **4** | Present 100%, non-interruptible | Continuous movements throughout period, not stopped by stimulus |
+
+
+**Stimulus Test Protocol**: A standardized loud stimulus (pencil tap on cylinder) was applied to test whether continuous movements (score 3) could be interrupted, distinguishing them from the most severe dyskinesia (score 4).
+
+**Time Protocol**:
+- Scoring at 20, 40, 60, 80, 100, and 120 minutes post-L-DOPA injection
+- Multiple sessions per animal (up to 5 sessions for longitudinal assessment)
+
+**Experimental Sessions**:
+```
+Session Date    | Animals Tested | Genotypes
+2017-11-20     | ET#4123, ET#4124 | KO
+2017-12-15     | ET#0465, ET#0467, ET#0466, ET#0449 | WT, KO
+2018-02-23     | ET#1944, ET#1945, ET#1590 | KO, WT
+2018-03-20     | ET#2586, ET#2587 | KO
+2018-04-01     | ET#2636, ET#2638, ET#2828 | KO
+2018-07-18     | ET#5871 | KO
+2018-09-05     | ET#5940, ET#6571, ET#6572 | KO
+2020-11-04     | ET#2516, ET#2517, ET#2519 | KO
+```
+
+**Genotype Identification**:
+- CDGI KO mice: Identified by "(KO)" designation in animal ID
+- Wild-type mice: Identified by "(WT)" designation in animal ID
+- ET# numbers: Unique animal identifiers for tracking across sessions
+
+#### Contralateral Rotation Analysis (Figure 7I)
+**Data location**: `Figure 7/contralateral rotations/CDGI KO videos/`
+**Purpose**: Quantify rotational behavior as measure of dopaminergic asymmetry
+
+**Video Organization**:
+- **Date-based folders**: Each experimental session organized by date (e.g., 02232018-, 03202018-)
+- **Session structure**: Up to 5 sessions per animal for longitudinal assessment
+- **Time intervals**: Videos recorded at 20, 40, 60, 80, 100, and 120 minutes post-L-DOPA
+- **File naming**: [AnimalID]_[Session]_[TimePoint]min.mov/MP4
+
+**Example Video Structure**:
+```
+02232018-/
+├── 1st session/
+│   ├── 1590_1_20min.mov  # WT animal, session 1, 20 min post-L-DOPA
+│   ├── 1944_1_20min.mov  # KO animal, session 1, 20 min post-L-DOPA
+│   └── 1945_1_20min.mov  # KO animal, session 1, 20 min post-L-DOPA
+├── 2nd session/
+│   ├── 1590_2_20min.mov
+│   ├── 1944_2_20min.mov
+│   └── 1945_2_20min.mov
+└── [continues for sessions 3-5]
+```
+
+**Analysis Method**:
+- Rotational behavior quantified from video recordings
+- Contralateral rotations counted during fixed observation periods
+- Rotation rates calculated as rotations per minute
+- Data corresponds to rotation counts in AIM Excel file
+
+**Experimental Design**:
+- **Paired assessment**: AIM scoring and rotation analysis performed simultaneously
+- **Longitudinal tracking**: Multiple sessions allow assessment of dyskinesia development
+- **Genotype comparison**: CDGI KO vs WT behavioral phenotypes
+- **Time course analysis**: Behavioral changes tracked across L-DOPA response curve
 
 ## Key Findings
 
