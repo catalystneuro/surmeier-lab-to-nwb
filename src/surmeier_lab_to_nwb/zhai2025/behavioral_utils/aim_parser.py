@@ -81,7 +81,7 @@ def parse_aim_excel_to_wide_format(
         - sheet_name: Original sheet name as integer
         - session_date: Session date in YYYY-MM-DD format
         - animal_id: Animal identifier as integer
-        - genotype: Animal genotype (KO, WT, or unknown)
+        - genotype: Animal genotype (CDGI Knockout, Wild Type, or unknown)
         - score_type: Type of AIM score (axial, limb, orolingual)
         - 20min, 40min, 60min, 80min, 100min, 120min: Score values at each time point
 
@@ -105,9 +105,9 @@ def parse_aim_excel_to_wide_format(
                 animal_id = str(row["MOUSE"]).replace(",", "")  # Remove commas
                 category = row["Category"]
                 if category == "ko":
-                    genotype_map[animal_id] = "KO"
+                    genotype_map[animal_id] = "CDGI Knockout"
                 elif category in ["CONT", "cont"]:
-                    genotype_map[animal_id] = "WT"
+                    genotype_map[animal_id] = "Wild Type"
 
     for sheet_name in excel_file.sheet_names:
         # Skip non-date sheets
@@ -154,9 +154,9 @@ def parse_aim_excel_to_wide_format(
                     # Extract genotype from cell if present
                     genotype = "unknown"
                     if "(KO)" in animal_id_str:
-                        genotype = "KO"
+                        genotype = "CDGI Knockout"
                     elif "(WT)" in animal_id_str:
-                        genotype = "WT"
+                        genotype = "Wild Type"
 
                     # Clean animal ID
                     animal_id = animal_id_str.replace("(KO)", "").replace("(WT)", "").replace("ET#", "").strip()

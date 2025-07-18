@@ -165,3 +165,7 @@ link_to_raw_data
 # Generated AIM data CSV files
 src/surmeier_lab_to_nwb/zhai2025/assets/aim_data_tidy.csv
 src/surmeier_lab_to_nwb/zhai2025/aim_data_wide_corrected.csv
+
+# Analysis outputs from notebooks
+analysis_outputs/
+notebooks/analysis_outputs/
