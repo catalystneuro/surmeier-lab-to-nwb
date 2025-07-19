@@ -206,9 +206,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 
 ### Behavioral Videos (Contralateral rotation documentation)
 - [x] Build video interfaces (ExternalVideoInterface)
-- [x] Conversion script for Figure 7 behavioral videos [NEW]
-- [x] Video metadata extraction and organization by animal/session [NEW]
-- [x] Temporal alignment with behavioral epochs [NEW]
+- [x] Conversion script for Figure 7 behavioral videos [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -245,9 +243,7 @@ M1R CRISPR behavioral video documentation showing dyskinesia assessment in gene-
 
 ### Behavioral Videos (M1R CRISPR dyskinesia assessment)
 - [x] Build video interfaces (ExternalVideoInterface)
-- [x] Conversion script for Supplementary Figure 3 behavioral videos [NEW]
-- [x] Video metadata extraction and organization by animal/session [NEW]
-- [x] Temporal alignment with behavioral epochs [NEW]
+- [x] Conversion script for Supplementary Figure 3 behavioral videos [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
