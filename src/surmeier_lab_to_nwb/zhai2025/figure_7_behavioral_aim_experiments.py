@@ -107,7 +107,11 @@ def convert_session_to_nwbfile(
             "session_id": f"figure7_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
             "session_start_time": session_info["session_start_time"],
             "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
-            "experiment_description": "Behavioral assessment of CDGI knockout mice using AIM scoring to evaluate dyskinesia severity following L-DOPA treatment. Data corresponds to Figure 7J from Zhai et al. 2025. Uses optimized DynamicTable for figure reproduction.",
+            "experiment_description": (
+                "Behavioral assessment of CDGI knockout mice using AIM scoring to evaluate "
+                "dyskinesia severity following L-DOPA treatment. Data corresponds to Figure 7J "
+                "from Zhai et al. 2025. Uses optimized DynamicTable for figure reproduction."
+            ),
         },
         "Subject": {
             "subject_id": session_info["original_animal_id"],
