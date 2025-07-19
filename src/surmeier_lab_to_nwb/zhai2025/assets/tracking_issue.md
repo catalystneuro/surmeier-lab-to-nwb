@@ -105,9 +105,8 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [ ] Upload data
 
 ### Spine Density
-- [ ] Build needed interfaces
-- [ ] Conversion script
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
+- [x] Build needed interfaces
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/36)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
