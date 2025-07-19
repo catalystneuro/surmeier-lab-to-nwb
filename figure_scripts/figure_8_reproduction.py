@@ -43,10 +43,22 @@ def load_figure8_data():
     return df
 
 
-def calculate_group_statistics(df, score_column):
-    """Calculate mean and SEM for each group and time point."""
-    # Group by genotype and time point (not session number)
-    grouped = df.groupby(["genotype", "time_minutes"])[score_column]
+def calculate_session_totals(df):
+    """Calculate session totals by summing all time points within each session."""
+    # Group by animal, session, and genotype to sum scores within each session
+    session_totals = (
+        df.groupby(["animal_id", "session_date", "session_number", "genotype"])
+        .agg({"axial": "sum", "limb": "sum", "orolingual": "sum", "total_score": "sum"})
+        .reset_index()
+    )
+
+    return session_totals
+
+
+def calculate_group_statistics(session_totals_df, score_column):
+    """Calculate mean and SEM for each group and session number."""
+    # Group by genotype and session number, using session totals
+    grouped = session_totals_df.groupby(["genotype", "session_number"])[score_column]
 
     stats_df = grouped.agg(["mean", "sem", "count"]).reset_index()
 
@@ -62,6 +74,13 @@ def plot_figure8_reproduction():
     print(f"Genotypes: {df['genotype'].value_counts()}")
     print(f"Sessions: {sorted(df['session_number'].unique())}")
 
+    # Calculate session totals (sum all time points within each session)
+    session_totals_df = calculate_session_totals(df)
+
+    print(f"Session totals calculated: {len(session_totals_df)} sessions total")
+    print(f"Session totals preview:")
+    print(session_totals_df.head())
+
     # Create figure with subplots
     fig, axes = plt.subplots(1, 4, figsize=(16, 4))
 
@@ -74,14 +93,14 @@ def plot_figure8_reproduction():
     for idx, (score_col, title) in enumerate(score_types):
         ax = axes[idx]
 
-        # Calculate statistics for this score type
-        stats_df = calculate_group_statistics(df, score_col)
+        # Calculate statistics for this score type using session totals
+        stats_df = calculate_group_statistics(session_totals_df, score_col)
 
         # Plot each genotype
         for genotype in ["Control", "M1R CRISPR"]:
             genotype_data = stats_df[stats_df["genotype"] == genotype]
 
-            time_points = genotype_data["time_minutes"]
+            sessions = genotype_data["session_number"]
             means = genotype_data["mean"]
             sems = genotype_data["sem"]
 
@@ -90,7 +109,7 @@ def plot_figure8_reproduction():
 
             # Plot with error bars
             ax.errorbar(
-                time_points,
+                sessions,
                 means,
                 yerr=sems,
                 color=colors[genotype],
@@ -102,18 +121,18 @@ def plot_figure8_reproduction():
             )
 
         # Customize subplot
-        ax.set_xlabel("Time (min)")
+        ax.set_xlabel("session #")
         ax.set_ylabel("AIM score")
         ax.set_title(title)
-        ax.set_xticks([20, 40, 60, 80, 100, 120])
+        ax.set_xticks([1, 2, 3, 4, 5])
         ax.grid(True, alpha=0.3)
         ax.legend()
 
-        # Set y-axis limits based on actual data ranges
+        # Set y-axis limits based on session totals (much higher values)
         if title == "total":
-            ax.set_ylim(0, 12)
+            ax.set_ylim(0, 70)  # Max theoretical ~108, practical ~60-70
         else:
-            ax.set_ylim(0, 5)
+            ax.set_ylim(0, 25)  # Max theoretical 36, practical ~20-25
 
     # Overall title
     fig.suptitle("Figure 8G Reproduction: M1R CRISPR AIM Scores", fontsize=14, y=1.02)
@@ -132,11 +151,14 @@ def plot_figure8_reproduction():
 
 
 def analyze_statistical_differences():
-    """Perform statistical analysis comparing Control vs M1R CRISPR."""
+    """Perform statistical analysis comparing Control vs M1R CRISPR using session totals."""
     df = load_figure8_data()
 
+    # Calculate session totals first
+    session_totals_df = calculate_session_totals(df)
+
     print("\\n" + "=" * 60)
-    print("STATISTICAL ANALYSIS")
+    print("STATISTICAL ANALYSIS (Session Totals)")
     print("=" * 60)
 
     # Analyze each score type
@@ -146,12 +168,12 @@ def analyze_statistical_differences():
         print(f"\\n{score_type.upper()} SCORES:")
         print("-" * 40)
 
-        # For each time point
-        for time_point in sorted(df["time_minutes"].unique()):
-            time_data = df[df["time_minutes"] == time_point]
+        # For each session
+        for session in sorted(session_totals_df["session_number"].unique()):
+            session_data = session_totals_df[session_totals_df["session_number"] == session]
 
-            control_scores = time_data[time_data["genotype"] == "Control"][score_type].dropna()
-            crispr_scores = time_data[time_data["genotype"] == "M1R CRISPR"][score_type].dropna()
+            control_scores = session_data[session_data["genotype"] == "Control"][score_type].dropna()
+            crispr_scores = session_data[session_data["genotype"] == "M1R CRISPR"][score_type].dropna()
 
             if len(control_scores) > 0 and len(crispr_scores) > 0:
                 # Calculate means and SEMs
@@ -163,7 +185,7 @@ def analyze_statistical_differences():
                 # Perform t-test
                 t_stat, p_value = stats.ttest_ind(control_scores, crispr_scores)
 
-                print(f"Time {time_point}min:")
+                print(f"Session {session}:")
                 print(f"  Control: {control_mean:.1f} ± {control_sem:.1f} (n={len(control_scores)})")
                 print(f"  M1R CRISPR: {crispr_mean:.1f} ± {crispr_sem:.1f} (n={len(crispr_scores)})")
                 print(f"  p-value: {p_value:.3f}")
@@ -172,6 +194,9 @@ def analyze_statistical_differences():
 
 def generate_markdown_report(df, output_dir):
     """Generate a comprehensive markdown report for Figure 8 analysis."""
+
+    # Calculate session totals for the report
+    session_totals_df = calculate_session_totals(df)
 
     # Calculate overall statistics
     total_obs = len(df)
@@ -272,12 +297,12 @@ AIM (Abnormal Involuntary Movement) scores are assessed using a standardized 0-4
     }
 
     for genotype in ["Control", "M1R CRISPR"]:
-        if genotype in df["genotype"].values:
-            genotype_data = df[df["genotype"] == genotype]
+        if genotype in session_totals_df["genotype"].values:
+            genotype_data = session_totals_df[session_totals_df["genotype"] == genotype]
             markdown_content += f"### {genotype}\n\n"
 
             for score_col in score_columns:
-                if score_col in df.columns:
+                if score_col in session_totals_df.columns:
                     scores = genotype_data[score_col].dropna()
                     if len(scores) > 0:
                         mean_val = scores.mean()
@@ -286,25 +311,25 @@ AIM (Abnormal Involuntary Movement) scores are assessed using a standardized 0-4
                         max_val = scores.max()
                         count_val = len(scores)
 
-                        markdown_content += f"**{score_names[score_col]}:**\n"
-                        markdown_content += f"- Mean: {mean_val:.2f} ± {sem_val:.2f}\n"
-                        markdown_content += f"- Range: {min_val:.2f} - {max_val:.2f}\n"
-                        markdown_content += f"- Observations: {count_val}\n\n"
+                        markdown_content += f"**{score_names[score_col]} (Session Totals):**\n"
+                        markdown_content += f"- Mean: {mean_val:.1f} ± {sem_val:.1f}\n"
+                        markdown_content += f"- Range: {min_val:.1f} - {max_val:.1f}\n"
+                        markdown_content += f"- Sessions: {count_val}\n\n"
 
     # Add statistical analysis section
     markdown_content += """## Statistical Analysis
 
 ### Session-by-Session Comparison
-Statistical comparisons were performed using unpaired t-tests between M1R CRISPR and Control groups for each time point post L-DOPA administration:
+Statistical comparisons were performed using unpaired t-tests between M1R CRISPR and Control groups for each session using session total scores:
 
 """
 
-    # Perform statistical analysis for each time point
-    for time_point in sorted(df["time_minutes"].unique()):
-        time_data = df[df["time_minutes"] == time_point]
+    # Perform statistical analysis for each session using session totals
+    for session in sorted(session_totals_df["session_number"].unique()):
+        session_data = session_totals_df[session_totals_df["session_number"] == session]
 
-        control_scores = time_data[time_data["genotype"] == "Control"]["total_score"].dropna()
-        crispr_scores = time_data[time_data["genotype"] == "M1R CRISPR"]["total_score"].dropna()
+        control_scores = session_data[session_data["genotype"] == "Control"]["total_score"].dropna()
+        crispr_scores = session_data[session_data["genotype"] == "M1R CRISPR"]["total_score"].dropna()
 
         if len(control_scores) > 0 and len(crispr_scores) > 0:
             control_mean = control_scores.mean()
@@ -315,7 +340,7 @@ Statistical comparisons were performed using unpaired t-tests between M1R CRISPR
             t_stat, p_value = stats.ttest_ind(control_scores, crispr_scores)
             significance = "**" if p_value < 0.05 else ""
 
-            markdown_content += f"**{time_point}min post L-DOPA:** {significance}\n"
+            markdown_content += f"**Session {session}:** {significance}\n"
             markdown_content += f"- Control: {control_mean:.1f} ± {control_sem:.1f} (n={len(control_scores)})\n"
             markdown_content += f"- M1R CRISPR: {crispr_mean:.1f} ± {crispr_sem:.1f} (n={len(crispr_scores)})\n"
             markdown_content += f"- p-value: {p_value:.3f} {significance}\n\n"
