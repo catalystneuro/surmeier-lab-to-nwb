@@ -1433,3 +1433,413 @@ def _pivot_long_to_final_structure(long_df: pd.DataFrame, verbose: bool = False)
         print(f"  Animals: {pivot_df['animal_id'].nunique()}")
 
     return pivot_df
+
+
+# =============================================================================
+# Figure 8 Specific Validation Tests
+# =============================================================================
+
+
+def test_aim_data_accuracy_figure8(wide_df: pd.DataFrame, verbose: bool = False) -> Dict[str, Any]:
+    """
+    Test suite for Figure 8 AIM data accuracy.
+
+    This function validates that the parsed Figure 8 data matches expected values
+    from manual inspection of the Excel file.
+
+    Parameters
+    ----------
+    wide_df : pd.DataFrame
+        Parsed wide format DataFrame from Figure 8
+    verbose : bool, default=False
+        Enable verbose output
+
+    Returns
+    -------
+    Dict[str, Any]
+        Test results with pass/fail counts and failure details
+    """
+    if verbose:
+        print("Testing Figure 8 AIM Data Accuracy:", len(wide_df), "rows")
+        print("=" * 60)
+
+    failures = []
+    test_count = 0
+
+    # Define test cases based on manual inspection of Figure 8 Excel
+    test_cases = [
+        # Session 1 (2023-09-27) - First date
+        {
+            "animal_id": 5844,
+            "session_date": "2023-09-27",
+            "score_type": "axial",
+            "20min": 4.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 4.0,
+            "100min": 1.0,
+        },
+        {
+            "animal_id": 5844,
+            "session_date": "2023-09-27",
+            "score_type": "limb",
+            "20min": 2.5,
+            "40min": 2.5,
+            "60min": 2.5,
+            "80min": 2.0,
+            "100min": 1.0,
+        },
+        {
+            "animal_id": 5844,
+            "session_date": "2023-09-27",
+            "score_type": "orolingual",
+            "20min": 2.0,
+            "40min": 2.0,
+            "60min": 2.0,
+            "80min": 2.0,
+            "100min": 1.0,
+        },
+        {
+            "animal_id": 5845,
+            "session_date": "2023-09-27",
+            "score_type": "axial",
+            "20min": 4.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 3.0,
+            "100min": 1.0,
+        },
+        {
+            "animal_id": 5846,
+            "session_date": "2023-09-27",
+            "score_type": "orolingual",
+            "20min": 2.0,
+            "40min": 2.0,
+            "60min": 2.0,
+            "80min": 1.5,
+            "100min": 1.0,
+        },
+        # Session 2 (2023-09-29) - Second date
+        {
+            "animal_id": 5844,
+            "session_date": "2023-09-29",
+            "score_type": "axial",
+            "20min": 4.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 4.0,
+            "100min": 3.0,
+        },
+        {
+            "animal_id": 5846,
+            "session_date": "2023-09-29",
+            "score_type": "axial",
+            "20min": 3.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 3.5,
+            "100min": 2.0,
+        },
+    ]
+
+    for test_case in test_cases:
+        test_count += 1
+        animal_id = test_case["animal_id"]
+        session_date = test_case["session_date"]
+        score_type = test_case["score_type"]
+
+        if verbose:
+            print(f"\nTest {test_count}: Animal {animal_id}, {session_date}, {score_type}")
+
+        # Find matching row
+        mask = (
+            (wide_df["animal_id"] == animal_id)
+            & (wide_df["session_date"] == session_date)
+            & (wide_df["score_type"] == score_type)
+        )
+        matching_rows = wide_df[mask]
+
+        if len(matching_rows) == 0:
+            failure_msg = f"No data found for animal {animal_id}, {session_date}, {score_type}"
+            failures.append({"test": test_count, "reason": failure_msg})
+            if verbose:
+                print(f"  FAIL: {failure_msg}")
+            continue
+        elif len(matching_rows) > 1:
+            failure_msg = f"Multiple rows found for animal {animal_id}, {session_date}, {score_type}"
+            failures.append({"test": test_count, "reason": failure_msg})
+            if verbose:
+                print(f"  FAIL: {failure_msg}")
+            continue
+
+        row = matching_rows.iloc[0]
+
+        # Check each time point
+        time_points = ["20min", "40min", "60min", "80min", "100min", "120min"]
+        all_match = True
+        mismatches = []
+
+        for time_point in time_points:
+            if time_point in test_case:
+                expected = test_case[time_point]
+                actual = row[time_point]
+
+                # Handle NaN comparisons
+                if pd.isna(expected) and pd.isna(actual):
+                    continue
+                elif pd.isna(expected) or pd.isna(actual):
+                    all_match = False
+                    mismatches.append(f"{time_point}: expected {expected}, got {actual}")
+                elif abs(expected - actual) > 0.001:  # Small tolerance for floating point
+                    all_match = False
+                    mismatches.append(f"{time_point}: expected {expected}, got {actual}")
+
+        if all_match:
+            if verbose:
+                print("  PASS: All values match")
+        else:
+            failure_msg = f"Animal {animal_id}, {session_date}, {score_type}: {'; '.join(mismatches)}"
+            failures.append({"test": test_count, "reason": failure_msg})
+            if verbose:
+                print(f"  FAIL: {failure_msg}")
+
+    passed = test_count - len(failures)
+
+    if verbose:
+        print(f"\nTest Summary: {passed}/{test_count} passed")
+
+    return {"passed": passed, "failed": len(failures), "total": test_count, "failures": failures}
+
+
+# =============================================================================
+# Figure 8 Specific Parsing Functions
+# =============================================================================
+
+
+def parse_aim_excel_to_wide_format_figure8(excel_path: Path) -> pd.DataFrame:
+    """
+    Parse Figure 8 M1R CRISPR AIM Excel file to wide format.
+
+    Figure 8 has a different format where animal IDs include genotype information
+    like "ET#5844 (control)" and "ET#5845 (M1R CRISPR)".
+
+    Parameters
+    ----------
+    excel_path : Path
+        Path to the Figure 8 AIM Excel file
+
+    Returns
+    -------
+    pd.DataFrame
+        Wide format DataFrame with extracted data
+    """
+    # Read the Excel file
+    df = pd.read_excel(excel_path, sheet_name=0)
+
+    results = []
+    current_session_date = None
+    current_animal_id = None
+    current_genotype = None
+    current_weight = None
+
+    # Default to first session if no date found initially
+    if current_session_date is None:
+        current_session_date = "2023-09-27"  # First session date
+
+    for idx, row in df.iterrows():
+        # Extract session date from first column (like "Date: 09272023(1st)" or "Date:09292023 (2nd)")
+        if pd.notna(row.iloc[0]) and "Date" in str(row.iloc[0]):
+            date_str = str(row.iloc[0])
+            # Try multiple date formats
+            date_match = re.search(r"(\d{8})", date_str)
+            if date_match:
+                date_str = date_match.group(1)
+                # Convert MMDDYYYY to YYYY-MM-DD
+                month = date_str[:2]
+                day = date_str[2:4]
+                year = date_str[4:]
+                current_session_date = f"{year}-{month}-{day}"
+            # Also handle MM/DD/YYYY format
+            elif re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", date_str):
+                date_match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", date_str)
+                month = date_match.group(1).zfill(2)
+                day = date_match.group(2).zfill(2)
+                year = date_match.group(3)
+                current_session_date = f"{year}-{month}-{day}"
+            continue
+
+        # Extract animal ID and genotype (like "ET#5844 (control)" or just "ET#5844")
+        if pd.notna(row.iloc[0]) and str(row.iloc[0]).startswith("ET#"):
+            animal_line = str(row.iloc[0])
+            # Try with genotype in parentheses first
+            match = re.match(r"ET#(\d+)\s*\(([^)]+)\)", animal_line)
+            if match:
+                current_animal_id = int(match.group(1))
+                genotype_raw = match.group(2).strip()
+                # Standardize genotype names
+                if "control" in genotype_raw.lower():
+                    current_genotype = "Control"
+                elif "crispr" in genotype_raw.lower():
+                    current_genotype = "M1R CRISPR"
+                else:
+                    current_genotype = genotype_raw
+            else:
+                # Try without genotype (like "ET#5844")
+                match = re.match(r"ET#(\d+)", animal_line)
+                if match:
+                    current_animal_id = int(match.group(1))
+                    # Infer genotype based on animal ID (from first occurrence)
+                    if current_animal_id == 5844:
+                        current_genotype = "Control"
+                    elif current_animal_id in [5845, 5846]:
+                        current_genotype = "M1R CRISPR"
+                    else:
+                        current_genotype = "Unknown"
+            # Don't continue - check if this row also has score data
+
+        # Extract weight (like "    g" in next row)
+        if pd.notna(row.iloc[0]) and "g" in str(row.iloc[0]) and current_animal_id:
+            current_weight = str(row.iloc[0]).strip()
+            # Don't continue - this row might also have score data
+
+        # Extract score data
+        if (
+            pd.notna(row.iloc[1])
+            and str(row.iloc[1]) in ["Ax", "Li", "Ol"]
+            and current_session_date
+            and current_animal_id
+            and current_genotype
+        ):
+
+            score_type = str(row.iloc[1])
+            score_type_name = {"Ax": "axial", "Li": "limb", "Ol": "orolingual"}[score_type]
+
+            # Extract time point scores (columns 2-7 typically contain 20min, 40min, etc.)
+            time_points = ["20min", "40min", "60min", "80min", "100min", "120min"]
+            scores = {}
+
+            # Start from column 2 (index 2) and extract scores
+            for i, time_point in enumerate(time_points):
+                col_idx = 2 + i
+                if col_idx < len(row):
+                    score_val = row.iloc[col_idx]
+                    if pd.notna(score_val) and score_val != "":
+                        try:
+                            scores[time_point] = float(score_val)
+                        except (ValueError, TypeError):
+                            scores[time_point] = np.nan
+                    else:
+                        scores[time_point] = np.nan
+                else:
+                    scores[time_point] = np.nan
+
+            # Create record
+            record = {
+                "animal_id": current_animal_id,
+                "session_date": current_session_date,
+                "genotype": current_genotype,
+                "score_type": score_type_name,
+                "weight": current_weight,
+                **scores,
+            }
+            results.append(record)
+
+    if not results:
+        raise ValueError("No AIM data found in Excel file")
+
+    wide_df = pd.DataFrame(results)
+
+    # Add session numbers (assuming chronological order within each animal)
+    wide_df = wide_df.sort_values(["animal_id", "session_date", "score_type"])
+    wide_df["session_number"] = wide_df.groupby("animal_id").cumcount() // 3 + 1  # 3 score types per session
+
+    return wide_df
+
+
+def _parse_aim_excel_to_tidy_format_figure8(excel_path: Path, verbose: bool = False) -> pd.DataFrame:
+    """
+    Parse Figure 8 AIM Excel file to tidy format without genotype CSV dependency.
+
+    Parameters
+    ----------
+    excel_path : Path
+        Path to the Figure 8 AIM Excel file
+    verbose : bool, default=False
+        Enable verbose output
+
+    Returns
+    -------
+    pd.DataFrame
+        Tidy format DataFrame
+    """
+    if verbose:
+        print("Step 1: Parsing Figure 8 AIM Excel file to tidy format...")
+
+    # Parse the Excel file
+    wide_df = parse_aim_excel_to_wide_format_figure8(excel_path)
+
+    if verbose:
+        print(f"  Parsed {len(wide_df)} rows from Excel")
+        print(f"  Animals: {sorted(wide_df['animal_id'].unique())}")
+        print(f"  Genotypes: {sorted(wide_df['genotype'].unique())}")
+        print(f"  Session dates: {sorted(wide_df['session_date'].unique())}")
+
+    return wide_df
+
+
+def build_source_data_from_aim_excel_table_figure8(excel_path: Path, verbose: bool = False) -> pd.DataFrame:
+    """
+    Build source data from Figure 8 AIM Excel table for NWB conversion.
+
+    This is the main entry point for Figure 8 data processing, providing a complete
+    pipeline from raw Excel to NWB-ready format with validation tests.
+
+    Parameters
+    ----------
+    excel_path : Path
+        Path to the Figure 8 AIM Excel file
+    verbose : bool, default=False
+        Enable verbose output
+
+    Returns
+    -------
+    pd.DataFrame
+        Final pivot DataFrame ready for NWB conversion
+    """
+    if verbose:
+        print("Building source data from Figure 8 AIM Excel table...")
+        print("=" * 60)
+
+    # Step 1: Parse Excel to tidy format
+    wide_df = _parse_aim_excel_to_tidy_format_figure8(excel_path, verbose)
+
+    # Step 2: Validate parsed data against test suite
+    if verbose:
+        print("Step 2: Validating parsed data against Figure 8 test suite...")
+
+    # Run the validation tests
+    results = test_aim_data_accuracy_figure8(wide_df, verbose=verbose)
+
+    if verbose:
+        print(f"  Test results: {results['passed']}/{results['total']} passed")
+
+    # Always print test failures regardless of verbose mode
+    if results["failed"] > 0:
+        print(f"  {results['failed']} tests failed")
+        for failure in results["failures"]:
+            print(f"    - {failure['reason']}")
+
+    # Step 3: Transform to long format
+    long_df = _transform_tidy_to_long_format(wide_df, verbose)
+
+    # Step 4: Pivot to final structure
+    pivot_df = _pivot_long_to_final_structure(long_df, verbose)
+
+    if verbose:
+        print("\nFigure 8 data processing completed successfully!")
+        print(f"Final dataset: {len(pivot_df)} rows, {len(pivot_df.columns)} columns")
+        print(f"Animals: {pivot_df['animal_id'].nunique()}")
+        print(f"Sessions: {pivot_df.groupby(['animal_id', 'session_date']).ngroups}")
+        print(f"Time points: {sorted(pivot_df['time_minutes'].unique())}")
+
+    return pivot_df
