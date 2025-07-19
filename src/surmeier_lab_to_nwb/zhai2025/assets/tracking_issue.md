@@ -19,9 +19,9 @@ These are the points that we wrote in the scope of work
     - [x] Prairie View Optogenetical Stimuli [PrairieViewOptogeneticsInterface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Convert electrophysiological data acquired with the Bruker system [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Build an interface for manual segmentation data in Surmeier lab format
-    - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface Bug](https://github.com/catalystneuro/neuroconv/pull/1365)
+    - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface Improvement 1](https://github.com/catalystneuro/neuroconv/pull/1365) [Neuroconv Interface Improvement 2](https://github.com/catalystneuro/neuroconv/pull/1439) [Neuroconv Interface Improvement 3](https://github.com/catalystneuro/neuroconv/pull/1441)
     - [x] Confocal microscopy image stacks for spine density Nikon  [Figure 4](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
-- [ ] Integrate behavioral annotations from Surmeier lab custom format
+- [x] Integrate behavioral annotations from Surmeier lab custom format [Behavioral AIM Scoring Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
 - [ ] Include behavioral video recordings
 - [ ] Include electrical stimulation signals and metadata
 
@@ -57,7 +57,6 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 ### Spine density image stacks
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)
-- [ ] Time alignment
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -108,7 +107,6 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ### Spine Density
 - [ ] Build needed interfaces
 - [ ] Conversion script
-- [ ] Time alignment
 - [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
@@ -118,7 +116,6 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [ ] Conversion script
-- [ ] Time alignment
 - [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
@@ -196,17 +193,13 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 ### Spine Density (CDGI KO on vs off)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle CDGI KO off-state and on-state conditions)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Behavioral Assessment (AIM scoring and contralateral rotations)
-- [ ] Build needed interfaces (behavioral scoring interface needed)
-- [ ] Conversion script (AIM scores and rotation videos)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
+- [x] Build needed interfaces (behavioral scoring interface needed) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
+- [x] Conversion script (AIM scores and rotation videos) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -226,17 +219,13 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 ### Spine Density (M1R CRISPR vs control - off-state)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle M1R CRISPR and control conditions)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Behavioral Assessment (AIM scoring)
-- [ ] Build needed interfaces (behavioral scoring interface needed)
-- [ ] Conversion script (AIM scores for M1R CRISPR mice)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
+- [x] Build needed interfaces [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
+- [x] Conversion script (AIM scores for M1R CRISPR mice) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/33)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
@@ -244,10 +233,11 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 ## Nice to have
 
 First ensure that the raw data is available and on dandi and then we can do these improvements:
-- [ ] Extract the times of the intracellular events so we can write a single time series instead of many.
+- [x] Extract the times of the intracellular events so we can write a single time series instead of many.
 - [ ] Add an extension for line scan data
 - [ ] Add an extension for image stacks that keeps the metadata of the microscopy
-- [ ] Separate the nwbfiles per subject
+- [x] Separate the nwbfiles per subject
+- [x] use ndx-optogenetics
 
 # Data uploading and conversion packaging
 - [ ] Setup Dandiset(s):

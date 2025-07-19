@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
 import xmltodict
@@ -12,14 +12,20 @@ from pynwb import NWBFile
 from pynwb.device import Device
 
 
-def parse_xml_metadata(xml_file: Path) -> Dict[str, Any]:
+def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
     """
     Parse XML metadata file to extract acquisition parameters.
 
-    Args:
-        xml_file: Path to XML metadata file
+    Parameters
+    ----------
+    xml_file : Path
+        Path to XML metadata file
+    verbose : bool, default=False
+        Enable verbose output
 
-    Returns:
+    Returns
+    -------
+    Dict[str, Any]
         Dictionary containing acquisition parameters
     """
     if not xml_file.exists():
@@ -37,12 +43,9 @@ def parse_xml_metadata(xml_file: Path) -> Dict[str, Any]:
         xml_content = re.sub(r"&#x0;", "", xml_content)
         xml_dict = xmltodict.parse(xml_content)
 
-    # Extract metadata using xmltodict approach
-    return _extract_metadata_from_dict(xml_dict)
+    if verbose:
+        print(f"    Parsing XML metadata from: {xml_file.name}")
 
-
-def _extract_metadata_from_dict(xml_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract metadata from xmltodict parsed dictionary."""
     metadata = {}
 
     # Check if this is PVScan or AutoQuant format
@@ -160,6 +163,9 @@ def _extract_metadata_from_dict(xml_dict: Dict[str, Any]) -> Dict[str, Any]:
                 except (ValueError, TypeError):
                     pass
 
+    if verbose:
+        print(f"    Extracted metadata keys: {list(metadata.keys())}")
+
     return metadata
 
 
@@ -167,10 +173,14 @@ def find_xml_metadata_file(subfolder: Path) -> Optional[Path]:
     """
     Find XML metadata file in subfolder.
 
-    Args:
-        subfolder: Path to image stack subfolder
+    Parameters
+    ----------
+    subfolder : Path
+        Path to image stack subfolder
 
-    Returns:
+    Returns
+    -------
+    Optional[Path]
         Path to XML metadata file or None if not found
     """
     # Each folder contains exactly one XML file - find it by suffix
@@ -182,6 +192,158 @@ def find_xml_metadata_file(subfolder: Path) -> Optional[Path]:
     return None
 
 
+def extract_z_slice_info(tiff_file: Path) -> Dict[str, Any]:
+    """
+    Extract Z-slice information from TIFF filename.
+
+    Example filenames:
+    - "20_ZSeries-20170707_Cell2_prox12-001_Cycle00001_Ch1_#.ome_Z026.tif"
+    - "20_ZSeries-20190411_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z01.tif"
+    - "ZSeries-20160812_Cell3_dist12-001_Cycle00001_Ch1_000001.ome.tif"
+
+    Parameters
+    ----------
+    tiff_file : Path
+        Path to TIFF file
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing Z-slice number, name, and description
+    """
+    filename = tiff_file.name
+
+    # Extract Z-slice number from filename - handle multiple patterns
+    z_slice_num = None
+
+    # Pattern 1: _Z## format (e.g., _Z026.tif)
+    z_match = re.search(r"_Z(\d+)\.tif", filename)
+    if z_match:
+        z_slice_num = int(z_match.group(1))
+    else:
+        # Pattern 2: ######.ome.tif format (e.g., 000001.ome.tif)
+        z_match = re.search(r"_(\d{6})\.ome\.tif", filename)
+        if z_match:
+            z_slice_num = int(z_match.group(1))
+        else:
+            raise ValueError(f"Could not extract Z-slice number from filename: {filename}")
+
+    # Extract cell and location info for descriptive name
+    cell_match = re.search(r"Cell(\d+)", filename)
+    cell_number = cell_match.group(1) if cell_match else "unknown"
+
+    if "dist" in filename:
+        location_match = re.search(r"dist(\d+)", filename)
+        location = "distal"
+        dendrite_num = location_match.group(1) if location_match else "1"
+    elif "prox" in filename:
+        location_match = re.search(r"prox(\d+)", filename)
+        location = "proximal"
+        dendrite_num = location_match.group(1) if location_match else "1"
+    else:
+        location = "unknown"
+        dendrite_num = "1"
+
+    # Create descriptive name and description
+    z_depth_um = z_slice_num * 0.3  # 0.3 μm z-steps
+    image_name = f"ImageZ{z_slice_num:03d}"
+
+    description = (
+        f"Z-slice {z_slice_num} at depth {z_depth_um:.1f} μm from cell {cell_number} "
+        f"{location} dendrite {dendrite_num}. Acquired with two-photon microscopy "
+        f"using 0.15 μm pixels and 0.3 μm z-steps for spine density analysis."
+    )
+
+    return {
+        "z_slice_number": z_slice_num,
+        "z_depth_um": z_depth_um,
+        "image_name": image_name,
+        "description": description,
+        "cell_number": cell_number,
+        "location": location,
+        "dendrite_number": dendrite_num,
+    }
+
+
+def create_image_metadata(
+    tiff_files: List[Path], container_info: Dict[str, str], xml_metadata: Dict[str, Any], verbose: bool = False
+) -> Dict[str, Any]:
+    """
+    Create metadata for ImageInterface with individual image names and descriptions.
+
+    Parameters
+    ----------
+    tiff_files : List[Path]
+        List of TIFF file paths
+    container_info : Dict[str, str]
+        Container information with name and description
+    xml_metadata : Dict[str, Any]
+        Metadata extracted from XML file
+    verbose : bool, default=False
+        Enable verbose output
+
+    Returns
+    -------
+    Dict[str, Any]
+        Metadata dictionary for ImageInterface
+    """
+    # Sort files by Z-slice number
+    tiff_files_with_z = []
+    for tiff_file in tiff_files:
+        z_info = extract_z_slice_info(tiff_file)
+        tiff_files_with_z.append((tiff_file, z_info))
+
+    # Sort by Z-slice number
+    tiff_files_with_z.sort(key=lambda x: x[1]["z_slice_number"])
+
+    if verbose:
+        print(f"    Creating metadata for {len(tiff_files_with_z)} individual images")
+
+    # Calculate resolution in pixels per cm (converted from μm per pixel)
+    pixel_size_x_um = xml_metadata.get("pixel_size_x", 0.15)
+    pixel_size_y_um = xml_metadata.get("pixel_size_y", 0.15)
+    resolution_x = 10000.0 / pixel_size_x_um  # Convert μm/pixel to pixels/cm
+    resolution_y = 10000.0 / pixel_size_y_um
+    resolution = (resolution_x + resolution_y) / 2  # Average resolution
+
+    # Create comprehensive description with acquisition parameters
+    detailed_description = (
+        f"{container_info['description']} "
+        f"This Z-stack contains {len(tiff_files_with_z)} individual images acquired at 0.3 μm intervals. "
+        f"Acquisition parameters: pixel_size_x={xml_metadata.get('pixel_size_x', 0.15):.6f} μm, "
+        f"pixel_size_y={xml_metadata.get('pixel_size_y', 0.15):.6f} μm, "
+        f"pixel_size_z=0.3 μm, "
+        f"dwell_time={xml_metadata.get('dwell_time', 10.0)} μs, "
+        f"optical_zoom={xml_metadata.get('optical_zoom', 5.2)}, "
+        f"scan_mode={xml_metadata.get('scan_mode', 'Galvo')}, "
+        f"bit_depth={xml_metadata.get('bit_depth', 12)}, "
+        f"objective_lens='{xml_metadata.get('objective_lens', 'Olympus 60X')}', "
+        f"numerical_aperture={xml_metadata.get('numerical_aperture', 1.0)}, "
+        f"magnification={xml_metadata.get('magnification', 60)}x, "
+        f"system_version={xml_metadata.get('system_version', 'PVScan')}."
+    )
+
+    # Create metadata structure for ImageInterface
+    images_metadata = {"description": detailed_description, "images": {}}
+
+    # Add metadata for each individual image
+    for tiff_file, z_info in tiff_files_with_z:
+        file_path_str = str(tiff_file)
+        images_metadata["images"][file_path_str] = {
+            "name": z_info["image_name"],
+            "description": z_info["description"],
+            "resolution": resolution,
+        }
+
+        if verbose:
+            print(
+                f"      Added metadata for: {z_info['image_name']} (Z={z_info['z_slice_number']}, "
+                f"depth={z_info['z_depth_um']:.1f}μm)"
+            )
+
+    return images_metadata
+
+
 def extract_date_from_tiff_filename(tiff_file: Path) -> datetime:
     """
     Extract date from TIFF filename.
@@ -190,10 +352,14 @@ def extract_date_from_tiff_filename(tiff_file: Path) -> datetime:
     - "20_ZSeries-20170707_Cell2_prox12-001_Cycle00001_Ch1_#.ome_Z026.tif"
     - "20_ZSeries-20190411_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z01.tif"
 
-    Args:
-        tiff_file: Path to TIFF file
+    Parameters
+    ----------
+    tiff_file : Path
+        Path to TIFF file
 
-    Returns:
+    Returns
+    -------
+    datetime
         datetime object with extracted date
     """
     filename = tiff_file.name
@@ -216,8 +382,17 @@ def extract_date_from_tiff_filename(tiff_file: Path) -> datetime:
 
 def parse_session_info(session_folder: Path) -> Dict[str, Any]:
     """
-        Parse session information, preferring TIFF filename dates over folder names.
-    x
+    Parse session information, preferring TIFF filename dates over folder names.
+
+    Parameters
+    ----------
+    session_folder : Path
+        Path to session folder containing subfolders with TIFF files
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing session information including start time, animal ID, and session ID
     """
 
     # Look for TIFF files in subfolders
@@ -254,6 +429,15 @@ def parse_container_info(subfolder_name: str) -> Dict[str, str]:
     - "Decon_20190411_Cell1_dist1" -> Cell 1, distal dendrite 1
     - "Decon_20170706_Cell1_prox12" -> Cell 1, proximal dendrites 1&2
 
+    Parameters
+    ----------
+    subfolder_name : str
+        Name of subfolder containing image stack
+
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary containing container name and description
     """
     # Extract cell number and location
     cell_match = re.search(r"Cell(\d+)", subfolder_name)
@@ -302,11 +486,16 @@ def create_microscope_device(nwbfile: NWBFile, xml_metadata: Dict[str, Any]) -> 
     """
     Create microscope device with specifications from XML metadata.
 
-    Args:
-        nwbfile: NWB file to add device to
-        xml_metadata: Metadata extracted from XML file
+    Parameters
+    ----------
+    nwbfile : NWBFile
+        NWB file to add device to
+    xml_metadata : Dict[str, Any]
+        Metadata extracted from XML file
 
-    Returns:
+    Returns
+    -------
+    Device
         Device object for microscope
     """
     # Use metadata from XML or defaults from paper
@@ -413,9 +602,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         if verbose:
             print(f"    Container name: {container_info['container_name']}")
 
-        # Get all TIFF files in the folder
-        tiff_files = sorted([f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"])
-        assert len(tiff_files) > 0, f"No TIFF files found in {subfolder.name}"
+        # Get all TIFF files in the folder, excluding projection images
+        all_tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
+        # Filter out projection images (_xy.tif, _xz.tif, _zy.tif) and keep only Z-stack images
+        tiff_files = sorted([f for f in all_tiff_files if not f.name.startswith("_")])
+        assert len(tiff_files) > 0, f"No Z-stack TIFF files found in {subfolder.name}"
 
         if verbose:
             print(f"    Found {len(tiff_files)} TIFF files in {subfolder.name}")
@@ -428,7 +619,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         if verbose:
             print(f"    Found XML metadata file: {xml_file.name}")
 
-        xml_metadata = parse_xml_metadata(xml_file)
+        xml_metadata = parse_xml_metadata(xml_file, verbose=verbose)
         if not xml_metadata:
             raise ValueError(f"Failed to parse XML metadata from {xml_file.name}")
 
@@ -445,31 +636,37 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             if verbose:
                 print(f"    Created microscope device: {microscope_device.name}")
 
-        interface = ImageInterface(file_paths=tiff_files)
-
-        # Create comprehensive description with all acquisition parameters
-        detailed_description = (
-            f"{container_info['description']} "
-            f"Acquisition parameters: pixel_size_x={xml_metadata.get('pixel_size_x', 0.15):.6f} μm, "
-            f"pixel_size_y={xml_metadata.get('pixel_size_y', 0.15):.6f} μm, "
-            f"pixel_size_z=0.3 μm, "
-            f"dwell_time={xml_metadata.get('dwell_time', 10.0)} μs, "
-            f"optical_zoom={xml_metadata.get('optical_zoom', 5.2)}, "
-            f"scan_mode={xml_metadata.get('scan_mode', 'Galvo')}, "
-            f"bit_depth={xml_metadata.get('bit_depth', 12)}, "
-            f"objective_lens='{xml_metadata.get('objective_lens', 'Olympus 60X')}', "
-            f"numerical_aperture={xml_metadata.get('numerical_aperture', 1.0)}, "
-            f"magnification={xml_metadata.get('magnification', 60)}x, "
-            f"system_version={xml_metadata.get('system_version', 'PVScan')}."
+        # Create ImageInterface with sorted TIFF files
+        interface = ImageInterface(
+            file_paths=tiff_files, images_container_metadata_key=container_info["container_name"]
         )
 
+        # Get base metadata from interface
         metadata = interface.get_metadata()
-        metadata["Images"]["description"] = detailed_description
+
+        # Create custom metadata for individual images
+        images_metadata = create_image_metadata(
+            tiff_files=tiff_files, container_info=container_info, xml_metadata=xml_metadata, verbose=verbose
+        )
+
+        # Update the metadata with custom image information
+        metadata["Images"][container_info["container_name"]].update(images_metadata)
 
         if verbose:
-            print(f"    Adding interface to NWB file with container: {container_info['container_name']}")
+            print(f"    Adding interface to NWB file with {len(tiff_files)} individual images")
+            # Debug: Print first few image metadata entries
+            first_file = str(tiff_files[0])
+            if first_file in metadata["Images"][container_info["container_name"]]["images"]:
+                first_image_meta = metadata["Images"][container_info["container_name"]]["images"][first_file]
+                print(f"    Debug - First image metadata: {first_image_meta}")
+            else:
+                print(f"    Debug - First file path not found in metadata: {first_file}")
+                print(
+                    f"    Debug - Available keys: {list(metadata['Images'][container_info['container_name']]['images'].keys())[:2]}"
+                )
 
-        interface.add_to_nwbfile(nwbfile=nwbfile, metadata=metadata, container_name=container_info["container_name"])
+        # Add to NWB file using the interface
+        interface.add_to_nwbfile(nwbfile=nwbfile, metadata=metadata)
 
         if verbose:
             print(f"    Successfully added image stack: {container_info['container_name']}")
@@ -486,7 +683,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Control verbose output
-    verbose = False  # Set to True for detailed output
+    verbose = True  # Set to True for detailed output
 
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
@@ -498,7 +695,7 @@ if __name__ == "__main__":
     nwb_files_dir = root_dir / "nwb_files" / "figure_2_spine_density"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    conditions = ["PD dSPN", "LID off-state dSPN", "control dSPN", "LID on-state dSPN"]
+    conditions = ["PD dSPN"]  # Test with just one condition first
     for condition in conditions:
         condition_path = base_path / condition
         assert condition_path.exists(), f"Base path does not exist: {base_path}"
@@ -508,10 +705,12 @@ if __name__ == "__main__":
         # Get all session folders
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
+        # Test with just the first session
+        session_folders = session_folders[:1]
 
         print(f"Found {len(session_folders)} session folders")
 
-        # Use tqdm for progress bar when verbose is disabled
+        # Use tqdm for progress bar  when verbose is disabled
         session_iterator = (
             tqdm(session_folders, desc=f"Processing {condition}", disable=verbose) if not verbose else session_folders
         )
