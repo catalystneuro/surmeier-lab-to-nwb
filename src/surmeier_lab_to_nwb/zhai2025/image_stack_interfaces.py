@@ -55,12 +55,27 @@ class NikonImageStackInterface(BaseDataInterface):
 
         metadata = super().get_metadata()
 
-        session_start_time = self._get_session_start_time()
+        session_start_time = self.get_session_start_time()
         metadata["NWBFile"]["session_start_time"] = session_start_time
 
         return metadata
 
     def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None):
+        from pynwb.device import Device
+
+        # Create confocal microscope device if not already present
+        device_name = "NikonAXRConfocal"
+        if device_name not in nwbfile.devices:
+            device_description = (
+                "Nikon AXR confocal laser scanning microscope with 60x oil immersion objective "
+                "(NA=1.49, magnification=60x). Used for high-resolution spine density imaging "
+                "with 0.09 μm pixels and 0.125 μm z-steps. Images acquired with Nikon NIS-Elements "
+                "AR 5.41.02 software, de-noised and deconvolved, then analyzed with Imaris 10.0.0 "
+                "using supervised learning algorithms for automated spine detection and manual validation."
+            )
+
+            confocal_device = Device(name=device_name, description=device_description, manufacturer="Nikon")
+            nwbfile.add_device(confocal_device)
 
         image_array = self.file_handle.asarray()
 
@@ -68,23 +83,38 @@ class NikonImageStackInterface(BaseDataInterface):
         assert depth_axis == 0
         number_of_images = image_array.shape[0]
 
-        # Create Images container
-        container_name = "ZStackImagesContainer"
-        description = (
-            "High-resolution confocal images are captured from fixed brain sections "
-            "using a 60× oil immersion objective (NA = 1.49), with z-steps of 0.125 μm "
-            "and a pixel size of 0.09 μm."
-        )
+        # Use metadata to get custom container name and description if provided
+        if metadata and "Images" in metadata:
+            # Find the first Images container in metadata (should be only one)
+            images_metadata = next(iter(metadata["Images"].values()))
+            container_name = images_metadata.get("name", "ZStackImagesContainer")
+            description = images_metadata.get(
+                "description",
+                "High-resolution confocal images are captured from fixed brain sections "
+                "using a 60× oil immersion objective (NA = 1.49), with z-steps of 0.125 μm "
+                "and a pixel size of 0.09 μm.",
+            )
+        else:
+            # Default container name and description
+            container_name = "ZStackImagesContainer"
+            description = (
+                "High-resolution confocal images are captured from fixed brain sections "
+                "using a 60× oil immersion objective (NA = 1.49), with z-steps of 0.125 μm "
+                "and a pixel size of 0.09 μm."
+            )
+
         images_container = Images(
             name=container_name,
             description=description,
         )
+
         for image_frame_index in range(number_of_images):
             image_data = image_array[image_frame_index, ...]
 
             nwb_image = GrayscaleImage(
-                name=f"ZStackImage{image_frame_index}",
+                name=f"ZStackImage{image_frame_index:03d}",
                 data=image_data,
+                description=f"Z-slice {image_frame_index} at {image_frame_index * 0.125:.3f} μm depth",
             )
             images_container.add_image(nwb_image)
 
