@@ -27,6 +27,7 @@ dependencies = [
   "ndx-optogenetics",
   "pandas>=2.2.3",
   "openpyxl>=3.1.5",
+  "opencv-python-headless>=4.12.0.88",
 ]
 # Astropy I use for the date
 
