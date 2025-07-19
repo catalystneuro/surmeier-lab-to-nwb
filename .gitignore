@@ -167,6 +167,12 @@ src/surmeier_lab_to_nwb/zhai2025/assets/aim_data_tidy.csv
 src/surmeier_lab_to_nwb/zhai2025/aim_data_wide_corrected.csv
 src/surmeier_lab_to_nwb/zhai2025/assets/figure_7_aim_processed_data.csv
 
+# Processed AIM behavioral data folder
+src/surmeier_lab_to_nwb/zhai2025/assets/processed_aim_behavioral_data/
+
 # Analysis outputs from notebooks
 analysis_outputs/
 notebooks/analysis_outputs/
+
+# Claude context file
+CLAUDE.md
