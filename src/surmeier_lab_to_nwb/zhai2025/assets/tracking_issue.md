@@ -15,15 +15,15 @@ These are the points that we wrote in the scope of work
 - [x] Convert ABF format: this data is not available and it will not be converted
 - [x] Convert Bruker optical sensor recordings with appropriate metadata:
     - [x] Line Scans [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
-    - [x] Fluorescence traces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12) [fix Bruker roiextractors](https://github.com/catalystneuro/roiextractors/pull/438) [fix Bruker neuroconv](https://github.com/catalystneuro/neuroconv/pull/1375)
+    - [x] Fluorescence traces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12) | [fix Bruker roiextractors](https://github.com/catalystneuro/roiextractors/pull/438) | [fix Bruker neuroconv](https://github.com/catalystneuro/neuroconv/pull/1375)
     - [x] Prairie View Optogenetical Stimuli [PrairieViewOptogeneticsInterface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Convert electrophysiological data acquired with the Bruker system [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
 - [x] Build an interface for manual segmentation data in Surmeier lab format
-    - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface Improvement 1](https://github.com/catalystneuro/neuroconv/pull/1365) [Neuroconv Interface Improvement 2](https://github.com/catalystneuro/neuroconv/pull/1439) [Neuroconv Interface Improvement 3](https://github.com/catalystneuro/neuroconv/pull/1441)
+    - [x] Two-photon laser scanning microscopy image stacks for spine density [Neuroconv Interface Improvement 1](https://github.com/catalystneuro/neuroconv/pull/1365) | [Neuroconv Interface Improvement 2](https://github.com/catalystneuro/neuroconv/pull/1439) | [Neuroconv Interface Improvement 3](https://github.com/catalystneuro/neuroconv/pull/1441)
     - [x] Confocal microscopy image stacks for spine density Nikon  [Figure 4](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [x] Integrate behavioral annotations from Surmeier lab custom format [Behavioral AIM Scoring Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
-- [x] Include behavioral video recordings [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
-- [ ] Include electrical stimulation signals and metadata
+- [x] Include behavioral video recordings [Convrsion Scripts for Video](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
+- [x] Include electrical stimulation signals and metadata [All the Prairie View Interfaces Extract Stimulation Metadata]
 
 # Conversion of figures data
 
@@ -41,7 +41,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [ ] Upload data
 
 ### Dendritic Excitability
-- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/19)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/20)
@@ -59,7 +59,7 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 - [ ] Upload data
 
 ### Voltage clamp with optogenetic stimulation
-- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [PrairieViewOptogeneticsInterface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [PrairieViewOptogeneticsInterface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/14)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
@@ -98,7 +98,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [ ] Upload data
 
 ### Spine Density
-- [x] Build needed interfaces
+- [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/36)
 - [ ] Inspector
 - [ ] Upload data
@@ -124,7 +124,7 @@ Intracellular electrophysiology (VoltageClamp), two-photon laser stacks for spin
 Structure: Three experiment types (Dendritic excitability, Somatic excitability, Spine density), each with control and M1R antagonist conditions.
 
 ### Dendritic Excitability
-- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script (handle both control and M1R antagonist conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
@@ -157,7 +157,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [ ] Upload data
 
 ### Dendritic Excitability (CDGI KO on vs off)
-- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script (handle CDGI KO off-state and on-state conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
@@ -165,7 +165,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [ ] Upload data
 
 ### Dendritic Excitability (oxoM response - CDGI KO vs WT)
-- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
+- [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
 - [x] Conversion script (handle paired before/after oxoM protocol for both KO and WT) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
@@ -203,7 +203,7 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 - [ ] Upload data
 
 ### Spine Density (M1R CRISPR vs control - off-state)
-- [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
+- [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle M1R CRISPR and control conditions)
 - [ ] Inspector
 - [ ] Upload data
