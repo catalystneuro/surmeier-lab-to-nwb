@@ -1474,9 +1474,9 @@ def test_aim_data_accuracy_figure8(wide_df: pd.DataFrame, verbose: bool = False)
             "session_date": "2023-09-27",
             "score_type": "axial",
             "20min": 4.0,
-            "40min": 2.5,
-            "60min": 2.0,
-            "80min": 2.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 4.0,
             "100min": 1.0,
         },
         {
@@ -1485,7 +1485,7 @@ def test_aim_data_accuracy_figure8(wide_df: pd.DataFrame, verbose: bool = False)
             "score_type": "limb",
             "20min": 2.5,
             "40min": 2.5,
-            "60min": 2.0,
+            "60min": 2.5,
             "80min": 2.0,
             "100min": 1.0,
         },
@@ -1504,9 +1504,9 @@ def test_aim_data_accuracy_figure8(wide_df: pd.DataFrame, verbose: bool = False)
             "session_date": "2023-09-27",
             "score_type": "axial",
             "20min": 4.0,
-            "40min": 2.5,
-            "60min": 2.0,
-            "80min": 2.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 3.0,
             "100min": 1.0,
         },
         {
@@ -1525,20 +1525,20 @@ def test_aim_data_accuracy_figure8(wide_df: pd.DataFrame, verbose: bool = False)
             "session_date": "2023-09-29",
             "score_type": "axial",
             "20min": 4.0,
-            "40min": 3.0,
-            "60min": 2.5,
-            "80min": 2.0,
-            "100min": 1.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 4.0,
+            "100min": 3.0,
         },
         {
             "animal_id": 5846,
             "session_date": "2023-09-29",
             "score_type": "axial",
             "20min": 3.0,
-            "40min": 2.0,
-            "60min": 2.0,
-            "80min": 1.0,
-            "100min": 1.0,
+            "40min": 4.0,
+            "60min": 4.0,
+            "80min": 3.5,
+            "100min": 2.0,
         },
     ]
 
@@ -1695,12 +1695,12 @@ def parse_aim_excel_to_wide_format_figure8(excel_path: Path) -> pd.DataFrame:
                         current_genotype = "M1R CRISPR"
                     else:
                         current_genotype = "Unknown"
-            continue
+            # Don't continue - check if this row also has score data
 
         # Extract weight (like "    g" in next row)
         if pd.notna(row.iloc[0]) and "g" in str(row.iloc[0]) and current_animal_id:
             current_weight = str(row.iloc[0]).strip()
-            continue
+            # Don't continue - this row might also have score data
 
         # Extract score data
         if (
