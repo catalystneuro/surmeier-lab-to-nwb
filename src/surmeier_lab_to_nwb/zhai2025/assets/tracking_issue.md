@@ -22,7 +22,7 @@ These are the points that we wrote in the scope of work
     - [x] Two-photon laser scanning microscopy image stacks for spine density [Figure 2](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)   [Neuroconv Interface Improvement 1](https://github.com/catalystneuro/neuroconv/pull/1365) [Neuroconv Interface Improvement 2](https://github.com/catalystneuro/neuroconv/pull/1439) [Neuroconv Interface Improvement 3](https://github.com/catalystneuro/neuroconv/pull/1441)
     - [x] Confocal microscopy image stacks for spine density Nikon  [Figure 4](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [x] Integrate behavioral annotations from Surmeier lab custom format [Behavioral AIM Scoring Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
-- [ ] Include behavioral video recordings
+- [x] Include behavioral video recordings [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
 - [ ] Include electrical stimulation signals and metadata
 
 # Conversion of figures data
