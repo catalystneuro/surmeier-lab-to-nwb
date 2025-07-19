@@ -37,7 +37,6 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/1)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -46,7 +45,6 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/3)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/19)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/20)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -57,7 +55,6 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 ### Spine density image stacks
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -67,7 +64,6 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
 - [x] Use ndx-optogenetics extension [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/29)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -79,7 +75,6 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/15)
 - [x] Time alignment of the data [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -88,7 +83,6 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/16)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/17)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/18)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -100,14 +94,12 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
 - [x] Use ndx-optogenetics extension [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Spine Density
 - [x] Build needed interfaces
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/36)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -115,7 +107,6 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/37)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -125,7 +116,6 @@ Fluorescence imaging data from two-photon laser scanning microscopy.
 - [ ] Conversion script
 - [ ] Time alignment
 - [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -138,7 +128,6 @@ Structure: Three experiment types (Dendritic excitability, Somatic excitability,
 - [x] Conversion script (handle both control and M1R antagonist conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -147,14 +136,12 @@ Structure: Three experiment types (Dendritic excitability, Somatic excitability,
 - [x] Conversion script (handle both control and M1R antagonist conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Spine Density
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle both control and M1R antagonist conditions)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -166,7 +153,6 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Conversion script (handle CDGI KO off-state and on-state conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -175,7 +161,6 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Conversion script (handle CDGI KO off-state and on-state conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -184,28 +169,24 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Conversion script (handle paired before/after oxoM protocol for both KO and WT) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Spine Density (CDGI KO on vs off)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle CDGI KO off-state and on-state conditions)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Behavioral Assessment (AIM scoring and contralateral rotations)
 - [x] Build needed interfaces (behavioral scoring interface needed) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
 - [x] Conversion script (AIM scores and rotation videos) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Behavioral Videos (Contralateral rotation documentation)
 - [x] Build video interfaces (ExternalVideoInterface)
 - [x] Conversion script for Figure 7 behavioral videos [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 **Data**: 434 video files documenting contralateral rotation behavior in CDGI KO vs WT mice across multiple experimental sessions (2017-2020). Videos recorded at 20-120 min intervals post L-DOPA injection to assess therapeutic benefit and dyskinesia severity.
@@ -218,21 +199,18 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 - [x] Conversion script (handle M1R CRISPR and interleaved control conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Spine Density (M1R CRISPR vs control - off-state)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle M1R CRISPR and control conditions)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Behavioral Assessment (AIM scoring)
 - [x] Build needed interfaces [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
 - [x] Conversion script (AIM scores for M1R CRISPR mice) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/33)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
@@ -242,7 +220,6 @@ M1R CRISPR behavioral video documentation showing dyskinesia assessment in gene-
 ### Behavioral Videos (M1R CRISPR dyskinesia assessment)
 - [x] Build video interfaces (ExternalVideoInterface)
 - [x] Conversion script for Supplementary Figure 3 behavioral videos [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
-- [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 **Data**: 464 video files documenting dyskinetic behavior in M1R CRISPR vs Control mice across multiple experimental sessions (2023-2024). Videos recorded at 20-120 min intervals post L-DOPA injection to assess effects of M1R gene editing on dyskinesia severity.
