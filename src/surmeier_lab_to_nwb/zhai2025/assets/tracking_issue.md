@@ -114,7 +114,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 ### Confocal Spine Density
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
-- [ ] Conversion script
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/37)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
