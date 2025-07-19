@@ -219,15 +219,13 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 ### Spine Density (M1R CRISPR vs control - off-state)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [ ] Conversion script (handle M1R CRISPR and control conditions)
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
 
 ### Behavioral Assessment (AIM scoring)
 - [x] Build needed interfaces [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
-- [ ] Conversion script (AIM scores for M1R CRISPR mice)
+- [x] Conversion script (AIM scores for M1R CRISPR mice) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/33)
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
