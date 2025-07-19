@@ -644,9 +644,9 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         # Get base metadata from interface
         metadata = interface.get_metadata()
 
-        # Create custom metadata for individual images
+        # Create custom metadata for individual images using interface's resolved file paths
         images_metadata = create_image_metadata(
-            tiff_files=tiff_files, container_info=container_info, xml_metadata=xml_metadata, verbose=verbose
+            tiff_files=interface.file_paths, container_info=container_info, xml_metadata=xml_metadata, verbose=verbose
         )
 
         # Update the metadata with custom image information
@@ -654,16 +654,6 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
         if verbose:
             print(f"    Adding interface to NWB file with {len(tiff_files)} individual images")
-            # Debug: Print first few image metadata entries
-            first_file = str(tiff_files[0])
-            if first_file in metadata["Images"][container_info["container_name"]]["images"]:
-                first_image_meta = metadata["Images"][container_info["container_name"]]["images"][first_file]
-                print(f"    Debug - First image metadata: {first_image_meta}")
-            else:
-                print(f"    Debug - First file path not found in metadata: {first_file}")
-                print(
-                    f"    Debug - Available keys: {list(metadata['Images'][container_info['container_name']]['images'].keys())[:2]}"
-                )
 
         # Add to NWB file using the interface
         interface.add_to_nwbfile(nwbfile=nwbfile, metadata=metadata)
@@ -683,7 +673,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Control verbose output
-    verbose = True  # Set to True for detailed output
+    verbose = False  # Set to True for detailed output
 
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
@@ -695,7 +685,7 @@ if __name__ == "__main__":
     nwb_files_dir = root_dir / "nwb_files" / "figure_2_spine_density"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    conditions = ["PD dSPN"]  # Test with just one condition first
+    conditions = ["PD dSPN", "LID off-state dSPN", "control dSPN", "LID on-state dSPN"]
     for condition in conditions:
         condition_path = base_path / condition
         assert condition_path.exists(), f"Base path does not exist: {base_path}"
@@ -705,8 +695,6 @@ if __name__ == "__main__":
         # Get all session folders
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
-        # Test with just the first session
-        session_folders = session_folders[:1]
 
         print(f"Found {len(session_folders)} session folders")
 
