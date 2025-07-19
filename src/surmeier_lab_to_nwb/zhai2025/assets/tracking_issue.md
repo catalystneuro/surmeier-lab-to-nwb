@@ -204,6 +204,16 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [ ] Inspector
 - [ ] Upload data
 
+### Behavioral Videos (Contralateral rotation documentation)
+- [x] Build video interfaces (ExternalVideoInterface)
+- [x] Conversion script for Figure 7 behavioral videos [NEW]
+- [x] Video metadata extraction and organization by animal/session [NEW]
+- [x] Temporal alignment with behavioral epochs [NEW]
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+**Data**: 434 video files documenting contralateral rotation behavior in CDGI KO vs WT mice across multiple experimental sessions (2017-2020). Videos recorded at 20-120 min intervals post L-DOPA injection to assess therapeutic benefit and dyskinesia severity.
+
 ## Figure 8:
 M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using targeted gene editing. Includes somatic excitability, spine density, and behavioral assessment comparing M1R CRISPR vs control mice.
 
@@ -229,6 +239,19 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 - [ ] Double check metadata
 - [ ] Inspector
 - [ ] Upload data
+
+## Supplementary Figure 3:
+M1R CRISPR behavioral video documentation showing dyskinesia assessment in gene-edited mice.
+
+### Behavioral Videos (M1R CRISPR dyskinesia assessment)
+- [x] Build video interfaces (ExternalVideoInterface)
+- [x] Conversion script for Supplementary Figure 3 behavioral videos [NEW]
+- [x] Video metadata extraction and organization by animal/session [NEW]
+- [x] Temporal alignment with behavioral epochs [NEW]
+- [ ] Double check metadata
+- [ ] Inspector
+- [ ] Upload data
+**Data**: 464 video files documenting dyskinetic behavior in M1R CRISPR vs Control mice across multiple experimental sessions (2023-2024). Videos recorded at 20-120 min intervals post L-DOPA injection to assess effects of M1R gene editing on dyskinesia severity.
 
 ## Nice to have
 

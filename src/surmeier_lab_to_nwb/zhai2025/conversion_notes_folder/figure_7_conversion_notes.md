@@ -311,6 +311,38 @@ Session Date    | Animals Tested | Genotypes
 - **Genotype comparison**: CDGI KO vs WT behavioral phenotypes
 - **Time course analysis**: Behavioral changes tracked across L-DOPA response curve
 
+## Behavioral Video Data - Detailed Documentation
+
+### Video Collection Methodology (from Paper Methods)
+Based on the published methodology in Zhai et al. 2025, the behavioral video collection followed this rigorous protocol:
+
+**Experimental Setup**:
+- Mice transferred to behavioral testing room and placed in clean cage bottoms without bedding
+- Administered intraperitoneal injections of L-DOPA at 6 mg/kg (first two sessions) and 12 mg/kg (later sessions)
+- Benserazide co-administered at 12 mg/kg to inhibit peripheral conversion of levodopa to dopamine
+- Behavioral testing performed every other day for a total of five test sessions
+
+**Video Recording Protocol**:
+- **Recording timing**: Videos captured at 20, 40, 60, 80, 100, and 120 minutes post L-DOPA injection
+- **Observation periods**: 30-second recording windows during each time point
+- **Peak assessment**: Contralateral rotations specifically counted 40 minutes after levodopa administration during peak-dose dyskinesia
+- **Quantification**: Full 360° rotations away from the lesioned side counted per 30-second period
+
+### Video Dataset Summary
+- **Total videos**: 434 video files across all experimental sessions
+- **Experimental dates**: 7 separate experimental dates spanning 2017-2020
+- **Animals**: Multiple CDGI KO and WT animals per session
+- **File formats**: Primarily .mov and .MP4 video files
+- **File size**: Substantial dataset representing comprehensive behavioral documentation
+
+### Clinical and Research Significance
+**Therapeutic Assessment**: These videos provide direct visual evidence that genetic targeting of the CalDAG-GEFI pathway:
+1. **Enhances therapeutic benefit**: CDGI KO mice show increased contralateral rotations (better L-DOPA response)
+2. **Reduces dyskinesia**: Same mice show reduced AIM scores across all movement categories
+3. **Preserves motor function**: Beneficial effects maintained while reducing side effects
+
+**Research Impact**: The video data supports the key finding that disrupting CDGI specifically in iSPNs represents a viable therapeutic strategy for improving Parkinson's disease treatment by enhancing L-DOPA efficacy while reducing dyskinesia severity.
+
 ## Key Findings
 
 ### CDGI Role Across Multiple Domains
