@@ -18,6 +18,7 @@ Output:
     - analysis_outputs/figure_1e/figure_1e_rheobase_comparison.png
 """
 
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -26,6 +27,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pynwb import NWBHDF5IO
+
+# Suppress expected warnings when calculating statistics on groups with no spikes
+warnings.filterwarnings("ignore", message="Mean of empty slice")
+warnings.filterwarnings("ignore", message="invalid value encountered in scalar divide")
+
 
 # Set up plotting style to match paper
 plt.style.use("default")
@@ -372,9 +378,22 @@ def create_fi_curves(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
 
         condition_data = df[df["condition"] == condition]
 
-        # Calculate mean and SEM for each current step
-        summary = condition_data.groupby("current_pA").agg({"spike_count": ["mean", "sem"]}).reset_index()
-        summary.columns = ["current_pA", "mean_spikes", "sem_spikes"]
+        # Calculate mean and SEM for each current step with proper handling of edge cases
+        def safe_mean_sem(group):
+            """Calculate mean and SEM safely, handling edge cases."""
+            values = group.values
+            if len(values) == 0:
+                return pd.Series({"mean_spikes": np.nan, "sem_spikes": 0})
+            elif len(values) == 1:
+                return pd.Series({"mean_spikes": values[0], "sem_spikes": 0})
+            else:
+                mean_val = np.mean(values)
+                sem_val = np.std(values, ddof=1) / np.sqrt(len(values))  # Standard SEM formula
+                return pd.Series({"mean_spikes": mean_val, "sem_spikes": sem_val})
+
+        summary = condition_data.groupby("current_pA")["spike_count"].apply(safe_mean_sem).reset_index()
+        summary = summary.pivot(index="current_pA", columns="level_1", values="spike_count").reset_index()
+        summary.columns.name = None  # Remove the columns name
 
         # Only plot positive currents (depolarizing) up to 300 pA
         summary = summary[(summary["current_pA"] >= 0) & (summary["current_pA"] <= 300)]
@@ -458,7 +477,7 @@ def create_rheobase_comparison(cell_stats: pd.DataFrame) -> Tuple[plt.Figure, pl
     # Create box plot matching paper style
     ax.boxplot(
         plot_data,
-        labels=labels,
+        tick_labels=labels,
         patch_artist=True,
         boxprops=dict(facecolor="white", color="black", linewidth=1),
         whiskerprops=dict(color="black", linewidth=1),
