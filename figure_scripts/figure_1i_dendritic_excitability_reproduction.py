@@ -345,8 +345,8 @@ def create_dendritic_excitability_plot(df: pd.DataFrame) -> Tuple[plt.Figure, pl
 
     # Style to match paper
     ax.set_ylabel("dendritic excitability index", fontsize=12)
-    ax.set_ylim(0, 3)  # Typical range for dendritic excitability index
-    ax.set_yticks([0, 1, 2, 3])
+    ax.set_ylim(0, 0.81)  # Typical range for dendritic excitability index
+    ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8])
 
     # Add descriptive title
     ax.set_title("Figure 1I: dSPN Dendritic Excitability Index", fontsize=14, pad=20)
@@ -358,7 +358,7 @@ def create_dendritic_excitability_plot(df: pd.DataFrame) -> Tuple[plt.Figure, pl
     # Add significance annotation if needed (matching paper style)
     # Note: This would need statistical testing to be accurate
     if len(plot_data) >= 2:
-        ax.text(1.5, 2.8, "*", ha="center", va="bottom", fontsize=12, fontweight="bold")
+        ax.text(1.5, 0.75, "*", ha="center", va="bottom", fontsize=12, fontweight="bold")
 
     plt.tight_layout()
     return fig, ax
