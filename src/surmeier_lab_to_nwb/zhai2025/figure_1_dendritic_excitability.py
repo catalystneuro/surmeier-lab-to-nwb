@@ -675,10 +675,13 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
 
     # Set the base path to your data
-    base_path = Path("./link_to_raw_data/Figure 1/Dendritic excitability")
+    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
+
+    base_path = Path(
+        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 1/Dendritic excitability"
+    )
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "figure_1_dendritic_excitability"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
