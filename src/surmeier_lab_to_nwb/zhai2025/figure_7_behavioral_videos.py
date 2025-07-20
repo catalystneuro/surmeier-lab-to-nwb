@@ -376,7 +376,7 @@ if __name__ == "__main__":
         print(f"Found {len(sessions)} Figure 7 video sessions")
 
     # Process each session
-    for session_date, session_path in tqdm(sessions.items(), desc="Converting sessions"):
+    for session_date, session_path in tqdm(sessions.items(), desc="Converting sessions", disable=not args.verbose):
         if args.verbose:
             print(f"\nProcessing Figure 7 session: {session_date}")
 
@@ -404,6 +404,8 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path)
             if args.verbose:
                 print(f"    Saved: {output_path}")
+            else:
+                tqdm.write(f"    Saved: {output_path.name}")
 
     if args.verbose:
         print(f"\nFigure 7 video conversion complete. Files saved to: {output_base_path}")

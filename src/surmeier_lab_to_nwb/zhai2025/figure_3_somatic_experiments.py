@@ -129,8 +129,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "cell_number": first_recording_info["cell_number"],
     }
 
-    print(f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']})")
-    print(f"  Found {len(recording_folders)} current step recordings")
+    if verbose:
+        print(f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']})")
+        print(f"  Found {len(recording_folders)} current step recordings")
 
     # Calculate recording IDs, session start times, and create interface mappings
     session_start_times = []  # (timestamp, recording_folder, recording_id)
@@ -173,8 +174,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     earliest_time = min(session_start_times, key=lambda x: x[0])[0]
     earliest_folder = next(folder for start_time, folder, _ in session_start_times if start_time == earliest_time)
 
-    print(f"  Overall session start time: {earliest_time}")
-    print(f"    Earliest time source: recording {earliest_folder.name}")
+    if verbose:
+        print(f"  Overall session start time: {earliest_time}")
+        print(f"    Earliest time source: recording {earliest_folder.name}")
 
     # Calculate t_start offsets for temporal alignment
     for start_time, folder, recording_id in session_start_times:
@@ -199,7 +201,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         }
     )
 
-    print(f"Session date: {session_info['date_str']}")
+    if verbose:
+        print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
@@ -355,7 +358,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         if verbose:
             print(f"    Successfully processed recording: {recording_folder.name}")
 
-    print(f"Successfully processed all recordings from session: {session_folder_path.name}")
+    if verbose:
+        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
 
     # Build icephys table hierarchical structure following PyNWB best practices
     if verbose:
@@ -440,13 +444,15 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
-        print(f"Processing somatic excitability data for: {condition}")
+        if verbose:
+            print(f"Processing somatic excitability data for: {condition}")
 
         # Get all session folders (each session = one cell)
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        print(f"Found {len(session_folders)} session folders")
+        if verbose:
+            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = (
@@ -456,6 +462,8 @@ if __name__ == "__main__":
         for session_folder in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder.name}")
+            elif not verbose:
+                session_iterator.set_description(f"Processing {session_folder.name}")
 
             # Convert session data to NWB format with time alignment
             nwbfile = convert_session_to_nwbfile(
@@ -470,4 +478,11 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            print(f"Successfully saved: {nwbfile_path.name}")
+            if verbose:
+                print(f"Successfully saved: {nwbfile_path.name}")
+            elif not verbose:
+                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+
+        # Always show completion for this condition
+        if not verbose:
+            print(f"Completed {condition}: {len(session_folders)} sessions processed")

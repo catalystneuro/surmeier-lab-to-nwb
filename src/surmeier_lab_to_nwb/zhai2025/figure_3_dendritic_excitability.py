@@ -166,8 +166,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if not recording_folders:
         raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
 
-    print(f"Processing session folder: {session_folder_path.name} (corresponds to one subject)")
-    print(f"  Found {len(recording_folders)} recordings")
+    if verbose:
+        print(f"Processing session folder: {session_folder_path.name} (corresponds to one subject)")
+        print(f"  Found {len(recording_folders)} recordings")
 
     # Calculate recording IDs, session start times, and create interface mappings
     ophys_session_start_times = []  # (ophys_time, recording_folder, recording_id)
@@ -203,7 +204,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
         # Compare session start times
         time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-        if time_diff > 0.1:  # More than 0.1 seconds difference
+        if time_diff > 0.1 and verbose:  # More than 0.1 seconds difference
             print(f"    Times for {recording_folder.name}:")
             print(f"      Ophys time: {ophys_session_start_time}")
             print(f"      Intracellular time: {intracellular_session_start_time}")
@@ -245,10 +246,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
         earliest_interface = "intracellular_electrophysiology"
 
-    print(f"  Overall session start time: {session_start_time}")
-    print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
-    print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
-    print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
+    if verbose:
+        print(f"  Overall session start time: {session_start_time}")
+        print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
+        print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
+        print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
 
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
@@ -673,14 +675,16 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
-        print(f"Processing dendritic excitability data for: {condition}")
+        if verbose:
+            print(f"Processing dendritic excitability data for: {condition}")
 
         # Get all session folders (e.g., 0523a, 0523b, etc.)
         # Note: Each session folder corresponds to a single subject
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        print(f"Found {len(session_folders)} session folders")
+        if verbose:
+            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = (
@@ -690,6 +694,8 @@ if __name__ == "__main__":
         for session_folder in session_iterator:
             if verbose:
                 print(f"\nProcessing session folder: {session_folder.name}")
+            elif not verbose:
+                session_iterator.set_description(f"Processing {session_folder.name}")
 
             # Convert all recordings from this session to NWB format
             # All recordings from the session are combined into a single NWBFile
@@ -705,4 +711,10 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            print(f"Successfully saved: {nwbfile_path.name}")
+            if verbose:
+                print(f"Successfully saved: {nwbfile_path.name}")
+            elif not verbose:
+                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+
+        if not verbose:
+            print(f"Completed {condition}: {len(session_folders)} sessions processed")

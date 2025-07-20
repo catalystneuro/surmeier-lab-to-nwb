@@ -205,7 +205,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     where recording_folder represents different recordings from the same animal.
     """
 
-    print(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
+    if verbose:
+        print(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
 
     # Get all recording folders within the session folder
     all_recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
@@ -214,7 +215,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if not all_recording_folders:
         raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
 
-    print(f"  Total recordings found: {len(all_recording_folders)}")
+    if verbose:
+        print(f"  Total recordings found: {len(all_recording_folders)}")
 
     # Calculate recording IDs, session start times, and create interface mappings
     ophys_session_start_times = []  # (ophys_time, recording_folder, recording_id)
@@ -250,10 +252,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
         # Compare session start times
         time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-        print(f"    Times for {recording_folder.name}:")
-        print(f"      Ophys time: {ophys_session_start_time}")
-        print(f"      Intracellular time: {intracellular_session_start_time}")
-        print(f"      Difference: {time_diff:.1f} seconds")
+        if verbose:
+            print(f"    Times for {recording_folder.name}:")
+            print(f"      Ophys time: {ophys_session_start_time}")
+            print(f"      Intracellular time: {intracellular_session_start_time}")
+            print(f"      Difference: {time_diff:.1f} seconds")
 
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
@@ -291,10 +294,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
         earliest_interface = "intracellular_electrophysiology"
 
-    print(f"  Overall session start time: {session_start_time}")
-    print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
-    print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
-    print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
+    if verbose:
+        print(f"  Overall session start time: {session_start_time}")
+        print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
+        print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
+        print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
 
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:

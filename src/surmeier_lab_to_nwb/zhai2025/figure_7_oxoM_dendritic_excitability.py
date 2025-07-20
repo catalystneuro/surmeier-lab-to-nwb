@@ -163,10 +163,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         "animal_id": first_recording_info["animal_id"],
     }
 
-    print(
-        f"Processing session folder: {session_folder_path.name} (Animal {session_info['animal_id']}, Cell {session_info['cell_number']})"
-    )
-    print(f"  Found {len(recording_folders)} dendritic recording locations/trials")
+    if verbose:
+        print(
+            f"Processing session folder: {session_folder_path.name} (Animal {session_info['animal_id']}, Cell {session_info['cell_number']})"
+        )
+        print(f"  Found {len(recording_folders)} dendritic recording locations/trials")
 
     # Group recordings by location and phase for analysis
     recordings_by_location = {}
@@ -265,12 +266,13 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         )
         earliest_interface = "intracellular_electrophysiology"
 
-    print(f"  Overall session start time: {session_start_time}")
-    print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
-    print(f"  Recording organization:")
-    print(f"    Baseline recordings: {len(baseline_recordings)}")
-    print(f"    Post-oxoM recordings: {len(post_oxoM_recordings)}")
-    print(f"    Locations tested: {list(recordings_by_location.keys())}")
+    if verbose:
+        print(f"  Overall session start time: {session_start_time}")
+        print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
+        print(f"  Recording organization:")
+        print(f"    Baseline recordings: {len(baseline_recordings)}")
+        print(f"    Post-oxoM recordings: {len(post_oxoM_recordings)}")
+        print(f"    Locations tested: {list(recordings_by_location.keys())}")
 
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
@@ -304,7 +306,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         }
     )
 
-    print(f"Session date: {session_info['date_str']}")
+    if VERBOSE:
+        print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
@@ -682,43 +685,68 @@ if __name__ == "__main__":
         genotype_path = base_path / genotype
 
         if not genotype_path.exists():
-            print(f"Skipping genotype '{genotype}' - path does not exist: {genotype_path}")
+            if VERBOSE:
+                print(f"Skipping genotype '{genotype}' - path does not exist: {genotype_path}")
             continue
 
-        print(f"Processing oxotremorine-M dendritic excitability data for: {genotype}")
+        if VERBOSE:
+            print(f"Processing oxotremorine-M dendritic excitability data for: {genotype}")
 
         # Get all session folders (each session = one animal/cell)
         session_folders = [f for f in genotype_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        print(f"Found {len(session_folders)} session folders")
+        if VERBOSE:
+            print(f"Found {len(session_folders)} session folders")
 
         if not session_folders:
-            print(f"No session folders found in {genotype_path}")
+            if VERBOSE:
+                print(f"No session folders found in {genotype_path}")
             continue
 
         # Process each session folder with progress bar
-        with tqdm(session_folders, desc=f"Processing {genotype}", unit="session", position=0, leave=True) as pbar:
-            for session_folder in pbar:
-                pbar.write(f"\nProcessing session: {session_folder.name}")
+        session_iterator = (
+            tqdm(
+                session_folders,
+                desc=f"Processing {genotype}",
+                unit="session",
+                position=0,
+                leave=True,
+                disable=not VERBOSE,
+            )
+            if not VERBOSE
+            else session_folders
+        )
 
-                try:
-                    # Convert session data to NWB format with time alignment
-                    nwbfile = convert_session_to_nwbfile(
-                        session_folder_path=session_folder,
-                        genotype=genotype,
-                        verbose=VERBOSE,
-                    )
+        for session_folder in session_iterator:
+            if VERBOSE:
+                print(f"\nProcessing session: {session_folder.name}")
+            else:
+                session_iterator.set_description(f"Processing {session_folder.name}")
 
-                    # Create output filename
-                    nwbfile_path = (
-                        nwb_files_dir / f"figure7E_oxoM_dendritic_excitability_{genotype}_{session_folder.name}.nwb"
-                    )
+            try:
+                # Convert session data to NWB format with time alignment
+                nwbfile = convert_session_to_nwbfile(
+                    session_folder_path=session_folder,
+                    genotype=genotype,
+                    verbose=VERBOSE,
+                )
 
-                    # Write NWB file
-                    configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                    pbar.write(f"Successfully saved: {nwbfile_path.name}")
+                # Create output filename
+                nwbfile_path = (
+                    nwb_files_dir / f"figure7E_oxoM_dendritic_excitability_{genotype}_{session_folder.name}.nwb"
+                )
 
-                except Exception as e:
-                    pbar.write(f"Error processing {session_folder.name}: {str(e)}")
-                    continue
+                # Write NWB file
+                configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+                if VERBOSE:
+                    print(f"Successfully saved: {nwbfile_path.name}")
+                else:
+                    session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+
+            except Exception as e:
+                if VERBOSE:
+                    print(f"Error processing {session_folder.name}: {str(e)}")
+                else:
+                    session_iterator.write(f"Error processing {session_folder.name}: {str(e)}")
+                continue

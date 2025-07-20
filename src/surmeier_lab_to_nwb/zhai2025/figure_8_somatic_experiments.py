@@ -127,10 +127,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "date_part": first_recording_info["date_part"],
     }
 
-    print(
-        f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']}, Animal {session_info['animal_id']})"
-    )
-    print(f"  Found {len(recording_folders)} current step recordings")
+    if verbose:
+        print(
+            f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']}, Animal {session_info['animal_id']})"
+        )
+        print(f"  Found {len(recording_folders)} current step recordings")
 
     # Calculate recording IDs, session start times, and create interface mappings
     session_start_times = []  # (timestamp, recording_folder, recording_id)
@@ -173,8 +174,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     earliest_time = min(session_start_times, key=lambda x: x[0])[0]
     earliest_folder = next(folder for start_time, folder, _ in session_start_times if start_time == earliest_time)
 
-    print(f"  Overall session start time: {earliest_time}")
-    print(f"    Earliest time source: recording {earliest_folder.name}")
+    if verbose:
+        print(f"  Overall session start time: {earliest_time}")
+        print(f"    Earliest time source: recording {earliest_folder.name}")
 
     # Calculate t_start offsets for temporal alignment
     for start_time, folder, recording_id in session_start_times:
@@ -201,7 +203,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         }
     )
 
-    print(f"Session date: {session_info['date_str']}")
+    if verbose:
+        print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"

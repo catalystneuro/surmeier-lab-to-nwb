@@ -239,6 +239,11 @@ if __name__ == "__main__":
             )
 
             for nd2_file in file_iterator:
+                if verbose:
+                    print(f"  File: {nd2_file.name}")
+                    print(f"  Session ID: {file_info['session_id']}")
+                    print(f"  Container: {file_info['container_name']}")
+
                 # Convert ND2 file to NWB format
                 nwbfile = convert_session_to_nwbfile(nd2_file, condition, verbose=verbose)
 
@@ -251,8 +256,13 @@ if __name__ == "__main__":
 
                 # Write NWB file
                 configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                if verbose or len(nd2_files) == 1:  # Always show success for small datasets or verbose mode
+                if verbose:
                     print(f"Successfully saved: {nwbfile_path.name}")
+                elif not verbose:
+                    file_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+
+        if not verbose:
+            print(f"Completed {dataset['name']} {condition}")
 
     if verbose:
         print(f"\nConfocal spine density conversion completed!")

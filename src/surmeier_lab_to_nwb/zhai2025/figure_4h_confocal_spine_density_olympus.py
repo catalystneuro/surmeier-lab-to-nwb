@@ -381,8 +381,6 @@ if __name__ == "__main__":
 
     if verbose:
         print(f"Found {len(session_folders)} session folders")
-    else:
-        print(f"Processing Figure 4H Olympus confocal data...")
 
     # Process each session folder
     session_iterator = (
@@ -392,6 +390,8 @@ if __name__ == "__main__":
     for session_folder in session_iterator:
         if verbose:
             print(f"\nProcessing session: {session_folder.name}")
+        elif not verbose:
+            session_iterator.set_description(f"Processing {session_folder.name}")
 
         # Convert session to NWB format
         nwbfile = convert_session_to_nwbfile(session_folder, verbose=verbose)
@@ -403,9 +403,13 @@ if __name__ == "__main__":
         # Write NWB file
         configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
 
-        if verbose or len(session_folders) == 1:
+        if verbose:
             print(f"Successfully saved: {nwbfile_path.name}")
+        elif not verbose:
+            session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
 
     if verbose:
         print(f"\nFigure 4H Olympus confocal conversion completed!")
         print(f"Output directory: {nwb_files_dir}")
+    else:
+        print(f"\nFigure 4H Olympus confocal conversion completed! Output directory: {nwb_files_dir}")

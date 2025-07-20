@@ -240,7 +240,8 @@ if __name__ == "__main__":
     nwb_files_dir = root_dir / "nwb_files" / "figure_7_behavioral"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Processing Figure 7 Behavioral Assessment data with optimized DynamicTable")
+    if verbose:
+        print("Processing Figure 7 Behavioral Assessment data with optimized DynamicTable")
 
     if verbose:
         print("Verbose mode: ON - Detailed processing information will be shown")

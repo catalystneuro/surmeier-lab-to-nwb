@@ -152,10 +152,11 @@ def convert_session_to_nwbfile(
         "session_letter": first_recording_info["session_letter"],
     }
 
-    print(
-        f"Processing session folder: {session_folder_path.name} (Session {session_info['session_letter']}) ({condition})"
-    )
-    print(f"  Found {len(recording_folders)} sweep recordings")
+    if verbose:
+        print(
+            f"Processing session folder: {session_folder_path.name} (Session {session_info['session_letter']}) ({condition})"
+        )
+        print(f"  Found {len(recording_folders)} sweep recordings")
 
     # Calculate recording IDs, session start times, and create interface mappings
     session_start_times = []  # (timestamp, recording_folder, recording_id)
@@ -196,8 +197,9 @@ def convert_session_to_nwbfile(
     earliest_time = min(session_start_times, key=lambda x: x[0])[0]
     earliest_folder = next(folder for start_time, folder, _ in session_start_times if start_time == earliest_time)
 
-    print(f"  Overall session start time: {earliest_time}")
-    print(f"    Earliest time source: recording {earliest_folder.name}")
+    if verbose:
+        print(f"  Overall session start time: {earliest_time}")
+        print(f"    Earliest time source: recording {earliest_folder.name}")
 
     # Calculate t_start offsets for temporal alignment
     for start_time, folder, recording_id in session_start_times:
@@ -222,7 +224,8 @@ def convert_session_to_nwbfile(
         }
     )
 
-    print(f"Session date: {session_info['date_str']}")
+    if verbose:
+        print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
@@ -531,11 +534,13 @@ def main():
 
     # Process each condition
     for condition in conditions:
-        print(f"Processing Sr²⁺-oEPSC data for: {condition}")
+        if verbose:
+            print(f"Processing Sr²⁺-oEPSC data for: {condition}")
 
         condition_path = raw_data_root / condition
         if not condition_path.exists():
-            print(f"  Condition path does not exist: {condition_path}")
+            if verbose:
+                print(f"  Condition path does not exist: {condition_path}")
             continue
 
         # Find all session folders
@@ -545,7 +550,8 @@ def main():
 
         session_folders.sort()  # Sort by session name
 
-        print(f"Found {len(session_folders)} session folders")
+        if verbose:
+            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = (
@@ -556,6 +562,8 @@ def main():
         for session_folder in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder.name}")
+            elif not verbose:
+                session_iterator.set_description(f"Processing {session_folder.name}")
 
             # Convert session to NWB
             nwbfile = convert_session_to_nwbfile(
@@ -571,7 +579,13 @@ def main():
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
 
-            print(f"Successfully saved: {nwbfile_path}")
+            if verbose:
+                print(f"Successfully saved: {nwbfile_path}")
+            elif not verbose:
+                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+
+        if not verbose:
+            print(f"Completed {condition}: {len(session_folders)} sessions processed")
 
 
 if __name__ == "__main__":

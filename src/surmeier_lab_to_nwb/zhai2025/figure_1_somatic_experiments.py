@@ -129,6 +129,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "cell_number": first_recording_info["cell_number"],
     }
 
+    # Parse session information from first recording folder (all should have same session info)
+    first_recording_info = parse_session_info_from_folder_name(recording_folders[0])
+    session_info = {
+        "cell_number": first_recording_info["cell_number"],
+    }
+
     if verbose:
         print(f"Processing session folder: {session_folder_path.name} (Cell {session_info['cell_number']})")
         print(f"  Found {len(recording_folders)} current step recordings")

@@ -719,13 +719,15 @@ if __name__ == "__main__":
         condition_path = base_path / condition
         assert condition_path.exists(), f"Base path does not exist: {condition_path}"
 
-        print(f"Processing spine density data for: {condition=}")
+        if verbose:
+            print(f"Processing spine density data for: {condition=}")
 
         # Get all session folders
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        print(f"Found {len(session_folders)} session folders")
+        if verbose:
+            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = (
@@ -735,6 +737,8 @@ if __name__ == "__main__":
         for session_folder_path in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder_path.name}")
+            elif not verbose:
+                session_iterator.set_description(f"Processing {session_folder_path.name}")
 
             # Convert data to NWB format
             nwbfile = convert_data_to_nwb(
@@ -749,4 +753,10 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            print(f"Successfully saved: {nwbfile_path.name}")
+            if verbose:
+                print(f"Successfully saved: {nwbfile_path.name}")
+            elif not verbose:
+                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+
+        if not verbose:
+            print(f"Completed {condition}: {len(session_folders)} sessions processed")

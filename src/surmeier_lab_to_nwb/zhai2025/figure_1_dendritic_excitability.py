@@ -161,7 +161,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     where cell_folder represents different cells from the same animal (e.g., 0202a1, 0202a2)
     """
 
-    print(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
+    if verbose:
+        print(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
 
     # Get all recording folders within the session folder
     all_recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
@@ -170,7 +171,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if not all_recording_folders:
         raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
 
-    print(f"  Total recordings found: {len(all_recording_folders)}")
+    if verbose:
+        print(f"  Total recordings found: {len(all_recording_folders)}")
 
     # Calculate recording IDs, session start times, and create interface mappings
     ophys_session_start_times = []  # (ophys_time, recording_folder, recording_id)
@@ -206,10 +208,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
         # Compare session start times
         time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-        print(f"    Times for {recording_folder.name}:")
-        print(f"      Ophys time: {ophys_session_start_time}")
-        print(f"      Intracellular time: {intracellular_session_start_time}")
-        print(f"      Difference: {time_diff:.1f} seconds")
+        if verbose:
+            print(f"    Times for {recording_folder.name}:")
+            print(f"      Ophys time: {ophys_session_start_time}")
+            print(f"      Intracellular time: {intracellular_session_start_time}")
+            print(f"      Difference: {time_diff:.1f} seconds")
 
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
@@ -247,10 +250,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
         earliest_interface = "intracellular_electrophysiology"
 
-    print(f"  Overall session start time: {session_start_time}")
-    print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
-    print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
-    print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
+    if verbose:
+        print(f"  Overall session start time: {session_start_time}")
+        print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
+        print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
+        print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
 
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
@@ -694,7 +698,8 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
-        print(f"Processing dendritic excitability data for: {condition}")
+        if verbose:
+            print(f"Processing dendritic excitability data for: {condition}")
 
         # Get all folders under condition and determine session folders
         # Heuristic: if a folder has more than 3 children, it is a session_folder
@@ -720,26 +725,38 @@ if __name__ == "__main__":
                     print(f"  Folder {folder.name} has {len(subdirs)} subdirs - its children are session_folders")
 
         session_folders.sort()
-        print(f"Found {len(session_folders)} session folders total")
+        if verbose:
+            print(f"Found {len(session_folders)} session folders total")
 
         # Process each session folder with progress bar
-        with tqdm(session_folders, desc=f"Processing {condition}", unit="session", position=0, leave=True) as pbar:
-            for session_folder in pbar:
-                pbar.write(f"\nProcessing session folder: {session_folder.name}")
+        session_iterator = (
+            tqdm(
+                session_folders, desc=f"Processing {condition}", unit="session", position=0, leave=True, disable=verbose
+            )
+            if not verbose
+            else session_folders
+        )
 
-                # Convert all recordings from this session to NWB format
-                nwbfile = convert_session_to_nwbfile(
-                    session_folder_path=session_folder,
-                    condition=condition,
-                    verbose=verbose,
-                )
+        for session_folder in session_iterator:
+            if not verbose:
+                session_iterator.write(f"\nProcessing session folder: {session_folder.name}")
+            else:
+                print(f"\nProcessing session folder: {session_folder.name}")
 
-                # Create output filename
-                condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
-                nwbfile_path = (
-                    nwb_files_dir / f"figure1_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
-                )
+            # Convert all recordings from this session to NWB format
+            nwbfile = convert_session_to_nwbfile(
+                session_folder_path=session_folder,
+                condition=condition,
+                verbose=verbose,
+            )
 
-                # Write NWB file
-                configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                pbar.write(f"Successfully saved: {nwbfile_path.name}")
+            # Create output filename
+            condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
+            nwbfile_path = nwb_files_dir / f"figure1_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
+
+            # Write NWB file
+            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+            if not verbose:
+                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+            else:
+                print(f"Successfully saved: {nwbfile_path.name}")

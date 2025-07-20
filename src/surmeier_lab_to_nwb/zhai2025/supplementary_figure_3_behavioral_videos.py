@@ -402,9 +402,11 @@ if __name__ == "__main__":
         print(f"Found {len(sessions)} Supplementary Figure 3 video sessions")
 
     # Process each session
-    for session_date, session_path in tqdm(sessions.items(), desc="Converting sessions"):
+    for session_date, session_path in tqdm(sessions.items(), desc="Converting sessions", disable=not args.verbose):
         if args.verbose:
             print(f"\nProcessing Supplementary Figure 3 session: {session_date}")
+        else:
+            tqdm.write(f"\nProcessing Supplementary Figure 3 session: {session_date}")
 
         # Group videos by animal
         animals = group_videos_by_animal_supfig3(session_path)
