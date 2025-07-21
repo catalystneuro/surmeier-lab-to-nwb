@@ -1,0 +1,484 @@
+# -*- coding: utf-8 -*-
+"""
+Figure 5 Acetylcholine GRABACh3.0 Conversion Script - Zhai et al. 2025
+====================================================================
+
+This script converts GRABACh3.0 acetylcholine sensor imaging data from Figure 5
+of Zhai et al. 2025 into NWB (Neurodata Without Borders) format.
+
+EXPERIMENTAL CONTEXT:
+===================
+The data examines acetylcholine (ACh) release dynamics using the genetically
+encoded fluorescent sensor GRABACh3.0 in a mouse model of Parkinson's disease
+and levodopa-induced dyskinesia (LID). The study reveals state-dependent
+modulation of cholinergic signaling and its role in LID pathophysiology.
+
+Key findings:
+- ACh release elevation in parkinsonian and LID off-states
+- D2R-mediated control preserved in dyskinetic mice
+- State-dependent oscillations between on/off states
+- Therapeutic implications for M1R signaling disruption
+
+EXPERIMENTAL CONDITIONS:
+=======================
+Three subject groups were tested:
+- UL control: Unlesioned control mice (healthy striatum)
+- PD: 6-OHDA lesioned mice (parkinsonian state, no levodopa)
+- LID off: Dyskinetic mice in off-state (24-48h post-levodopa)
+
+DATA STRUCTURE:
+==============
+The raw data follows a hierarchical organization:
+
+Base Path/
+├── UL control/        # Figure 5C - Unlesioned control
+├── PD/               # Figure 5D - 6-OHDA lesioned, parkinsonian
+└── LID off/          # Figure 5E - Dyskinetic mice, off-state
+
+Each experimental slice contains multiple trials with pharmacological treatments:
+- Control (baseline ACSF)
+- 50 nM DA (dopamine - only for lesioned mice)
+- 10 μM quinpirole (D2R agonist)
+- 10 μM sulpiride (D2R antagonist)
+- 100 μM ACh (sensor saturation, Fmax calibration)
+- 10 μM TTX (activity blockade, Fmin calibration)
+
+STIMULATION PROTOCOLS:
+====================
+Two electrical stimulation patterns:
+- Single pulse: 1 ms × 0.3 mA (single electrical stimulus)
+- Burst stimulation: 20 pulses at 20 Hz (1 ms × 0.3 mA each pulse)
+
+ACQUISITION PARAMETERS:
+======================
+- Excitation: 920 nm (Chameleon Ultra II laser)
+- Objective: Olympus 60x/0.9 NA water-immersion
+- Detection: Hamamatsu H7422P-40 GaAsP PMT (490-560 nm)
+- Pixel size: 0.388 μm × 0.388 μm
+- Dwell time: 8 μs
+- Frame rate: 21.26 fps
+- Temperature: 32-34°C
+
+STIMULATION PARAMETERS:
+======================
+From paper specifications (metadata discrepancies noted in comments):
+- Electrode: Concentric bipolar electrode (CBAPD75, FHC)
+- Placement: 200 μm ventral to imaging region
+- Single pulse: 1 ms × 0.3 mA
+- Burst stimulation: 20 pulses at 20 Hz, 1 ms × 0.3 mA each
+- Stimulation delay: 3 s baseline + electrical stimulus timing
+
+NOTE: XML metadata shows different values:
+- LED stimulator with 5V pulses
+- Pulse width: 0.1ms (vs 0.3ms in paper)
+- Burst spacing: ~204Hz (vs 20Hz in paper)
+- Paper specifications are used for NWB metadata per author guidance
+"""
+
+import re
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+from zoneinfo import ZoneInfo
+
+from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.utils import dict_deep_update, load_dict_from_file
+from pynwb import NWBFile
+from pynwb.device import Device
+from pynwb.epoch import TimeIntervals
+from pynwb.file import Subject
+
+from surmeier_lab_to_nwb.zhai2025.bot_interface import (
+    PrairieViewBrightnessOverTimeInterface,
+)
+
+
+def parse_trial_info_from_folder_name(trial_folder: Path) -> Dict[str, Any]:
+    """
+    Parse trial information from BOT trial folder names.
+
+    Expected format: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[trial]
+    Examples:
+    - BOT_04162024_slice2ROI1_50nMDA_burst-001
+    - BOT_05242024_slice1A_ctr_single-001
+    - BOT_04052024_slice2_ACh-001 (calibration)
+
+    Parameters
+    ----------
+    trial_folder : Path
+        Path to the trial folder
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing trial information
+    """
+    trial_name = trial_folder.name
+
+    # Parse trial name: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[trial]
+    pattern = r"BOT_(\d{8})_(.+?)_([^_]+)_([^-]+)-(\d+)"
+    match = re.match(pattern, trial_name)
+
+    if not match:
+        # Handle calibration trials (ACh, TTX) - no stimulation protocol
+        calibration_pattern = r"BOT_(\d{8})_(.+?)_([^-]+)-(\d+)"
+        calibration_match = re.match(calibration_pattern, trial_name)
+
+        if calibration_match:
+            date_str, slice_info, treatment, trial_num = calibration_match.groups()
+            stimulation = "calibration"
+        else:
+            raise ValueError(f"Could not parse trial folder name: {trial_name}")
+    else:
+        date_str, slice_info, treatment, stimulation, trial_num = match.groups()
+
+    # Parse date (MMDDYYYY format)
+    month = int(date_str[0:2])
+    day = int(date_str[2:4])
+    year = int(date_str[4:8])
+    session_date = datetime(year, month, day)
+
+    # Map treatment abbreviations to full names
+    treatment_mapping = {
+        "ctr": "control",
+        "50nMDA": "50nM_dopamine",
+        "quin": "quinpirole",
+        "sul": "sulpiride",
+        "ACh": "acetylcholine_calibration",
+        "TTX": "TTX_calibration",
+    }
+
+    treatment_full = treatment_mapping.get(treatment, treatment)
+
+    # Map stimulation types
+    stimulation_mapping = {"single": "single_pulse", "burst": "burst_stimulation", "calibration": "calibration"}
+
+    stimulation_full = stimulation_mapping.get(stimulation, stimulation)
+
+    return {
+        "trial_name": trial_name,
+        "session_date": session_date,
+        "date_str": session_date.strftime("%Y-%m-%d"),
+        "slice_info": slice_info,
+        "treatment": treatment_full,
+        "stimulation": stimulation_full,
+        "trial_number": trial_num,
+        "is_calibration": treatment in ["ACh", "TTX"],
+    }
+
+
+def convert_trial_to_nwbfile(trial_folder: Path, condition: str, verbose: bool = False) -> NWBFile:
+    """
+    Convert a single trial of Figure 5 GRABACh3.0 data to NWB format.
+
+    Parameters
+    ----------
+    trial_folder : Path
+        Path to the trial folder
+    condition : str
+        Experimental condition ("UL control", "PD", "LID off")
+    verbose : bool, default=False
+        Enable verbose output
+
+    Returns
+    -------
+    NWBFile
+        NWB file with the converted data
+    """
+    # Parse trial information
+    trial_info = parse_trial_info_from_folder_name(trial_folder)
+
+    if verbose:
+        print(f"Processing trial: {trial_info['trial_name']}")
+        print(f"  Treatment: {trial_info['treatment']}")
+        print(f"  Stimulation: {trial_info['stimulation']}")
+
+    # Find required files for BOT interface
+    bot_csv_file = None
+    xml_metadata_file = None
+
+    for file in trial_folder.iterdir():
+        if file.name.endswith("-botData.csv"):
+            bot_csv_file = file
+        elif file.name.endswith(".xml") and "VoltageRecording" not in file.name and "VoltageOutput" not in file.name:
+            xml_metadata_file = file
+
+    if not bot_csv_file:
+        raise FileNotFoundError(f"No botData.csv file found in {trial_folder}")
+
+    if not xml_metadata_file:
+        raise FileNotFoundError(f"No XML metadata file found in {trial_folder}")
+
+    # Load metadata from YAML file
+    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    paper_metadata = load_dict_from_file(metadata_file_path)
+
+    # Create trial-specific metadata with Chicago timezone
+    central_tz = ZoneInfo("America/Chicago")
+    session_start_time = datetime.combine(trial_info["session_date"], datetime.min.time()).replace(tzinfo=central_tz)
+    trial_id = f"{trial_info['date_str']}_{trial_info['slice_info']}_{trial_info['treatment']}_{trial_info['stimulation']}_t{trial_info['trial_number']}"
+
+    session_specific_metadata = {
+        "NWBFile": {
+            "session_description": (
+                f"GRABACh3.0 acetylcholine sensor imaging trial from striatal slice - {condition} condition. "
+                f"Treatment: {trial_info['treatment']}, Stimulation: {trial_info['stimulation']}, "
+                f"Trial {trial_info['trial_number']} from {trial_info['slice_info']}. Two-photon microscopy "
+                f"at 920nm excitation measuring ACh release dynamics with electrical stimulation."
+            ),
+            "identifier": f"zhai2025_fig5_grabatch_{trial_id}_{condition.replace(' ', '_')}",
+            "session_start_time": session_start_time,
+            "experiment_description": (
+                f"Figure 5 GRABACh3.0 experiment from Zhai et al. 2025 investigating acetylcholine release "
+                f"dynamics in Parkinson's disease and levodopa-induced dyskinesia. Single trial recording "
+                f"with {trial_info['treatment']} treatment and {trial_info['stimulation']} protocol."
+            ),
+            "session_id": trial_id,
+            "keywords": [
+                "GRABACh3.0",
+                "acetylcholine",
+                "two-photon microscopy",
+                "striatum",
+                "cholinergic interneurons",
+                trial_info["treatment"],
+                trial_info["stimulation"],
+                "Parkinson disease",
+                "levodopa-induced dyskinesia",
+                "pharmacology",
+                "electrical stimulation",
+            ],
+        }
+    }
+
+    # Deep merge with paper metadata
+    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+
+    # Create NWB file
+    nwbfile = NWBFile(
+        session_description=metadata["NWBFile"]["session_description"],
+        identifier=metadata["NWBFile"]["identifier"],
+        session_start_time=metadata["NWBFile"]["session_start_time"],
+        experimenter=metadata["NWBFile"]["experimenter"],
+        lab=metadata["NWBFile"]["lab"],
+        institution=metadata["NWBFile"]["institution"],
+        experiment_description=metadata["NWBFile"]["experiment_description"],
+        session_id=metadata["NWBFile"]["session_id"],
+        keywords=metadata["NWBFile"]["keywords"],
+    )
+
+    # Create subject metadata for GRABACh3.0 experiments (Figure 5)
+    condition_descriptions = {
+        "UL control": "Unlesioned control mouse with healthy striatum and intact dopaminergic system",
+        "PD": "6-OHDA lesioned mouse (>95% dopamine depletion) modeling Parkinson's disease",
+        "LID off": "Dyskinetic mouse in off-state (24-48h post-levodopa) with established levodopa-induced dyskinesia",
+    }
+
+    subject = Subject(
+        subject_id=f"grabatch_mouse_{trial_info['slice_info']}",
+        species="Mus musculus",
+        strain="C57BL/6J with striatal GRABACh3.0 expression",
+        description=(
+            f"{condition_descriptions[condition]}. Striatal injection of AAV-GRABACh3.0 for "
+            f"acetylcholine sensor expression in cholinergic interneurons. Trial recorded on "
+            f"{trial_info['date_str']} from {trial_info['slice_info']}."
+        ),
+        genotype="Wild-type with AAV-GRABACh3.0",
+        sex="M/F",  # Mixed cohort
+        age="P56/P84",  # Adult mice, 8-12 weeks
+    )
+    nwbfile.subject = subject
+
+    # Add stimulation device and electrode information
+    # NOTE: XML metadata differs from paper - using paper specifications
+    stimulation_device = Device(
+        name="DeviceConcentricBipolarElectrode",
+        description=(
+            "Concentric bipolar stimulating electrode (CBAPD75, FHC) for electrical "
+            "stimulation of striatal tissue. Placed 200 μm ventral to GRABACh3.0 "
+            "imaging region for acetylcholine release experiments."
+        ),
+    )
+    nwbfile.add_device(stimulation_device)
+
+    # Add stimulation protocol information
+    stimulation_notes = (
+        f"Electrical stimulation using concentric bipolar electrode (CBAPD75, FHC) "
+        f"placed 200 μm ventral to imaging region. {trial_info['stimulation']} protocol "
+        f"as described in methods. Stimulation delivered at t=3s after baseline start. "
+        f"XML metadata shows LED stimulator with different parameters but paper "
+        f"specifications take precedence."
+    )
+
+    if trial_info["stimulation"] == "single_pulse":
+        stimulus_description = "Single electrical pulse: 1 ms duration, 0.3 mA amplitude"
+    elif trial_info["stimulation"] == "burst_stimulation":
+        stimulus_description = "Burst stimulation: 20 pulses at 20 Hz, 1 ms duration, 0.3 mA amplitude each"
+    else:
+        stimulus_description = "Calibration protocol - no electrical stimulation"
+
+    # Add stimulus information as session notes
+    nwbfile.notes = f"{stimulation_notes} {stimulus_description}"
+
+    # Add stimulation epochs if not calibration trial
+    if not trial_info["is_calibration"]:
+        # Create stimulation epoch table with custom columns
+        stimulation_epochs = TimeIntervals(
+            name="stimulation_epochs", description="Electrical stimulation delivery times and parameters"
+        )
+
+        # Add custom columns for stimulation parameters
+        stimulation_epochs.add_column(name="stimulus_type", description="Type of stimulation protocol")
+        stimulation_epochs.add_column(name="amplitude", description="Stimulation amplitude")
+        stimulation_epochs.add_column(name="pulse_width", description="Pulse width duration")
+        stimulation_epochs.add_column(name="frequency", description="Stimulation frequency")
+        stimulation_epochs.add_column(name="electrode", description="Electrode model and type")
+        stimulation_epochs.add_column(name="notes", description="Additional stimulation details")
+
+        # Add stimulus timing (typically at 3s after baseline, lasting brief duration)
+        stimulation_start_time = 3.0  # seconds after trial start
+
+        if trial_info["stimulation"] == "single_pulse":
+            stimulation_duration = 0.001  # 1 ms
+        elif trial_info["stimulation"] == "burst_stimulation":
+            stimulation_duration = 1.0  # 20 pulses at 20 Hz = ~1 second
+        else:
+            stimulation_duration = 0.0
+
+        if stimulation_duration > 0:
+            stimulation_epochs.add_interval(
+                start_time=stimulation_start_time,
+                stop_time=stimulation_start_time + stimulation_duration,
+                stimulus_type=trial_info["stimulation"],
+                amplitude="0.3 mA",
+                pulse_width="1 ms" if "pulse" in trial_info["stimulation"] else "1 ms per pulse",
+                frequency="single" if trial_info["stimulation"] == "single_pulse" else "20 Hz",
+                electrode="CBAPD75 concentric bipolar",
+                notes=stimulus_description,
+            )
+
+            nwbfile.add_time_intervals(stimulation_epochs)
+
+    # Create BOT interface for this trial
+    bot_interface = PrairieViewBrightnessOverTimeInterface(
+        folder_path=trial_folder, bot_csv_data_file_path=bot_csv_file, xml_metadata_file_path=xml_metadata_file
+    )
+
+    # Add trial data to NWB file
+    bot_interface.add_to_nwbfile(nwbfile=nwbfile)
+
+    if verbose:
+        print(f"  Successfully processed trial")
+
+    return nwbfile
+
+
+def get_all_trial_folders(base_path: Path) -> List[Dict[str, Any]]:
+    """
+    Get all trial folders across all conditions.
+
+    Parameters
+    ----------
+    base_path : Path
+        Base path to Figure 5 data
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of trial information with condition
+    """
+    conditions = ["UL control", "PD", "LID off"]
+    all_trials = []
+
+    for condition in conditions:
+        condition_path = base_path / condition
+        if not condition_path.exists():
+            print(f"Warning: Condition path does not exist: {condition_path}")
+            continue
+
+        # Get all session folders
+        session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
+        session_folders.sort()
+
+        for session_folder in session_folders:
+            # Get all trial folders in this session
+            trial_folders = [f for f in session_folder.iterdir() if f.is_dir() and f.name.startswith("BOT_")]
+            trial_folders.sort()
+
+            for trial_folder in trial_folders:
+                all_trials.append(
+                    {"trial_folder": trial_folder, "condition": condition, "session_folder": session_folder}
+                )
+
+    return all_trials
+
+
+if __name__ == "__main__":
+    import logging
+    import warnings
+
+    from tqdm import tqdm
+
+    # Control verbose output
+    verbose = False  # Set to True for detailed output
+
+    # Suppress warnings
+    logging.getLogger("tifffile").setLevel(logging.ERROR)
+    warnings.filterwarnings("ignore", message="invalid value encountered in divide")
+    warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
+
+    # Define the base path to the data
+    base_path = Path(
+        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 5_SF2"
+    )
+    if not base_path.exists():
+        raise FileNotFoundError(f"Base path does not exist: {base_path}")
+
+    # Create nwb_files directory at root level
+    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "figure_5_grabatch"
+    nwb_files_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get all trials across all conditions
+    all_trials = get_all_trial_folders(base_path)
+
+    if verbose:
+        print(f"Found {len(all_trials)} total trials across all conditions")
+
+    # Use tqdm for progress bar when verbose is disabled
+    trial_iterator = tqdm(all_trials, desc="Processing trials", disable=verbose) if not verbose else all_trials
+
+    success_count = 0
+
+    for trial_info in trial_iterator:
+        trial_folder = trial_info["trial_folder"]
+        condition = trial_info["condition"]
+
+        if verbose:
+            print(f"\nProcessing trial: {trial_folder.name} ({condition})")
+        elif not verbose:
+            trial_iterator.set_description(f"Processing {trial_folder.name}")
+
+        # Convert trial to NWB format
+        nwbfile = convert_trial_to_nwbfile(
+            trial_folder=trial_folder,
+            condition=condition,
+            verbose=verbose,
+        )
+
+        # Create output filename
+        condition_safe = condition.replace(" ", "_").replace("-", "_")
+        session_folder_name = trial_info["session_folder"].name
+        nwbfile_path = (
+            nwb_files_dir / f"figure5_grabatch_{condition_safe}_{session_folder_name}_{trial_folder.name}.nwb"
+        )
+
+        configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+
+        success_count += 1
+
+        if verbose:
+            print(f"Successfully saved: {nwbfile_path}")
+
+    print(f"\nConversion completed:")
+    print(f"  Successfully processed: {success_count} trials")
+    print(f"  Total trials: {len(all_trials)}")
