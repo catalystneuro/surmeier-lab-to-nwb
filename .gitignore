@@ -170,6 +170,9 @@ src/surmeier_lab_to_nwb/zhai2025/assets/figure_7_aim_processed_data.csv
 # Processed AIM behavioral data folder
 src/surmeier_lab_to_nwb/zhai2025/assets/processed_aim_behavioral_data/
 
+# Protocol files
+src/surmeier_lab_to_nwb/zhai2025/assets/protocols/
+
 # Analysis outputs from notebooks
 analysis_outputs/
 notebooks/analysis_outputs/
