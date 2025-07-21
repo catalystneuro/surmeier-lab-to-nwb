@@ -113,9 +113,7 @@ Image stacks (spine density) like figure 2 but they come in a different format a
 ## Figure 5:
 Fluorescence imaging data from two-photon laser scanning microscopy.
 - [x] Build needed interfaces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12)
-- [ ] Conversion script
-- [ ] Time alignment
-- [ ] Add icephys table hierarchical structure (N/A - no electrophysiology)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/38)
 - [ ] Inspector
 - [ ] Upload data
 
