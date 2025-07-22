@@ -437,7 +437,7 @@ def convert_session_to_nwbfile(
 
         # Get recording duration from voltage clamp series for proper epoch timing
         voltage_clamp_series = nwbfile.acquisition[voltage_clamp_series_name]
-        from .utils import time_series_duration
+        from surmeier_lab_to_nwb.zhai2025.utils import time_series_duration
 
         recording_duration = time_series_duration(voltage_clamp_series)
 

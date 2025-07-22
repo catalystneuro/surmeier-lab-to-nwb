@@ -726,5 +726,3 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
-            elif not verbose:
-                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")

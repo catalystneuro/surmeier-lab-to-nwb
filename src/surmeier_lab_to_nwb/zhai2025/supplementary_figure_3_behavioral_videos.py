@@ -158,6 +158,7 @@ def convert_session_to_nwbfile(
     session_date: str,
     animal_id: str,
     video_files: List[Path],
+    genotype: str,
     verbose: bool = False,
 ) -> NWBFile:
     """
@@ -416,8 +417,13 @@ if __name__ == "__main__":
             if args.verbose:
                 print(f"  Animal: {animal_id} ({len(video_files)} videos)")
 
+            # Determine genotype based on video metadata
+            first_video_metadata = extract_video_metadata_supfig3(video_files[0])
+            genotype = first_video_metadata["genotype"]
+
             # Create output filename
-            output_filename = f"zhai2025_supfig3_videos_{animal_id}_{session_date.replace('-', '')}.nwb"
+            genotype_safe = genotype.replace(" ", "_").replace("-", "_")
+            output_filename = f"zhai2025_supfig3_videos_{animal_id}_{session_date.replace('-', '')}_{genotype_safe}.nwb"
             output_path = output_base_path / output_filename
 
             # Create NWB file
@@ -425,6 +431,7 @@ if __name__ == "__main__":
                 session_date=session_date,
                 animal_id=animal_id,
                 video_files=sorted(video_files),
+                genotype=genotype,
                 verbose=args.verbose,
             )
 

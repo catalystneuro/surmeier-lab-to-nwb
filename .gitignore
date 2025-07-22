@@ -153,7 +153,7 @@ dmypy.json
 
 # NWB files
 **.nwb
-nwbfiles/*
+nwb_files/*
 
 # Research articles
 src/surmeier_lab_to_nwb/zhai2025/assets/paper/surmeier_article_bioarxiv.pdf
