@@ -750,7 +750,7 @@ if __name__ == "__main__":
             )
 
             # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
+            condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
             nwbfile_path = nwb_files_dir / f"figure4_spine_density_{condition_safe}_{session_folder_path.name}.nwb"
 
             # Write NWB file

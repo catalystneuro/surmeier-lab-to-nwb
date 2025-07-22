@@ -437,8 +437,9 @@ def convert_session_to_nwbfile(
 
         # Get recording duration from voltage clamp series for proper epoch timing
         voltage_clamp_series = nwbfile.acquisition[voltage_clamp_series_name]
-        timestamps = voltage_clamp_series.timestamps[:]
-        recording_duration = timestamps[-1] - timestamps[0]
+        from .utils import time_series_duration
+
+        recording_duration = time_series_duration(voltage_clamp_series)
 
         optogenetics_interface.add_to_nwbfile(
             nwbfile=nwbfile,

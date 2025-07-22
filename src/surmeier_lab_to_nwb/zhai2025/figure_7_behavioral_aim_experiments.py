@@ -281,6 +281,9 @@ if __name__ == "__main__":
     )
 
     for (session_date, session_number, animal_id, genotype), session_data in iterator:
+        # Sanitize condition string for NWB identifier and session_id
+        condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
+
         if verbose:
             print(f"\nProcessing: Animal {animal_id} ({genotype}) on {session_date} session {session_number}")
             print(f"  Session data shape: {session_data.shape}")
@@ -294,12 +297,14 @@ if __name__ == "__main__":
             animal_id=animal_id,
             genotype=genotype,
             processed_data_csv_path=processed_data_csv_path,
+            condition=condition_safe,
             verbose=verbose,
         )
 
         # Create output filename
         nwbfile_path = (
-            nwb_files_dir / f"figure7_behavioral_{animal_id}_{session_date.replace('-', '')}_s{session_number}.nwb"
+            nwb_files_dir
+            / f"figure7_behavioral_{animal_id}_{session_date.replace('-', '')}_s{session_number}_{condition_safe}.nwb"
         )
 
         # Write NWB file

@@ -503,7 +503,7 @@ if __name__ == "__main__":
             )
 
             # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
+            condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
             nwbfile_path = nwb_files_dir / f"figure8_somatic_excitability_{condition_safe}_{session_folder.name}.nwb"
 
             # Write NWB file
