@@ -10,6 +10,7 @@ from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.device import Device
+from pynwb.file import Subject
 
 
 def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -602,6 +603,22 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         session_id=merged_metadata["NWBFile"]["session_id"],
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
+
+    # Create subject metadata for Figure 7 CDGI knockout spine density experiments
+    subject = Subject(
+        subject_id=f"dSPN_mouse_{session_info['session_id']}",
+        species="Mus musculus",
+        strain="Drd1-Tdtomato transgenic",
+        description=(
+            f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
+            f"modeling Parkinson's disease. CDGI knockout study for spine density analysis. "
+            f"dSPNs identified by Drd1-Tdtomato expression. Session {session_info['session_id']} recorded on {session_info['date_str']}."
+        ),
+        genotype="Drd1-Tdtomato+",
+        sex="M",
+        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
+    )
+    nwbfile.subject = subject
 
     # Create microscope device using metadata from first available XML file
     microscope_device = None

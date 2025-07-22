@@ -9,10 +9,9 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
-from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
+from surmeier_lab_to_nwb.zhai2025.interfaces import (
+    DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
-)
-from surmeier_lab_to_nwb.zhai2025.ophys_interfaces import (
     PrairieViewLineScanInterface,
 )
 
@@ -733,9 +732,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         print(f"    - 1 experimental condition ('{condition}')")
 
     # Use utility function to add trials table with proper chronological ordering
-    from surmeier_lab_to_nwb.zhai2025.utils import add_dendritic_trials_table
-
-    add_dendritic_trials_table(nwbfile, recording_indices, recording_to_metadata, t_starts, verbose)
+    # Add trials table using interface
+    trials_interface = DendriticTrialsInterface(
+        recording_indices=recording_indices, recording_to_metadata=recording_to_metadata, t_starts=t_starts
+    )
+    trials_interface.add_to_nwbfile(nwbfile, verbose=verbose)
 
     return nwbfile
 
@@ -786,13 +787,8 @@ if __name__ == "__main__":
         with tqdm(
             session_folders,
             desc=f"Converting {condition} from figure_6_dendritic_excitability to NWB",
-            unit="session",
-            position=0,
-            leave=True,
         ) as pbar:
             for session_folder in pbar:
-                if verbose:
-                    pbar.write(f"\nProcessing session folder: {session_folder.name}")
 
                 # Convert all recordings from this session to NWB format
                 nwbfile = convert_session_to_nwbfile(
@@ -809,4 +805,3 @@ if __name__ == "__main__":
 
                 # Write NWB file
                 configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                pbar.write(f"Successfully saved: {nwbfile_path.name}")

@@ -7,7 +7,7 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
-from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
+from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
     PrairieViewCurrentClampInterface,
 )
@@ -492,14 +492,10 @@ if __name__ == "__main__":
             print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = (
-            tqdm(
-                session_folders,
-                desc=f"Converting {condition} from figure_6_somatic_experiments to NWB",
-                disable=verbose,
-            )
-            if not verbose
-            else session_folders
+        session_iterator = tqdm(
+            session_folders,
+            desc=f"Converting {condition} from figure_6_somatic_experiments to NWB",
+            disable=verbose,
         )
 
         for session_folder in session_iterator:

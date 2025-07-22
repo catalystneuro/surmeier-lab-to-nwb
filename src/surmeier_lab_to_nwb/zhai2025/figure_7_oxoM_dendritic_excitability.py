@@ -8,10 +8,9 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
-from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
+from surmeier_lab_to_nwb.zhai2025.interfaces import (
+    DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
-)
-from surmeier_lab_to_nwb.zhai2025.ophys_interfaces import (
     PrairieViewLineScanInterface,
 )
 
@@ -659,9 +658,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         print(f"    - 1 genotype condition ('{genotype}')")
 
     # Use utility function to add trials table with proper chronological ordering
-    from surmeier_lab_to_nwb.zhai2025.utils import add_dendritic_trials_table
-
-    add_dendritic_trials_table(nwbfile, recording_indices, recording_to_metadata, t_starts, verbose)
+    # Add trials table using interface
+    trials_interface = DendriticTrialsInterface(
+        recording_indices=recording_indices, recording_to_metadata=recording_to_metadata, t_starts=t_starts
+    )
+    trials_interface.add_to_nwbfile(nwbfile, verbose=verbose)
 
     return nwbfile
 

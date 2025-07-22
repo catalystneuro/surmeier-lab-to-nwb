@@ -65,11 +65,9 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
-from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
-    PrairieViewVoltageClampInterface,
-)
-from surmeier_lab_to_nwb.zhai2025.optogenetics_interfaces import (
+from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewOptogeneticsInterface,
+    PrairieViewVoltageClampInterface,
 )
 
 
@@ -321,7 +319,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         ),
         genotype="Drd1-Tdtomato+",
         sex="M",
-        age="P56/P84",  # Adult mice, 8-12 weeks
+        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
     )
     nwbfile.subject = subject
 
@@ -346,15 +344,18 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     recording_to_metadata = {}  # Map recording index to metadata for table building
 
     # Process each recording using the calculated recording IDs and temporal alignment
-    recording_ids = list(recording_id_to_folder.keys())
+    # Sort recordings by start time to ensure chronological processing
+    sorted_recording_items = sorted(
+        recording_id_to_folder.items(), key=lambda item: t_starts[item[0]]  # Sort by t_starts value
+    )
 
-    for recording_index, (recording_id, recording_folder) in enumerate(recording_id_to_folder.items()):
+    for recording_index, (recording_id, recording_folder) in enumerate(sorted_recording_items):
         recording_info = recording_id_to_info[recording_id]
 
         # Calculate next recording start time (None for last recording)
         next_recording_start_time = None
-        if recording_index < len(recording_ids) - 1:  # Not the last recording
-            next_recording_id = recording_ids[recording_index + 1]
+        if recording_index < len(sorted_recording_items) - 1:  # Not the last recording
+            next_recording_id = sorted_recording_items[recording_index + 1][0]  # Get recording_id from next item
             next_recording_start_time = t_starts[next_recording_id]
 
         # Find XML files

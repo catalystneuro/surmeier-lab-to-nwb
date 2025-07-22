@@ -38,7 +38,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/79930c77c568c646de43c4f4d66268e022c35602)
-- [] Upload data
+- [ ] Upload data
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
@@ -46,7 +46,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/19)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/20)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/79930c77c568c646de43c4f4d66268e022c35602)
-- [] Upload data
+- [ ] Upload data
 
 
 ## Figure 2:

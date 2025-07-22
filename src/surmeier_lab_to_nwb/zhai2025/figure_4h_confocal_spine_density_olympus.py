@@ -417,5 +417,3 @@ if __name__ == "__main__":
     if verbose:
         print(f"\nFigure 4H Olympus confocal conversion completed!")
         print(f"Output directory: {nwb_files_dir}")
-    else:
-        print(f"\nFigure 4H Olympus confocal conversion completed! Output directory: {nwb_files_dir}")

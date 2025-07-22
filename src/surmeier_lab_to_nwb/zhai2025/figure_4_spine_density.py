@@ -10,6 +10,7 @@ from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.device import Device
+from pynwb.file import Subject
 
 
 def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -599,6 +600,22 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
 
+    # Create subject metadata for Figure 4 spine density experiments
+    subject = Subject(
+        subject_id=f"iSPN_mouse_{session_info['session_id']}",
+        species="Mus musculus",
+        strain="Drd2-EGFP transgenic",
+        description=(
+            f"Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
+            f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. "
+            f"iSPNs identified by Drd2-EGFP expression. Session {session_info['session_id']} recorded on {session_info['date_str']}."
+        ),
+        genotype="Drd2-EGFP+",
+        sex="M",
+        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
+    )
+    nwbfile.subject = subject
+
     # Create microscope device using metadata from first available XML file
     microscope_device = None
     subfolders = [f for f in session_folder_path.iterdir() if f.is_dir()]
@@ -730,17 +747,13 @@ if __name__ == "__main__":
             print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = (
-            tqdm(session_folders, desc=f"Converting {condition} from figure_4_spine_density to NWB", disable=verbose)
-            if not verbose
-            else session_folders
+        session_iterator = tqdm(
+            session_folders, desc=f"Converting {condition} from figure_4_spine_density to NWB", disable=verbose
         )
 
         for session_folder_path in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder_path.name}")
-            elif not verbose:
-                session_iterator.set_description(f"Processing {session_folder_path.name}")
 
             # Convert data to NWB format
             nwbfile = convert_data_to_nwb(
@@ -757,8 +770,3 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
-            elif not verbose:
-                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
-
-        if not verbose:
-            print(f"Completed {condition}: {len(session_folders)} sessions processed")

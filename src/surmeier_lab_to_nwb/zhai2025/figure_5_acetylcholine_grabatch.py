@@ -89,7 +89,7 @@ from pynwb.device import Device
 from pynwb.epoch import TimeIntervals
 from pynwb.file import Subject
 
-from surmeier_lab_to_nwb.zhai2025.bot_interface import (
+from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewBrightnessOverTimeInterface,
 )
 
@@ -303,7 +303,7 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
         ),
         genotype="Wild-type with AAV-GRABACh3.0",
         sex="M/F",  # Mixed cohort
-        age="P56/P84",  # Adult mice, 8-12 weeks
+        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
     )
     nwbfile.subject = subject
 

@@ -7,7 +7,7 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
-from surmeier_lab_to_nwb.zhai2025.intracellular_interfaces import (
+from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
     PrairieViewCurrentClampInterface,
 )
