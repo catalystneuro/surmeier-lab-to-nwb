@@ -49,13 +49,15 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [ ] Upload data
 
 
+
+
 ## Figure 2:
 This has the image stacks (spine density) and intracellular electrophysiology (CurrentClamp) data with optogenetic stimulation (Sr-oEPSC). The image stacks here are from two-photon laser scanning microscopy.
 
 ### Spine density image stacks
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/7)
-- [ ] Inspector
+- [x] [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/d6242917671c51a21b693241edb5774eecafe364)
 - [ ] Upload data
 
 ### Voltage clamp with optogenetic stimulation
@@ -64,7 +66,7 @@ This has the image stacks (spine density) and intracellular electrophysiology (C
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/28)
 - [x] Use ndx-optogenetics extension [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/29)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/d6242917671c51a21b693241edb5774eecafe364)
 - [ ] Upload data
 
 ## Figure 3:
@@ -75,7 +77,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/15)
 - [x] Time alignment of the data [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/d6242917671c51a21b693241edb5774eecafe364)
 - [ ] Upload data
 
 ### Dendritic Excitability
@@ -83,7 +85,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/16)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/17)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/18)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/d6242917671c51a21b693241edb5774eecafe364)
 - [ ] Upload data
 
 ## Figure 4:
