@@ -438,7 +438,7 @@ if __name__ == "__main__":
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_1_somatic_excitability"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_1" / "somatic_excitability"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 1 somatic excitability conditions
@@ -481,7 +481,3 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
-
-        # Always show completion for this condition
-        if not verbose:
-            print(f"Completed {condition}: {len(session_folders)} sessions processed")

@@ -355,7 +355,7 @@ if __name__ == "__main__":
     video_base_path = Path(
         "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 7/contralateral rotations/CDGI KO videos"
     )
-    output_base_path = Path("./nwb_files/figure_7_behavioral_videos")
+    output_base_path = Path("./nwb_files/figure_7/behavioral_videos")
 
     # Create output directory
     output_base_path.mkdir(parents=True, exist_ok=True)

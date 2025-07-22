@@ -476,7 +476,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_1_dendritic_excitability"
+    nwb_dir = base_dir / "nwb_files" / "figure_1" / "dendritic_excitability"
     output_dir = base_dir / "analysis_outputs" / "figure_1i"
 
     # Ensure output directory exists

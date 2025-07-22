@@ -414,7 +414,7 @@ if __name__ == "__main__":
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_5_grabatch"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_5" / "grabatch"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Get all sessions across all conditions

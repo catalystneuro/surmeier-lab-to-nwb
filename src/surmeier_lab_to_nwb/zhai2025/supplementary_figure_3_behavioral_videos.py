@@ -381,7 +381,7 @@ if __name__ == "__main__":
     video_base_path = Path(
         "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Sup. Figure 3/M1R CRISPR videos"
     )
-    output_base_path = Path("./nwb_files/supplementary_figure_3_behavioral_videos")
+    output_base_path = Path("./nwb_files/supplementary_figure_3/behavioral_videos")
 
     # Create output directory
     output_base_path.mkdir(parents=True, exist_ok=True)

@@ -432,7 +432,7 @@ if __name__ == "__main__":
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_3_somatic_excitability"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_3" / "somatic_excitability"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 3 somatic excitability conditions
@@ -482,7 +482,3 @@ if __name__ == "__main__":
                 print(f"Successfully saved: {nwbfile_path.name}")
             elif not verbose:
                 session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
-
-        # Always show completion for this condition
-        if not verbose:
-            print(f"Completed {condition}: {len(session_folders)} sessions processed")

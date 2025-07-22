@@ -480,7 +480,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_2_sr_oepsc"
+    nwb_dir = base_dir / "nwb_files" / "figure_2" / "sr_oepsc"
     output_dir = base_dir / "analysis_outputs" / "figure_2gh"
 
     # Ensure output directory exists

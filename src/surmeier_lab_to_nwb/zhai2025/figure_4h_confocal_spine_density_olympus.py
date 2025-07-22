@@ -372,7 +372,7 @@ if __name__ == "__main__":
 
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_4h_olympus_confocal"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_4" / "confocal_spine_density_olympus"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Get all session folders

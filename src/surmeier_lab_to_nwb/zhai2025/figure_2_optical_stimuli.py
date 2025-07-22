@@ -575,7 +575,7 @@ if __name__ == "__main__":
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_2_sr_oepsc"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_2" / "sr_oepsc"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     conditions = ["LID on-state", "LID off-state"]
@@ -603,8 +603,6 @@ if __name__ == "__main__":
         for session_folder in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder.name}")
-            elif not verbose:
-                session_iterator.set_description(f"Processing {session_folder.name}")
 
             # Convert data to NWB format
             nwbfile = convert_session_to_nwbfile(
@@ -620,8 +618,6 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path}")
-            elif not verbose:
-                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
 
-        if not verbose:
+        if verbose:
             print(f"Completed {condition}: {len(session_folders)} sessions processed")

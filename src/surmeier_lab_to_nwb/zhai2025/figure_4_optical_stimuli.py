@@ -470,7 +470,8 @@ def convert_session_to_nwbfile(
         if verbose:
             print(f"    Successfully processed recording: {recording_folder.name}")
 
-    print(f"Successfully processed all recordings from session: {session_folder_path.name}")
+    if verbose:
+        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
 
     # Build icephys table hierarchical structure following PyNWB best practices
     if verbose:
@@ -524,7 +525,7 @@ def main():
 
     # Define raw data and output paths
     raw_data_root = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Sr-oEPSC")
-    output_root = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/figure_4_sr_oepsc")
+    output_root = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/figure_4/sr_oepsc")
 
     # Create output directory
     output_root.mkdir(parents=True, exist_ok=True)

@@ -102,10 +102,33 @@ def load_grabatch_data(nwb_dir: Path) -> pd.DataFrame:
             # Extract condition from session_id (now includes condition at beginning)
             # Session ID format: condition_YYYY-MM-DD_sliceXROIX_treatment_stimulation_sN
             parts = session_id.split("_")
-            if len(parts) >= 5:
-                condition = parts[0].replace("_", " ")  # Convert back to "UL control", "LID off"
-                treatment = parts[3]
-                stimulation = parts[4]
+            if len(parts) >= 6:
+                # Handle multi-word conditions
+                if parts[0] == "LID" and parts[1] == "off":
+                    condition = "LID off"
+                elif parts[0] == "UL" and parts[1] == "control":
+                    condition = "UL control"
+                else:
+                    condition = parts[0]
+
+                # Treatment is at position 4 (after date and slice info)
+                treatment = parts[4]
+
+                # Handle multi-word treatments
+                if treatment == "50nM" and len(parts) > 5 and parts[5] == "dopamine":
+                    treatment = "50nM_dopamine"
+                elif treatment == "acetylcholine" and len(parts) > 5 and parts[5] == "calibration":
+                    treatment = "acetylcholine_calibration"
+                elif treatment == "TTX" and len(parts) > 5 and parts[5] == "calibration":
+                    treatment = "TTX_calibration"
+
+                # Get stimulation type from later in the parts
+                if "single" in parts and "pulse" in parts:
+                    stimulation = "single_pulse"
+                elif "burst" in parts and "stimulation" in parts:
+                    stimulation = "burst_stimulation"
+                else:
+                    stimulation = "unknown"
 
                 # Map treatment names to match original analysis
                 treatment_mapping = {
@@ -133,8 +156,8 @@ def load_grabatch_data(nwb_dir: Path) -> pd.DataFrame:
             if stimulus_type != "single_pulse":
                 continue
 
-            # Include calibration trials (ACh, TTX) which have stimulation="unknown"
-            if stimulation == "unknown" and treatment not in ["ACh", "TTX"]:
+            # Skip non-single-pulse experimental trials (but include calibration)
+            if treatment not in ["ACh", "TTX"] and stimulus_type != "single_pulse":
                 continue
 
             # Access fluorescence data from acetylcholine channel (Ch2)
@@ -166,11 +189,69 @@ def load_grabatch_data(nwb_dir: Path) -> pd.DataFrame:
                     }
                 )
 
+    # Special handling for calibration files that might not have stimulus tables
+    # Load ACh and TTX calibration files separately
+    for nwb_file in nwb_files:
+        if "_ACh-" in nwb_file.name or "_TTX-" in nwb_file.name:
+            with NWBHDF5IO(str(nwb_file), "r") as io:
+                nwb = io.read()
+
+                # Skip if already processed (has stimulus table)
+                if "stimulus_table" in nwb.stimulus:
+                    continue
+
+                # Extract metadata
+                session_id = nwb.session_id
+                subject_id = nwb.subject.subject_id
+                parts = session_id.split("_")
+
+                # Parse condition
+                if parts[0] == "LID" and parts[1] == "off":
+                    condition = "LID off"
+                elif parts[0] == "UL" and parts[1] == "control":
+                    condition = "UL control"
+                else:
+                    condition = parts[0]
+
+                # Determine treatment from filename
+                if "_ACh-" in nwb_file.name:
+                    treatment = "ACh"
+                elif "_TTX-" in nwb_file.name:
+                    treatment = "TTX"
+                else:
+                    continue
+
+                stimulation = "calibration"
+
+                # Access fluorescence data
+                if "TwoPhotonSeriesCh2" in nwb.acquisition:
+                    ophys_ts = nwb.acquisition["TwoPhotonSeriesCh2"]
+                    fluorescence_data = ophys_ts.data[:]
+                    timestamps = ophys_ts.get_timestamps()
+
+                    if len(fluorescence_data.shape) > 1:
+                        acetylcholine_fluorescence = np.mean(fluorescence_data, axis=(1, 2))
+                    else:
+                        acetylcholine_fluorescence = fluorescence_data
+
+                    all_data.append(
+                        {
+                            "session_id": session_id,
+                            "subject_id": subject_id,
+                            "condition": condition,
+                            "treatment": treatment,
+                            "stimulation": stimulation,
+                            "timestamps": timestamps,
+                            "acetylcholine_fluorescence": acetylcholine_fluorescence,
+                            "nwb_file": nwb_file.name,
+                        }
+                    )
+
     if not all_data:
         raise ValueError(
             f"No GRABACh3.0 fluorescence data could be loaded from NWB files. "
             f"Checked {len(nwb_files)} files in {nwb_dir}. "
-            f"Looking for 'TwoPhotonSeriesCh2' in acquisition and filtering for stimulation='single_pulse'. "
+            f"Looking for 'TwoPhotonSeriesCh2' in acquisition and filtering for single_pulse trials. "
             f"First few filenames: {[f.name for f in nwb_files[:3]]}"
         )
 
@@ -646,7 +727,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_5_grabatch"
+    nwb_dir = base_dir / "nwb_files" / "figure_5" / "grabatch"
     output_dir = base_dir / "analysis_outputs" / "figure_5f"
 
     # Ensure output directory exists

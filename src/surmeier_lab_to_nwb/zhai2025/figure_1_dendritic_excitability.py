@@ -583,7 +583,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             print(f"    Added line scan imaging data")
             print(f"    Successfully processed recording: {recording_folder.name}")
 
-    print(f"Successfully processed all recordings from session: {session_folder_path.name}")
+    if verbose:
+        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
 
     # Build icephys table hierarchical structure following PyNWB best practices
     if verbose:
@@ -686,7 +687,7 @@ if __name__ == "__main__":
     )
 
     # Create nwb_files directory at root level
-    nwb_files_dir = root_dir / "nwb_files" / "figure_1_dendritic_excitability"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_1" / "dendritic_excitability"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 1 dendritic conditions
@@ -738,9 +739,7 @@ if __name__ == "__main__":
         )
 
         for session_folder in session_iterator:
-            if not verbose:
-                session_iterator.write(f"\nProcessing session folder: {session_folder.name}")
-            else:
+            if verbose:
                 print(f"\nProcessing session folder: {session_folder.name}")
 
             # Convert all recordings from this session to NWB format
@@ -756,7 +755,5 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            if not verbose:
-                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
-            else:
+            if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")

@@ -713,7 +713,7 @@ if __name__ == "__main__":
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_7_spine_density"
+    nwb_files_dir = root_dir / "nwb_files" / "figure_7" / "spine_density"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 7 conditions use iSPNs (indirect pathway)

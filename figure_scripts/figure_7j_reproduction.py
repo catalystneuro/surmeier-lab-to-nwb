@@ -796,7 +796,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_7_behavioral"
+    nwb_dir = base_dir / "nwb_files" / "figure_7" / "behavioral"
     output_dir = base_dir / "analysis_outputs" / "figure_7j"
 
     # Ensure output directory exists
