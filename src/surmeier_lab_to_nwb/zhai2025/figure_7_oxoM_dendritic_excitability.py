@@ -468,7 +468,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
                 ),
                 "cell_id": session_info["cell_number"],
                 "animal_id": session_info["animal_id"],
-                "location": "dendrite",
+                "location": f"dendrite (~{recording_info['approximate_distance_um']}μm from soma)",
+                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
+                "seal": "Gigaohm seal (whole-cell configuration) (Paper Methods: patch clamp methodology, whole-cell configuration implied)",
+                "resistance": "3-5 MΩ (borosilicate glass pipette) (Protocol: Ex_vivo_mouse_brain_patch_clamp_recordings: 'Pipette resistance must be of 3 to 5 megaohms')",
+                "filtering": "2 kHz low-pass filter (Paper Methods: 'signals were filtered at 2 kHz and digitized at 10 kHz')",
+                "initial_access_resistance": "<20 MΩ (typical for whole-cell recordings) (Standard electrophysiology practice for healthy whole-cell recordings)",
             }
         )
 
@@ -652,6 +657,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         print(f"    - {len(sequential_recording_indices)} sequential recordings")
         print(f"    - 1 repetition (Animal {session_info['animal_id']}, Cell {session_info['cell_number']})")
         print(f"    - 1 genotype condition ('{genotype}')")
+
+    # Use utility function to add trials table with proper chronological ordering
+    from surmeier_lab_to_nwb.zhai2025.utils import add_dendritic_trials_table
+
+    add_dendritic_trials_table(nwbfile, recording_indices, recording_to_metadata, t_starts, verbose)
 
     return nwbfile
 

@@ -228,10 +228,26 @@ class PrairieViewPathClampBaseInterface(BaseDataInterface):
             description = electrode_metadata.get(
                 "description", f"Prairie View intracellular electrode for {device.name}"
             )
+            # Get additional electrode parameters from metadata
+            slice_info = electrode_metadata.get("slice", None)
+            seal_info = electrode_metadata.get("seal", None)
+            location = electrode_metadata.get("location", None)
+            resistance = electrode_metadata.get("resistance", None)
+            filtering = electrode_metadata.get("filtering", None)
+            initial_access_resistance = electrode_metadata.get("initial_access_resistance", None)
+            cell_id = electrode_metadata.get("cell_id", None)
+
             electrode = nwbfile.create_icephys_electrode(
                 name=electrode_name,
                 description=description,
                 device=device,
+                slice=slice_info,
+                seal=seal_info,
+                location=location,
+                resistance=resistance,
+                filtering=filtering,
+                initial_access_resistance=initial_access_resistance,
+                cell_id=cell_id,
             )
 
         return electrode

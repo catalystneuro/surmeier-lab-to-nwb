@@ -309,7 +309,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"{condition} - Cell {session_info['cell_number']} - F-I protocol with {len(recording_folders)} current steps"
                 ),
                 "cell_id": session_info["cell_number"],
-                "location": "soma",
+                "location": "soma - dorsolateral striatum",
+                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
+                "seal": "Gigaohm seal (whole-cell configuration) (Paper Methods: patch clamp methodology, whole-cell configuration implied)",
+                "resistance": "3-5 MΩ (borosilicate glass pipette) (Protocol: Ex_vivo_mouse_brain_patch_clamp_recordings: 'Pipette resistance must be of 3 to 5 megaohms')",
+                "filtering": "2 kHz low-pass filter (Paper Methods: 'signals were filtered at 2 kHz and digitized at 10 kHz')",
+                "initial_access_resistance": "<20 MΩ (typical for whole-cell recordings) (Standard electrophysiology practice for healthy whole-cell recordings)",
             }
         )
 
@@ -468,8 +473,6 @@ if __name__ == "__main__":
         for session_folder in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder.name}")
-            elif not verbose:
-                session_iterator.set_description(f"Processing {session_folder.name}")
 
             # Convert session data to NWB format with time alignment
             nwbfile = convert_session_to_nwbfile(
@@ -486,5 +489,3 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
-            elif not verbose:
-                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")

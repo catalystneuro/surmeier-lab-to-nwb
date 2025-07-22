@@ -510,6 +510,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 ),
                 "cell_id": recording_info["cell_number"],
                 "location": recording_info["location_description"],
+                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
+                "seal": "Gigaohm seal (whole-cell configuration) (Paper Methods: patch clamp methodology, whole-cell configuration implied)",
+                "resistance": "3-5 MΩ (borosilicate glass pipette) (Protocol: Ex_vivo_mouse_brain_patch_clamp_recordings: 'Pipette resistance must be of 3 to 5 megaohms')",
+                "filtering": "2 kHz low-pass filter (Paper Methods: 'signals were filtered at 2 kHz and digitized at 10 kHz')",
+                "initial_access_resistance": "<20 MΩ (typical for whole-cell recordings) (Standard electrophysiology practice for healthy whole-cell recordings)",
             }
         )
 
@@ -727,6 +732,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         print(f"    - {len(repetition_indices)} repetitions (grouped by location)")
         print(f"    - 1 experimental condition ('{condition}')")
 
+    # Use utility function to add trials table with proper chronological ordering
+    from surmeier_lab_to_nwb.zhai2025.utils import add_dendritic_trials_table
+
+    add_dendritic_trials_table(nwbfile, recording_indices, recording_to_metadata, t_starts, verbose)
+
     return nwbfile
 
 
@@ -781,7 +791,8 @@ if __name__ == "__main__":
             leave=True,
         ) as pbar:
             for session_folder in pbar:
-                pbar.write(f"\nProcessing session folder: {session_folder.name}")
+                if verbose:
+                    pbar.write(f"\nProcessing session folder: {session_folder.name}")
 
                 # Convert all recordings from this session to NWB format
                 nwbfile = convert_session_to_nwbfile(
