@@ -476,7 +476,13 @@ if __name__ == "__main__":
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = (
-            tqdm(session_folders, desc=f"Processing {condition}", disable=verbose) if not verbose else session_folders
+            tqdm(
+                session_folders,
+                desc=f"Converting {condition} from figure_7_somatic_experiments to NWB",
+                disable=verbose,
+            )
+            if not verbose
+            else session_folders
         )
 
         for session_folder in session_iterator:

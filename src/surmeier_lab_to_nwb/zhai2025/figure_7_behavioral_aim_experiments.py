@@ -269,7 +269,16 @@ if __name__ == "__main__":
         print("=" * 60)
 
     # Process each session - use tqdm for non-verbose mode
-    iterator = sessions_list if verbose else tqdm(sessions_list, desc="Converting to NWB", unit="session", ncols=80)
+    iterator = (
+        sessions_list
+        if verbose
+        else tqdm(
+            sessions_list,
+            desc="Converting sessions from figure_7_behavioral_aim_experiments to NWB",
+            unit="session",
+            ncols=80,
+        )
+    )
 
     for (session_date, session_number, animal_id, genotype), session_data in iterator:
         if verbose:

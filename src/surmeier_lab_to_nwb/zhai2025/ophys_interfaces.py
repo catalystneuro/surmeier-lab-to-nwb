@@ -459,7 +459,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         line_scan_data_df = pd.read_csv(self.profile_csv_data_file_path)
 
         # Extract profile data for the specific channel
-        # Map channel names to profile columns
+        # Map channel names to profile columns with flexible matching
         profile_mapping = {"Ch1": (" Prof 1", "Prof 1 Time(ms)"), "Ch2": (" Prof 2", " Prof 2 Time(ms)")}
 
         if self.channel_name not in profile_mapping:
@@ -467,7 +467,45 @@ class PrairieViewLineScanInterface(BaseDataInterface):
                 f"Unsupported channel: {self.channel_name}. Supported channels: {list(profile_mapping.keys())}"
             )
 
-        profile_col, time_col = profile_mapping[self.channel_name]
+        profile_col_template, time_col_template = profile_mapping[self.channel_name]
+
+        # Find actual column names in the dataframe with robust matching
+        # This handles inconsistent whitespace in CSV column headers that can occur
+        # across different experimental sessions or Prairie View software versions
+        available_cols = line_scan_data_df.columns.tolist()
+
+        # Look for profile column with flexible matching strategy:
+        # 1. Try exact match first (fastest)
+        # 2. Try stripped match (handles leading/trailing whitespace differences)
+        # This is necessary because Prairie View CSV exports can have inconsistent
+        # whitespace in column headers (e.g., " Prof 2" vs "Prof 2")
+        profile_col = None
+        for col in available_cols:
+            if col == profile_col_template or col.strip() == profile_col_template.strip():
+                profile_col = col
+                break
+
+        if profile_col is None:
+            raise ValueError(
+                f"Could not find profile column for {self.channel_name}. "
+                f"Looking for '{profile_col_template}' (or stripped variant) "
+                f"but available columns are: {available_cols}"
+            )
+
+        # Look for time column with the same flexible matching strategy
+        # Time columns can also have inconsistent whitespace in headers
+        time_col = None
+        for col in available_cols:
+            if col == time_col_template or col.strip() == time_col_template.strip():
+                time_col = col
+                break
+
+        if time_col is None:
+            raise ValueError(
+                f"Could not find time column for {self.channel_name}. "
+                f"Looking for '{time_col_template}' (or stripped variant) "
+                f"but available columns are: {available_cols}"
+            )
         profile_data = line_scan_data_df[profile_col].to_numpy()
         timestamps = line_scan_data_df[time_col].to_numpy(dtype=float) / 1000.0  # Convert to seconds
 

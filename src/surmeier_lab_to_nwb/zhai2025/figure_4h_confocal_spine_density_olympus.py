@@ -384,7 +384,13 @@ if __name__ == "__main__":
 
     # Process each session folder
     session_iterator = (
-        tqdm(session_folders, desc="Processing sessions", disable=verbose) if not verbose else session_folders
+        tqdm(
+            session_folders,
+            desc="Converting sessions from figure_4h_confocal_spine_density_olympus to NWB",
+            disable=verbose,
+        )
+        if not verbose
+        else session_folders
     )
 
     for session_folder in session_iterator:

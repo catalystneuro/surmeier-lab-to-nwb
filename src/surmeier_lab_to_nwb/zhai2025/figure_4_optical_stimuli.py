@@ -556,7 +556,9 @@ def main():
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = (
-            tqdm(session_folders, desc=f"Processing {condition}", disable=verbose) if not verbose else session_folders
+            tqdm(session_folders, desc=f"Converting {condition} from figure_4_optical_stimuli to NWB", disable=verbose)
+            if not verbose
+            else session_folders
         )
 
         # Process each session

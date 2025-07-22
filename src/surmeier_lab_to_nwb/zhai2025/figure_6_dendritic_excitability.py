@@ -736,7 +736,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Control verbose output from here
-    VERBOSE = True  # Set to True for detailed output
+    verbose = True  # Set to True for detailed output
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -769,10 +769,17 @@ if __name__ == "__main__":
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        print(f"Found {len(session_folders)} session folders")
+        if verbose:
+            print(f"Found {len(session_folders)} session folders")
 
         # Process each session folder with progress bar
-        with tqdm(session_folders, desc=f"Processing {condition}", unit="session", position=0, leave=True) as pbar:
+        with tqdm(
+            session_folders,
+            desc=f"Converting {condition} from figure_6_dendritic_excitability to NWB",
+            unit="session",
+            position=0,
+            leave=True,
+        ) as pbar:
             for session_folder in pbar:
                 pbar.write(f"\nProcessing session folder: {session_folder.name}")
 
@@ -780,7 +787,7 @@ if __name__ == "__main__":
                 nwbfile = convert_session_to_nwbfile(
                     session_folder_path=session_folder,
                     condition=condition,
-                    verbose=VERBOSE,
+                    verbose=verbose,
                 )
 
                 # Create output filename

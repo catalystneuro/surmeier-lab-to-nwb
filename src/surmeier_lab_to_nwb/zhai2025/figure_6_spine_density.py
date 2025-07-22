@@ -731,7 +731,9 @@ if __name__ == "__main__":
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = (
-            tqdm(session_folders, desc=f"Processing {condition}", disable=verbose) if not verbose else session_folders
+            tqdm(session_folders, desc=f"Converting {condition} from figure_6_spine_density to NWB", disable=verbose)
+            if not verbose
+            else session_folders
         )
 
         for session_folder_path in session_iterator:
@@ -757,6 +759,3 @@ if __name__ == "__main__":
                 print(f"Successfully saved: {nwbfile_path.name}")
             elif not verbose:
                 session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
-
-        if not verbose:
-            print(f"Completed {condition}: {len(session_folders)} sessions processed")
