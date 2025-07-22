@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import xmltodict
 from neuroconv.converters import BrukerTiffSinglePlaneConverter
+from neuroconv.utils import calculate_regular_series_rate
 from pynwb.ophys import (
     Fluorescence,
     ImageSegmentation,
@@ -156,13 +157,30 @@ class PrairieViewBrightnessOverTimeInterface(BrukerTiffSinglePlaneConverter):
 
             region_data = bot_df[region_metadata["region"]].to_numpy()
 
-            roi_response_series = RoiResponseSeries(
-                name=f"BrightnessOverTime{channel_name}",
-                description=f"Brightness over time measurements for {region_metadata['region']}",
-                data=region_data,
-                rois=roi_table_region,
-                unit="a.u.",  # Arbitrary units for fluorescence
-                timestamps=timestamps,
-            )
+            # Use neuroconv pattern: check if timestamps are regular, use rate+starting_time or timestamps
+            rate = calculate_regular_series_rate(series=timestamps)
+            recording_t_start = timestamps[0]
+
+            if rate is not None:
+                # Regular timestamps - use starting_time + rate
+                roi_response_series = RoiResponseSeries(
+                    name=f"BrightnessOverTime{channel_name}",
+                    description=f"Brightness over time measurements for {region_metadata['region']}",
+                    data=region_data,
+                    rois=roi_table_region,
+                    unit="a.u.",  # Arbitrary units for fluorescence
+                    starting_time=float(recording_t_start),
+                    rate=rate,
+                )
+            else:
+                # Irregular timestamps - use explicit timestamps
+                roi_response_series = RoiResponseSeries(
+                    name=f"BrightnessOverTime{channel_name}",
+                    description=f"Brightness over time measurements for {region_metadata['region']}",
+                    data=region_data,
+                    rois=roi_table_region,
+                    unit="a.u.",  # Arbitrary units for fluorescence
+                    timestamps=timestamps,
+                )
 
             fluorescence.add_roi_response_series(roi_response_series)

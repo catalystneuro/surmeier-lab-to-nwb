@@ -268,7 +268,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         ),
         genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
         sex="M",
-        age="P49-P84",  # ISO format for 7-12 weeks (postnatal days)
+        age="P7W/P12W",  # ISO format for 7-12 weeks
     )
     nwbfile.subject = subject
 
@@ -449,8 +449,8 @@ if __name__ == "__main__":
 
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
-
-        print(f"Processing somatic excitability data for: {condition}")
+        if verbose:
+            print(f"Processing somatic excitability data for: {condition}")
 
         # Get all session folders (each session = one cell)
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]

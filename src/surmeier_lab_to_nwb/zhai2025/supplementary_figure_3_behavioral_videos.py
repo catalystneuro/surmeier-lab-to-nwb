@@ -242,7 +242,7 @@ def convert_session_to_nwbfile(
             "strain": "C57BL/6J",
             "genotype": genotype,
             "sex": "M",
-            "age": "P49-P84",  # 7-12 weeks old
+            "age": "P7W/P12W",  # 7-12 weeks old
             "description": f"M1R CRISPR study mouse for behavioral video assessment - Supplementary Figure 3, animal ID: {animal_id}",
             "genotype_description": (
                 "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "

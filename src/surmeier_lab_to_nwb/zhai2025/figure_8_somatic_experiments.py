@@ -281,7 +281,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         description=cell_description,
         genotype=f"Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic; {genetic_manipulation}",
         sex="M",
-        age="P49-P84",  # ISO format for 7-12 weeks (postnatal days)
+        age="P7W/P12W",  # ISO format for 7-12 weeks
     )
     nwbfile.subject = subject
 

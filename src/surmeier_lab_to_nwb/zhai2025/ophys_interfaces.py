@@ -8,7 +8,7 @@ import pandas as pd
 import tifffile
 import xmltodict
 from neuroconv.basedatainterface import BaseDataInterface
-from neuroconv.utils import DeepDict
+from neuroconv.utils import DeepDict, calculate_regular_series_rate
 from pynwb.base import TimeSeries
 from pynwb.file import NWBFile
 from pynwb.image import Image, Images
@@ -541,14 +541,31 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         # Create ROI response series using metadata structure
         roi_metadata = metadata["Ophys"]["RoiResponseSeries"][self.ophys_metadata_key]
 
-        roi_response_series = RoiResponseSeries(
-            name=roi_metadata["name"],
-            description=roi_metadata["description"],
-            data=profile_data,
-            rois=roi_table_region,
-            unit=roi_metadata["unit"],
-            timestamps=timestamps,
-        )
+        # Use neuroconv pattern: check if timestamps are regular, use rate+starting_time or timestamps
+        rate = calculate_regular_series_rate(series=timestamps)
+        recording_t_start = timestamps[0]
+
+        if rate is not None:
+            # Regular timestamps - use starting_time + rate
+            roi_response_series = RoiResponseSeries(
+                name=roi_metadata["name"],
+                description=roi_metadata["description"],
+                data=profile_data,
+                rois=roi_table_region,
+                unit=roi_metadata["unit"],
+                starting_time=float(recording_t_start),
+                rate=rate,
+            )
+        else:
+            # Irregular timestamps - use explicit timestamps
+            roi_response_series = RoiResponseSeries(
+                name=roi_metadata["name"],
+                description=roi_metadata["description"],
+                data=profile_data,
+                rois=roi_table_region,
+                unit=roi_metadata["unit"],
+                timestamps=timestamps,
+            )
 
         # Get ophys module (created by helper method)
         ophys_module = nwbfile.processing["ophys"]
@@ -608,6 +625,28 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         timeseries_metadata = metadata["TimeSeries"][self.ophys_metadata_key]
 
         raw_line_scan_data = tifffile.imread(self.line_scan_raw_data_file_path)
+
+        # Handle both 2D (timestamps, pixels) and 3D (channels, timestamps, pixels) data formats
+        if len(raw_line_scan_data.shape) == 3:
+            # 3D data: (channels, timestamps, pixels) - extract the appropriate channel
+            num_channels = raw_line_scan_data.shape[0]
+            if self.channel_name == "Ch1":
+                raw_line_scan_data = raw_line_scan_data[0]  # First channel
+            elif self.channel_name == "Ch2":
+                if num_channels < 2:
+                    raise ValueError(
+                        f"Requested Ch2 but only {num_channels} channels available in data with shape {raw_line_scan_data.shape}"
+                    )
+                raw_line_scan_data = raw_line_scan_data[1]  # Second channel
+            else:
+                raise ValueError(
+                    f"Unknown channel name '{self.channel_name}' for 3D data with shape {raw_line_scan_data.shape}"
+                )
+        elif len(raw_line_scan_data.shape) == 2:
+            # 2D data: (timestamps, pixels) - use as is for single-channel files
+            pass
+        else:
+            raise ValueError(f"Unexpected raw line scan data shape: {raw_line_scan_data.shape}. Expected 2D or 3D.")
 
         # Use aligned starting time if set, otherwise use rate-based timing
         if self._t_start != 0.0:

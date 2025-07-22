@@ -382,7 +382,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         ),
         genotype=genotype_bg,
         sex="M",
-        age="P49-P84",  # ISO format for 7-12 weeks (postnatal days)
+        age="P7W/P12W",  # ISO format for 7-12 weeks
     )
     nwbfile.subject = subject
 

@@ -352,7 +352,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         ),
         genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
         sex="M",
-        age="P49-P84",  # ISO format for 7-12 weeks (postnatal days)
+        age="P7W/P12W",  # ISO format for 7-12 weeks
     )
     nwbfile.subject = subject
 
@@ -731,7 +731,7 @@ if __name__ == "__main__":
 
         # Process each session folder with progress bar
         session_iterator = tqdm(
-            session_folders, desc=f"Processing {condition}", unit="session", position=0, leave=True, disable=verbose
+            session_folders, desc=f"Converting {condition} from figure_1_dendritic_excitability to NWB", disable=verbose
         )
 
         for session_folder in session_iterator:

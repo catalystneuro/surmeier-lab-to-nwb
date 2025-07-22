@@ -4,7 +4,7 @@ from typing import Dict, Optional
 
 import xmltodict
 from neuroconv.basedatainterface import BaseDataInterface
-from neuroconv.utils import DeepDict
+from neuroconv.utils import DeepDict, calculate_regular_series_rate
 from pynwb.file import NWBFile
 from pynwb.icephys import CurrentClampSeries, VoltageClampSeries
 
@@ -391,15 +391,30 @@ class PrairieViewCurrentClampInterface(PrairieViewPathClampBaseInterface):
         if self._t_start != 0.0:
             timestamps = timestamps + self._t_start
 
-        # Create current clamp series
+        # Use neuroconv pattern: check if timestamps are regular, use rate+starting_time or timestamps
+        rate = calculate_regular_series_rate(series=timestamps)
+        recording_t_start = timestamps.iloc[0]
+
         name = patch_clamp_series_metadata["name"]
-        current_clamp_series = CurrentClampSeries(
-            name=name,
-            description=patch_clamp_series_metadata["description"],
-            data=voltage_volts,
-            timestamps=timestamps.values,
-            electrode=electrode,
-        )
+        if rate is not None:
+            # Regular timestamps - use starting_time + rate
+            current_clamp_series = CurrentClampSeries(
+                name=name,
+                description=patch_clamp_series_metadata["description"],
+                data=voltage_volts,
+                starting_time=float(recording_t_start),
+                rate=rate,
+                electrode=electrode,
+            )
+        else:
+            # Irregular timestamps - use explicit timestamps
+            current_clamp_series = CurrentClampSeries(
+                name=name,
+                description=patch_clamp_series_metadata["description"],
+                data=voltage_volts,
+                timestamps=timestamps.values,
+                electrode=electrode,
+            )
 
         # Add current clamp series to acquisition
         nwbfile.add_acquisition(current_clamp_series)
@@ -510,13 +525,29 @@ class PrairieViewVoltageClampInterface(PrairieViewPathClampBaseInterface):
             if self._t_start != 0.0:
                 timestamps = timestamps + self._t_start
 
-            voltage_clamp_series = VoltageClampSeries(
-                name=name,
-                description=patch_clamp_series_metadata["description"],
-                data=current_amps,
-                timestamps=timestamps.values,
-                electrode=electrode,
-            )
+            # Use neuroconv pattern: check if timestamps are regular, use rate+starting_time or timestamps
+            rate = calculate_regular_series_rate(series=timestamps)
+            recording_t_start = timestamps.iloc[0]
+
+            if rate is not None:
+                # Regular timestamps - use starting_time + rate
+                voltage_clamp_series = VoltageClampSeries(
+                    name=name,
+                    description=patch_clamp_series_metadata["description"],
+                    data=current_amps,
+                    starting_time=float(recording_t_start),
+                    rate=rate,
+                    electrode=electrode,
+                )
+            else:
+                # Irregular timestamps - use explicit timestamps
+                voltage_clamp_series = VoltageClampSeries(
+                    name=name,
+                    description=patch_clamp_series_metadata["description"],
+                    data=current_amps,
+                    timestamps=timestamps.values,
+                    electrode=electrode,
+                )
 
         # Add voltage clamp series to acquisition
         nwbfile.add_acquisition(voltage_clamp_series)

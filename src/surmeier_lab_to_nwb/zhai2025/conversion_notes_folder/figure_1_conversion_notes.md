@@ -256,6 +256,161 @@ Figure 1/Dendritic excitability/
 - **Spatial calibration**: Distances measured from soma to scan locations using structural channel
 - **Signal validation**: Structural channel confirms dendrite integrity throughout recording
 
+## Experimental Subjects and Procedures
+
+*Sources: Information compiled from Zhai et al. 2025 paper (surmeier_article_bioarxiv.txt), Key Resources Table (Key resources table_Zhai_v1.xlsx), and protocols.io assets (assets/protocols/ folder)*
+
+### Subject Information
+
+**Animal Characteristics:**
+- **Species**: Mus musculus (laboratory mice) *(Paper: Methods section)*
+- **Strain**: C57BL/6 (C57Bl/6) background *(Paper: "Male C57Bl/6 hemizygous mice")*
+- **Age**: 7-12 weeks old (ISO format: P7W/P12W) *(Paper: "(7-12 weeks of age)" in Methods)*
+- **Sex**: Male mice exclusively *(Paper: "Male C57Bl/6 hemizygous mice")*
+- **Genotypes**: *(Key Resources Table)*
+  - **Drd1-Tdtomato BAC transgenic** (MMRRC_030512-UNC) - Direct pathway SPN identification
+  - **Drd2-eGFP BAC transgenic** (MMRRC_000230-UNC) - Indirect pathway SPN identification
+  - **Adora2-Cre mice** (MMRRC 031168-UCD) - Used for confocal microscopy studies
+  - **CDGI knockout mice** (C57BL/6J background, generated at MIT) - For specific experiments
+
+**Subject Selection Criteria:**
+- Hemizygous for BAC transgenes, back-crossed to C57BL/6 background *(Paper: Methods)*
+- Standard laboratory housing conditions
+- Healthy animals with no visible abnormalities
+
+### Surgical Procedures and LID Model Induction
+
+#### 6-OHDA Lesioning Surgery
+
+*Source: Protocol "Unilateral_6-hydroxydopamine_lesion_mouse_model_of_Parkinson_disease.md"*
+
+**Pre-surgical Preparation:**
+- **Anesthesia**: Isoflurane (5% induction, 2% maintenance with oxygen)
+- **Analgesia**: Meloxicam (METACAM®, 0.1 mg/kg, s.c.)
+- **Temperature control**: 37°C using temperature controller (ATC1000, World Precision Instruments)
+- **Equipment**: David Kopf Instruments stereotaxic frame (Model 940)
+
+**Surgical Protocol:**
+1. **Site preparation**: Shaving, disinfection with 70% ethanol and iodine
+2. **Skull exposure**: Small incision, tissue removal, skull leveling (Bregma-Lambda <0.05 mm)
+3. **Stereotaxic coordinates** for medial forebrain bundle (MFB):
+   - **Anteroposterior**: -0.7 mm from Bregma
+   - **Mediolateral**: -1.2 mm from Bregma
+   - **Dorsoventral**: -4.75 mm from dura surface
+
+**6-OHDA Injection:**
+- **Solution**: 3.5 mg/ml 6-OHDA hydrochloride (Sigma H4381) in saline + 0.02% L-ascorbic acid
+- **Volume**: 1 μl delivered at <0.5 μl/min using calibrated glass micropipette
+- **Timing**: 2-minute pre-injection wait, 10-minute post-injection wait before removal
+
+**Post-operative Care:**
+- Wound closure with surgical suture, lidocaine cream application
+- Saline injection (0.5 ml sterile saline i.p.) for hydration
+- Recovery on heating pad until conscious, then clean home cage
+- **Recovery support**: Heating pad for 2 weeks, daily saline injections and dietary supplements for 2-3 weeks
+
+#### Lesion Validation - Cylinder Test
+
+*Source: Paper Methods section - "Three to four weeks after surgery"*
+
+**Timeline**: 3-4 weeks post-surgery
+**Procedure**: Drug-free forelimb-use asymmetry assessment
+- **Duration**: 3 minutes in 500 ml beaker
+- **Measurement**: Weight-bearing touches by left and right forepaws
+- **Inclusion criterion**: <25% right paw touches (indicates near-complete lesion)
+
+#### L-DOPA Treatment and Dyskinesia Induction
+
+*Source: Paper Methods section and "Rating_of_levodopa-induced_dyskinesia_in_6-OHDA_lesioned_mice.md" protocol*
+
+**Treatment Schedule:**
+- **Timeline**: Within 1-7 days after cylinder test validation
+- **Frequency**: Every other day for minimum 5 sessions *(Paper: "every other day for at least five sessions")*
+- **Dosing regimen**: *(Paper: Methods)*
+  - Sessions 1-2: 6 mg/kg L-DOPA + 12 mg/kg benserazide
+  - Sessions 3-5+: 12 mg/kg L-DOPA + 12 mg/kg benserazide
+- **Administration**: Intraperitoneal injection, fresh solutions used within 40 minutes
+
+**Behavioral Assessment (AIM Scoring):**
+- **Duration**: 2 hours post-L-DOPA injection *(AIM scoring protocol)*
+- **Intervals**: Every 20 minutes (20, 40, 60, 80, 100, 120 min post-injection) *(AIM scoring protocol)*
+- **Categories**: Axial, limb, and orolingual abnormal involuntary movements *(AIM scoring protocol)*
+- **Scale**: 0-4 per category (half-scores permitted) *(AIM scoring protocol)*
+- **Documentation**: Continuous video recording for all sessions
+
+### Brain Slice Preparation
+
+*Source: Paper Methods section and "Perfusion_and_fixation_of_brain_tissue_for_fresh_frozen_sections_followed_by_immunofluorescence_staining.md" protocol*
+
+#### Experimental State Definition
+
+**Off-State Slices:** *(Paper: "off-state mice were sacrificed 24-48 h after the last levodopa dose")*
+- Mice sacrificed 24-48 hours after last L-DOPA dose
+- Represents baseline dyskinetic state without acute L-DOPA effects
+
+**On-State Slices:** *(Paper: "on-state mice were sacrificed 30 min after the last levodopa dose")*
+- Mice sacrificed 30 minutes after final L-DOPA dose
+- Represents peak dyskinetic state with elevated striatal phospho-ERK
+
+#### Slice Preparation Protocol
+
+*Source: Paper Methods section*
+
+**Anesthesia and Perfusion:**
+1. **Deep anesthesia**: Ketamine (100 mg/kg) + xylazine (7 mg/kg) mixture
+2. **Transcardial perfusion**: Ice-cold sucrose-based cutting solution
+
+**Cutting Solution Composition (mM):** *(Paper: Methods)*
+- 181 sucrose, 25 NaHCO₃, 1.25 NaH₂PO₄, 2.5 KCl
+- 0.5 CaCl₂, 7 MgCl₂, 11.6 sodium ascorbate, 3.1 sodium pyruvate, 5 glucose
+- **Osmolarity**: 305 mOsm/l
+- **Oxygenation**: Continuous carbogen (95% CO₂/5% O₂) bubbling
+
+**Sectioning Parameters:** *(Paper: Methods)*
+- **Equipment**: Leica VT1200 vibratome
+- **Orientation**: Sagittal sections
+- **Thickness**: 280 μm
+- **Recovery**: 30 minutes at 34°C, then room temperature storage until recording
+
+### Recording Conditions
+
+*Source: Paper Methods section*
+
+#### Artificial Cerebrospinal Fluid (ACSF)
+
+**Standard ACSF Composition (mM):** *(Paper: Methods)*
+- 124 NaCl, 3 KCl, 1 NaH₂PO₄, 2.0 CaCl₂, 1.0 MgCl₂, 26 NaHCO₃, 13.89 glucose
+- **Temperature**: 31-32°C during recordings *(Paper: Methods)*
+- **Flow rate**: 2-3 ml/min continuous superfusion *(Paper: Methods)*
+- **Oxygenation**: Continuous carbogen (95% CO₂/5% O₂) bubbling *(Paper: Methods)*
+
+#### Patch Pipette Solutions
+
+*Source: Paper Methods section*
+
+**Current-Clamp Internal Solution (mM):**
+- 115 K-gluconate, 20 KCl, 1.5 MgCl₂, 5 HEPES, 0.2 EGTA
+- 2 Mg-ATP, 0.5 Na-GTP, 10 Na-phosphocreatine
+- **pH**: 7.25, **Osmolarity**: 280-290 mOsm/L
+
+**Voltage-Clamp Internal Solution (mM):**
+- 120 CsMeSO₃, 5 NaCl, 0.25 EGTA, 10 HEPES, 4 Mg-ATP, 0.3 Na-GTP, 10 TEA, 5 QX-314
+- **pH**: 7.25, **Osmolarity**: 280-290 mOsm/L
+
+#### Imaging Solutions (for Dendritic Excitability)
+
+*Source: Paper Methods section*
+
+**Calcium Indicator:**
+- **Fluo-4** (Thermo Fisher F14200): 100 μM concentration *(Paper: "100 μM Fluo-4")*
+- **Function**: Ca²⁺-sensitive dye for calcium transient detection
+
+**Morphological Dye:**
+- **Alexa Fluor 568 hydrazide** (Thermo Fisher A10437): 50 μM concentration *(Paper: "50 μM Alexa Fluor 568")*
+- **Function**: Ca²⁺-insensitive structural visualization of dendrites *(Paper: "to visualize dendrites")*
+
+**Equilibration**: Minimum 15 minutes before imaging to ensure dye distribution
+
 ## Experimental Timeline Analysis
 
 Based on timestamp analysis from the raw data, the experimental sequence follows this pattern:

@@ -228,7 +228,7 @@ def convert_session_to_nwbfile(
             "strain": "C57BL/6J",
             "genotype": "CDGI KO",
             "sex": "M",
-            "age": "P49-P84",  # 7-12 weeks old
+            "age": "P7W/P12W",  # 7-12 weeks old
             "description": f"CDGI knockout mouse for behavioral video assessment - Figure 7, animal ID: {animal_id}",
             "genotype_description": (
                 "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "
