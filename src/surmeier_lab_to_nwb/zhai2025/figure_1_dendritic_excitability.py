@@ -730,12 +730,8 @@ if __name__ == "__main__":
             print(f"Found {len(session_folders)} session folders total")
 
         # Process each session folder with progress bar
-        session_iterator = (
-            tqdm(
-                session_folders, desc=f"Processing {condition}", unit="session", position=0, leave=True, disable=verbose
-            )
-            if not verbose
-            else session_folders
+        session_iterator = tqdm(
+            session_folders, desc=f"Processing {condition}", unit="session", position=0, leave=True, disable=verbose
         )
 
         for session_folder in session_iterator:

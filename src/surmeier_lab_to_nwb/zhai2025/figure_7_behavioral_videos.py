@@ -297,6 +297,9 @@ def convert_session_to_nwbfile(
         description="Path to the video file",
     )
 
+    # Track video names to ensure uniqueness
+    video_name_counter = {}
+
     for video_file, vid_metadata in video_metadata_list:
         # Calculate video start time relative to session start
         time_offset_seconds = float(vid_metadata["time_point_min"] * 60)  # Convert minutes to seconds
@@ -318,19 +321,32 @@ def convert_session_to_nwbfile(
             video_file=str(video_file),
         )
 
-        # Create video interface for each video
+        # Create unique video name with counter for duplicates
+        base_video_name = f"video_{video_file.stem}"
+        if base_video_name in video_name_counter:
+            video_name_counter[base_video_name] += 1
+            video_name = f"{base_video_name}_{video_name_counter[base_video_name]}"
+        else:
+            video_name_counter[base_video_name] = 0
+            video_name = base_video_name
+
         video_interface = ExternalVideoInterface(
             file_paths=[video_file],
+            video_name=video_name,
             verbose=False,
         )
 
-        # Add video to NWB file with unique name
-        video_name = f"video_{animal_id}_{vid_metadata['session_number']}_{vid_metadata['time_point_min']}min"
+        # Add video to NWB file
         video_interface.add_to_nwbfile(
             nwbfile=nwbfile,
             metadata={
-                "name": video_name,
-                "description": f"Behavioral video at {vid_metadata['time_point_min']} minutes post L-DOPA treatment for contralateral rotation assessment",
+                "Behavior": {
+                    "ExternalVideos": {
+                        video_name: {
+                            "description": f"Behavioral video at {vid_metadata['time_point_min']} minutes post L-DOPA treatment for contralateral rotation assessment",
+                        }
+                    }
+                }
             },
         )
 

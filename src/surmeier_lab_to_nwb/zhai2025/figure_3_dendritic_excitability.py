@@ -701,8 +701,6 @@ if __name__ == "__main__":
         for session_folder in session_iterator:
             if verbose:
                 print(f"\nProcessing session folder: {session_folder.name}")
-            elif not verbose:
-                session_iterator.set_description(f"Processing {session_folder.name}")
 
             # Convert all recordings from this session to NWB format
             # All recordings from the session are combined into a single NWBFile
@@ -720,5 +718,4 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
-            elif not verbose:
-                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+x

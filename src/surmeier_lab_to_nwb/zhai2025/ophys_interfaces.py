@@ -530,7 +530,6 @@ class PrairieViewLineScanInterface(BaseDataInterface):
 
         # Add ROI to plane segmentation
         plane_segmentation.add_roi(
-            id=0,
             pixel_mask=pixel_mask,
         )
 
