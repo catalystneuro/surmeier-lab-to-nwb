@@ -481,8 +481,8 @@ if __name__ == "__main__":
 
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
-
-        print(f"Processing M1R antagonist somatic excitability data for: {condition}")
+        if verbose:
+            print(f"Processing M1R antagonist somatic excitability data for: {condition}")
 
         # Get all session folders (each session = one animal/cell)
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]

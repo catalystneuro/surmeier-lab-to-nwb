@@ -318,6 +318,16 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     )
     nwbfile.add_device(stimulation_device)
 
+    # Add imaging device for BOT interface
+    imaging_device = Device(
+        name="default",  # Name expected by BrukerTiffSinglePlaneConverter
+        description=(
+            "Bruker two-photon microscope for acetylcholine GRAB biosensor imaging. "
+            "Used for brightness over time (BOT) measurements of acetylcholine release dynamics."
+        ),
+    )
+    nwbfile.add_device(imaging_device)
+
     # Add stimulation protocol information
     general_stimulation_description = (
         f"Electrical stimulation using concentric bipolar electrode (CBAPD75, FHC) "

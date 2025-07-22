@@ -2,6 +2,7 @@
 
 from pynwb.base import TimeSeries
 from pynwb.file import NWBFile
+from tqdm import tqdm
 
 
 def add_dendritic_trials_table(
@@ -61,7 +62,7 @@ def add_dendritic_trials_table(
     # Collect trial data and sort by start_time to ensure chronological order
     trial_data_list = []
 
-    for recording_index in recording_indices:
+    for recording_index in tqdm(recording_indices, desc="Collecting trial data"):
         recording_metadata = recording_to_metadata[recording_index]
         recording_info = recording_metadata["recording_info"]
 
@@ -97,7 +98,7 @@ def add_dendritic_trials_table(
     trial_data_list.sort(key=lambda x: x["start_time"])
 
     # Add sorted trials to trials table
-    for trial_data in trial_data_list:
+    for trial_data in tqdm(trial_data_list, desc="Adding trials to NWB file"):
         nwbfile.add_trial(**trial_data)
 
     if verbose:

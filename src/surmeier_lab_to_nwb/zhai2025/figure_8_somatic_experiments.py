@@ -486,14 +486,10 @@ if __name__ == "__main__":
             print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = (
-            tqdm(
-                session_folders,
-                desc=f"Converting {condition} from figure_8_somatic_experiments to NWB",
-                disable=verbose,
-            )
-            if not verbose
-            else session_folders
+        session_iterator = tqdm(
+            session_folders,
+            desc=f"Converting {condition} from figure_8_somatic_experiments to NWB",
+            disable=verbose,
         )
 
         for session_folder in session_iterator:
@@ -513,4 +509,5 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            print(f"Successfully saved: {nwbfile_path.name}")
+            if verbose:
+                print(f"Successfully saved: {nwbfile_path.name}")
