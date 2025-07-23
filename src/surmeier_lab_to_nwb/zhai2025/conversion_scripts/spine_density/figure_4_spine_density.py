@@ -770,7 +770,9 @@ if __name__ == "__main__":
             print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = tqdm(session_folders, desc=f"Converting Figure4 SpineDensity {condition}", disable=verbose)
+        session_iterator = tqdm(
+            session_folders, desc=f"Converting Figure4 SpineDensity {condition}", disable=verbose, unit=" session"
+        )
 
         for session_folder_path in session_iterator:
             if verbose:

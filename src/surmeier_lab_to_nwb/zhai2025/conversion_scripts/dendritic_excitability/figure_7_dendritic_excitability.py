@@ -761,6 +761,7 @@ if __name__ == "__main__":
             session_folders,
             desc=f"Converting Figure7 DendriticExcitability {condition}",
             disable=verbose,
+            unit=" session",
         )
 
         for session_folder in session_iterator:

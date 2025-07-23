@@ -406,6 +406,7 @@ if __name__ == "__main__":
             session_folders,
             desc="Converting Figure4H ConfocalSpineDensity",
             disable=verbose,
+            unit=" session",
         )
         if not verbose
         else session_folders

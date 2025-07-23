@@ -291,6 +291,7 @@ if __name__ == "__main__":
     iterator = tqdm(
         sessions_list,
         desc="Converting Figure7 AIMBehavior",
+        unit=" session",
     )
 
     for (session_date, session_number, animal_id, genotype), session_data in iterator:

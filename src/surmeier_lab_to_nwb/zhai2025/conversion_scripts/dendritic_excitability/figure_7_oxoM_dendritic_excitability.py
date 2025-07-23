@@ -738,7 +738,7 @@ if __name__ == "__main__":
             tqdm(
                 session_folders,
                 desc=f"Converting Figure7 OxoMDendriticExcitability {genotype}",
-                unit="session",
+                unit=" session",
                 position=0,
                 leave=True,
                 disable=not verbose,
