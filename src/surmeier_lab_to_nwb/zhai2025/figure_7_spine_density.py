@@ -644,7 +644,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"  Processing: {subfolder.name}")
 
         # Parse container information
-        container_info = parse_container_info(subfolder.name, session_info["session_id"])
+        container_info = parse_container_info(subfolder.name, session_id)
 
         if verbose:
             print(f"    Container name: {container_info['container_name']}")
@@ -721,7 +721,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"    Successfully added image stack: {container_info['container_name']}")
 
     if verbose:
-        print(f"Conversion completed for session: {session_info['session_id']}")
+        print(f"Conversion completed for session: {session_info['animal_id']}")
 
     return nwbfile
 
