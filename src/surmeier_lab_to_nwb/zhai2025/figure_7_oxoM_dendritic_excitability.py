@@ -309,7 +309,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         }
     )
 
-    if VERBOSE:
+    if verbose:
         print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
@@ -677,7 +677,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Control verbose output from here
-    VERBOSE = False  # Set to True for detailed output
+    verbose = False  # Set to True for detailed output
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -701,22 +701,22 @@ if __name__ == "__main__":
         genotype_path = base_path / genotype
 
         if not genotype_path.exists():
-            if VERBOSE:
+            if verbose:
                 print(f"Skipping genotype '{genotype}' - path does not exist: {genotype_path}")
             continue
 
-        if VERBOSE:
+        if verbose:
             print(f"Processing oxotremorine-M dendritic excitability data for: {genotype}")
 
         # Get all session folders (each session = one animal/cell)
         session_folders = [f for f in genotype_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        if VERBOSE:
+        if verbose:
             print(f"Found {len(session_folders)} session folders")
 
         if not session_folders:
-            if VERBOSE:
+            if verbose:
                 print(f"No session folders found in {genotype_path}")
             continue
 
@@ -728,41 +728,32 @@ if __name__ == "__main__":
                 unit="session",
                 position=0,
                 leave=True,
-                disable=not VERBOSE,
+                disable=not verbose,
             )
-            if not VERBOSE
+            if not verbose
             else session_folders
         )
 
         for session_folder in session_iterator:
-            if VERBOSE:
+            if verbose:
                 print(f"\nProcessing session: {session_folder.name}")
             else:
                 session_iterator.set_description(f"Processing {session_folder.name}")
 
-            try:
-                # Convert session data to NWB format with time alignment
-                nwbfile = convert_session_to_nwbfile(
-                    session_folder_path=session_folder,
-                    genotype=genotype,
-                    verbose=VERBOSE,
-                )
+            if verbose:
+                print(f"\nProcessing session: {session_folder.name}")
 
-                # Create output filename
-                nwbfile_path = (
-                    nwb_files_dir / f"figure7E_oxoM_dendritic_excitability_{genotype}_{session_folder.name}.nwb"
-                )
+            # Convert session data to NWB format with time alignment
+            nwbfile = convert_session_to_nwbfile(
+                session_folder_path=session_folder,
+                genotype=genotype,
+                verbose=verbose,
+            )
 
-                # Write NWB file
-                configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                if VERBOSE:
-                    print(f"Successfully saved: {nwbfile_path.name}")
-                else:
-                    session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
+            # Create output filename
+            nwbfile_path = nwb_files_dir / f"figure7E_oxoM_dendritic_excitability_{genotype}_{session_folder.name}.nwb"
 
-            except Exception as e:
-                if VERBOSE:
-                    print(f"Error processing {session_folder.name}: {str(e)}")
-                else:
-                    session_iterator.write(f"Error processing {session_folder.name}: {str(e)}")
-                continue
+            # Write NWB file
+            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+            if verbose:
+                print(f"Successfully saved: {nwbfile_path.name}")

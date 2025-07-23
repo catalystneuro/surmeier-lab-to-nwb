@@ -706,7 +706,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Control verbose output from here
-    VERBOSE = True  # Set to True for detailed output
+    verbose = False  # Set to True for detailed output
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -744,20 +744,22 @@ if __name__ == "__main__":
             print(f"Found {len(session_folders)} session folders")
 
         # Process each session folder with progress bar
-        with tqdm(
-            session_folders, desc=f"Processing {condition}", unit="session", position=0, leave=True, disable=not VERBOSE
-        ) as pbar:
-            for session_folder in pbar:
-                if VERBOSE:
-                    print(f"\nProcessing session folder: {session_folder.name}")
-                else:
-                    pbar.write(f"\nProcessing session folder: {session_folder.name}")
+        # Use tqdm for progress bar when verbose is disabled
+        session_iterator = tqdm(
+            session_folders,
+            desc=f"Converting {condition} from figure_7_dendritic_excitability to NWB",
+            disable=verbose,
+        )
+
+        for session_folder in session_iterator:
+            if verbose:
+                print(f"\nProcessing session folder: {session_folder.name}")
 
                 # Convert all recordings from this session to NWB format
                 nwbfile = convert_session_to_nwbfile(
                     session_folder_path=session_folder,
                     condition=condition,
-                    verbose=VERBOSE,
+                    verbose=verbose,
                 )
 
                 # Create output filename
@@ -768,7 +770,5 @@ if __name__ == "__main__":
 
                 # Write NWB file
                 configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                if VERBOSE:
+                if verbose:
                     print(f"Successfully saved: {nwbfile_path.name}")
-                else:
-                    pbar.write(f"Successfully saved: {nwbfile_path.name}")

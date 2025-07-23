@@ -233,6 +233,7 @@ if __name__ == "__main__":
 
     # Set verbose flag
     verbose = args.verbose
+    verbose = False
 
     # Set the base path to your data
     base_dir = Path(__file__).parent

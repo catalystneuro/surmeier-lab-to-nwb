@@ -430,7 +430,6 @@ def parse_session_info(session_folder: Path) -> Dict[str, Any]:
         "session_start_time": session_start_time,
         "animal_id": animal_id,
         "date_str": f"{session_start_time.year}-{session_start_time.month:02d}-{session_start_time.day:02d}",
-        "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
     }
 
 
@@ -566,6 +565,17 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         print(f"Loaded paper metadata from: {metadata_file_path}")
         print(f"Experiment description: {paper_metadata['NWBFile']['experiment_description'][:100]}...")
 
+    # Create BIDS-style base session ID with detailed timestamp when available
+    session_start_time = session_info["session_start_time"]
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure8_SpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Sub{session_info['animal_id']}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     # Create session-specific metadata for Figure 8
     session_specific_metadata = {
         "NWBFile": {
@@ -581,7 +591,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
-            "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
+            "session_id": session_id,
             "keywords": [
                 "spine density",
                 "dendritic spines",
@@ -611,13 +621,13 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
     # Create subject metadata for Figure 8 M1R CRISPR spine density experiments
     subject = Subject(
-        subject_id=f"dSPN_mouse_{session_info['session_id']}",
+        subject_id=f"dSPN_mouse_{session_info['animal_id']}",
         species="Mus musculus",
         strain="Drd1-Tdtomato transgenic",
         description=(
             f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
             f"modeling Parkinson's disease. M1R CRISPR study for spine density analysis. "
-            f"dSPNs identified by Drd1-Tdtomato expression. Session {session_info['session_id']} recorded on {session_info['date_str']}."
+            f"dSPNs identified by Drd1-Tdtomato expression. Animal {session_info['animal_id']} recorded on {session_info['date_str']}."
         ),
         genotype="Drd1-Tdtomato+",
         sex="M",
@@ -638,7 +648,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"  Processing: {subfolder.name}")
 
         # Parse container information
-        container_info = parse_container_info(subfolder.name, session_info["session_id"])
+        container_info = parse_container_info(subfolder.name, session_id)
 
         if verbose:
             print(f"    Container name: {container_info['container_name']}")
@@ -715,7 +725,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"    Successfully added image stack: {container_info['container_name']}")
 
     if verbose:
-        print(f"Conversion completed for session: {session_info['session_id']}")
+        print(f"Conversion completed for session: {session_info['animal_id']}")
 
     return nwbfile
 
@@ -781,6 +791,3 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
-
-        if not verbose:
-            print(f"Completed {condition}: {len(session_folders)} sessions processed")

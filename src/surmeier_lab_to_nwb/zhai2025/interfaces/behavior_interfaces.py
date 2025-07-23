@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 from neuroconv.basedatainterface import BaseDataInterface
-from neuroconv.utils import DeepDict
+from neuroconv.utils import DeepDict, calculate_regular_series_rate
 from pynwb import NWBFile
 from pynwb.base import TimeSeries
 from pynwb.behavior import BehavioralTimeSeries
@@ -416,19 +416,36 @@ class AIMBehavioralTimeSeriesInterface(BaseDataInterface):
                 print(f"  Skipping {behavioral_timeseries_name} - already exists in behavioral module")
             return
 
+        # Check if timestamps are regular for optimization
+        timestamps_series = pd.Series(self.timestamps)
+        rate = calculate_regular_series_rate(series=timestamps_series)
+
         # Create individual TimeSeries for each component
         time_series_list = []
         for component_name, component_data in components:
             component_metadata = metadata["Behavior"]["BehavioralTimeSeries"][component_name]
 
-            timeseries = TimeSeries(
-                name=component_metadata["name"],
-                description=component_metadata["description"],
-                data=component_data,
-                timestamps=self.timestamps,
-                unit=component_metadata["unit"],
-                comments=component_metadata["comments"],
-            )
+            if rate is not None:
+                # Regular timestamps - use starting_time + rate for optimization
+                timeseries = TimeSeries(
+                    name=component_metadata["name"],
+                    description=component_metadata["description"],
+                    data=component_data,
+                    starting_time=float(self.timestamps[0]),
+                    rate=rate,
+                    unit=component_metadata["unit"],
+                    comments=component_metadata["comments"],
+                )
+            else:
+                # Irregular timestamps - use explicit timestamps
+                timeseries = TimeSeries(
+                    name=component_metadata["name"],
+                    description=component_metadata["description"],
+                    data=component_data,
+                    timestamps=self.timestamps,
+                    unit=component_metadata["unit"],
+                    comments=component_metadata["comments"],
+                )
 
             time_series_list.append(timeseries)
 

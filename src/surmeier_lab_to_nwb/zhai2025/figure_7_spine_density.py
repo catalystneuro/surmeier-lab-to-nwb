@@ -430,7 +430,6 @@ def parse_session_info(session_folder: Path) -> Dict[str, Any]:
         "session_start_time": session_start_time,
         "animal_id": animal_id,
         "date_str": f"{session_start_time.year}-{session_start_time.month:02d}-{session_start_time.day:02d}",
-        "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
     }
 
 
@@ -562,6 +561,17 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         print(f"Loaded paper metadata from: {metadata_file_path}")
         print(f"Experiment description: {paper_metadata['NWBFile']['experiment_description'][:100]}...")
 
+    # Create BIDS-style base session ID with detailed timestamp when available
+    session_start_time = session_info["session_start_time"]
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure7_SpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Sub{session_info['animal_id']}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     # Create session-specific metadata for Figure 7
     session_specific_metadata = {
         "NWBFile": {
@@ -577,7 +587,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
-            "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
+            "session_id": session_id,
             "keywords": [
                 "spine density",
                 "dendritic spines",
@@ -607,13 +617,13 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
     # Create subject metadata for Figure 7 CDGI knockout spine density experiments
     subject = Subject(
-        subject_id=f"dSPN_mouse_{session_info['session_id']}",
+        subject_id=f"dSPN_mouse_{session_info['animal_id']}",
         species="Mus musculus",
         strain="Drd1-Tdtomato transgenic",
         description=(
             f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
             f"modeling Parkinson's disease. CDGI knockout study for spine density analysis. "
-            f"dSPNs identified by Drd1-Tdtomato expression. Session {session_info['session_id']} recorded on {session_info['date_str']}."
+            f"dSPNs identified by Drd1-Tdtomato expression. Animal {session_info['animal_id']} recorded on {session_info['date_str']}."
         ),
         genotype="Drd1-Tdtomato+",
         sex="M",

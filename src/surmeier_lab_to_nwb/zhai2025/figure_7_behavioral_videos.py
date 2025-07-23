@@ -11,7 +11,6 @@ The script handles:
 - Session timing and L-DOPA treatment context
 """
 
-import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -198,9 +197,22 @@ def convert_session_to_nwbfile(
     session_start_time = datetime.strptime(session_date, "%Y-%m-%d")
     session_start_time = session_start_time.replace(tzinfo=ZoneInfo("US/Central"))
 
+    # Create BIDS-style session ID following general pattern
+    genotype = "CDGI KO"  # All Figure 7 videos are CDGI knockout
+    timestamp = session_start_time.strftime("%Y%m%d")
+    base_session_id = f"figure7_BehavioralVideos_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Animal{animal_id}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     # Load general metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
+
+    # Load metadata if available
+    specific_metadata_path = Path(__file__).parent / "metadata" / "figure_7_behavioral_videos.yaml"
+    specific_metadata = None
+    if specific_metadata_path.exists():
+        specific_metadata = load_dict_from_file(specific_metadata_path)
 
     # Create session-specific metadata
     conversion_specific_metadata = {
@@ -208,7 +220,7 @@ def convert_session_to_nwbfile(
             "session_description": f"Figure 7 Behavioral Videos - Contralateral rotation behavior assessment for CDGI knockout dyskinesia study",
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
+            "session_id": session_id,
             "experiment_description": (
                 "Behavioral video recordings of contralateral rotation behavior for dyskinesia assessment "
                 "in CDGI knockout mice following L-DOPA treatment. Videos capture behavioral responses "
@@ -377,26 +389,19 @@ if __name__ == "__main__":
     # Create output directory
     output_base_path.mkdir(parents=True, exist_ok=True)
 
-    # Load metadata if available
-    metadata_path = Path(__file__).parent / "metadata" / "figure_7_behavioral_videos.yaml"
-    metadata = None
-    if metadata_path.exists():
-        metadata = load_dict_from_file(metadata_path)
-
     # Setup logging
-    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
-
+    verbose = False
     # Find all video sessions
     sessions = find_video_sessions(video_base_path)
 
-    if args.verbose:
+    if verbose:
         print(f"Found {len(sessions)} Figure 7 video sessions")
 
     # Process each session
     for session_date, session_path in tqdm(
-        sessions.items(), desc="Converting sessions from figure_7_behavioral_videos to NWB", disable=not args.verbose
+        sessions.items(), desc="Converting sessions from figure_7_behavioral_videos to NWB", disable=not verbose
     ):
-        if args.verbose:
+        if verbose:
             print(f"\nProcessing Figure 7 session: {session_date}")
 
         # Group videos by animal
@@ -404,7 +409,7 @@ if __name__ == "__main__":
 
         # Create NWB files for each animal
         for animal_id, video_files in animals.items():
-            if args.verbose:
+            if verbose:
                 print(f"  Animal: {animal_id} ({len(video_files)} videos)")
 
             # Create output filename
@@ -418,15 +423,13 @@ if __name__ == "__main__":
                 session_date=session_date,
                 animal_id=animal_id,
                 video_files=sorted(video_files),
-                verbose=args.verbose,
+                verbose=verbose,
             )
 
             # Write the NWB file
             configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path)
-            if args.verbose:
+            if verbose:
                 print(f"    Saved: {output_path}")
-            else:
-                tqdm.write(f"    Saved: {output_path.name}")
 
-    if args.verbose:
+    if verbose:
         print(f"\nFigure 7 video conversion complete. Files saved to: {output_base_path}")
