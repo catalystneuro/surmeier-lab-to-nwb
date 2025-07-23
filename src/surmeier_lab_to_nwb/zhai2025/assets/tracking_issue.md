@@ -126,24 +126,25 @@ Structure: Three experiment types (Dendritic excitability, Somatic excitability,
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
-- [x] Conversion script (handle both control and M1R antagonist conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/3edb76c5195ac9c071d91065eb455831aeb55549)
 - [ ] Upload data
+
 
 ### Somatic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
-- [x] Conversion script (handle both control and M1R antagonist conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/3edb76c5195ac9c071d91065eb455831aeb55549)
 - [ ] Upload data
 
 ### Spine Density
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
-- [ ] Conversion script (handle both control and M1R antagonist conditions)
-- [ ] Inspector
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/39)
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/3edb76c5195ac9c071d91065eb455831aeb55549)
 - [ ] Upload data
 
 ## Figure 7:
@@ -175,7 +176,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 
 ### Spine Density (CDGI KO on vs off)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
-- [ ] Conversion script (handle CDGI KO off-state and on-state conditions)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/39)
 - [ ] Inspector
 - [ ] Upload data
 
@@ -205,7 +206,7 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 
 ### Spine Density (M1R CRISPR vs control - off-state)
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
-- [ ] Conversion script (handle M1R CRISPR and control conditions)
+- [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/39)
 - [ ] Inspector
 - [ ] Upload data
 

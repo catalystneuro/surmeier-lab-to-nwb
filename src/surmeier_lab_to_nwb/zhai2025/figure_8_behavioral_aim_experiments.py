@@ -99,12 +99,18 @@ def convert_session_to_nwbfile(
     # Parse session information
     session_info = parse_session_info_from_animal_data(session_date, animal_id, genotype)
 
+    # Create BIDS-style session ID following general pattern
+    timestamp = session_info["session_start_time"].strftime("%Y%m%d_%H%M%S")
+    base_session_id = f"figure8_BehavioralAim_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Animal{animal_id}_Session{session_number}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     # Update metadata for behavioral experiment
     session_specific_metadata = {
         "NWBFile": {
             "session_description": "Figure 8 Behavioral Assessment - AIM scoring for dyskinesia analysis in M1R CRISPR study",
             "identifier": f"figure8_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
-            "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
+            "session_id": session_id,
             "session_start_time": session_info["session_start_time"],
             "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
             "experiment_description": (
