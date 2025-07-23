@@ -1,3 +1,16 @@
+"""
+Figure 6 Somatic Excitability Conversion Script - Zhai et al. 2025
+==============================================================
+
+This script converts somatic excitability data from Figure 6 of Zhai et al. 2025
+into NWB (Neurodata Without Borders) format. The data contains whole-cell patch-clamp
+recordings examining somatic excitability changes in a mouse model of Parkinson's
+disease and levodopa-induced dyskinesia.
+
+For detailed experimental context, protocols, data structure, and analysis methods,
+see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_6_conversion_notes.md
+"""
+
 import re
 import uuid
 from pathlib import Path

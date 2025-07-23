@@ -1,3 +1,16 @@
+"""
+Figure 4H Confocal Spine Density Conversion Script (Olympus) - Zhai et al. 2025
+=========================================================================
+
+This script converts confocal spine density imaging data acquired with Olympus microscopy
+from Figure 4H of Zhai et al. 2025 into NWB (Neurodata Without Borders) format.
+The data examines dendritic spine density changes in a mouse model of Parkinson's
+disease and levodopa-induced dyskinesia.
+
+For detailed experimental context, protocols, data structure, and analysis methods,
+see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_4_conversion_notes.md
+"""
+
 import re
 import uuid
 from datetime import datetime

@@ -5,56 +5,12 @@ Figure 2 Optical Stimuli Conversion Script - Zhai et al. 2025
 
 This script converts Sr²⁺-oEPSC (strontium-substituted optogenetically evoked
 postsynaptic current) experimental data from Figure 2 of Zhai et al. 2025 into
-NWB (Neurodata Without Borders) format.
+NWB (Neurodata Without Borders) format. The data examines corticostriatal
+synaptic strength changes in LID on- vs off-states using optogenetic stimulation
+with voltage clamp recordings.
 
-EXPERIMENTAL CONTEXT:
-===================
-The data comes from experiments investigating corticostriatal synaptic strength
-in a Parkinson's disease model with levodopa-induced dyskinesia (LID). Mice
-received:
-- Unilateral 6-OHDA lesions (>95% dopamine depletion)
-- Dyskinesiogenic levodopa treatment
-- AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex
-
-Two experimental conditions were compared:
-- LID on-state: Sacrificed 30 min post-levodopa dose
-- LID off-state: Sacrificed 24-48h post-levodopa dose
-
-DATA STRUCTURE:
-==============
-The raw data follows a hierarchical organization:
-
-Base Path/
-├── LID on-state/
-│   ├── 07052023a/          # Session A on July 5, 2023
-│   │   ├── cell1_LED14-001/    # Cell 1, LED intensity 14, sweep 001
-│   │   │   ├── *_VoltageRecording_*.xml/csv  # Electrophysiology data
-│   │   │   ├── *_VoltageOutput_*.xml         # Optogenetic parameters
-│   │   │   └── *_Environment.xml             # Recording configuration
-│   │   ├── cell1_LED14-002/    # Next sweep (30 seconds later)
-│   │   └── ...
-│   ├── 07062023a/          # Session A on July 6, 2023
-│   └── ...
-└── LID off-state/
-    ├── 07132023a/          # Different session dates
-    └── ...
-
-TIMING VERIFICATION:
-Actual timestamps from XML files confirm 30-second intervals:
-2023-07-05T15:19:12 → cell1_LED14-001
-2023-07-05T15:19:42 → cell1_LED14-002 (+30 seconds)
-2023-07-05T15:20:12 → cell1_LED14-003 (+30 seconds)
-...
-
-OPTOGENETIC PARAMETERS:
-=====================
-From VoltageOutput XML metadata:
-- Pulse duration: 0.3 milliseconds (matches paper specification)
-- LED voltage: 5V
-- Pulse timing: 20ms delay + 0.3ms pulse + recording window
-- Repetitions: Single pulse per sweep
-- Inter-sweep interval: 30 seconds
-
+For detailed experimental context, protocols, data structure, and analysis methods,
+see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_2_conversion_notes.md
 """
 import re
 import uuid

@@ -1,3 +1,16 @@
+"""
+Figure 6 Dendritic Excitability Conversion Script - Zhai et al. 2025
+================================================================
+
+This script converts dendritic excitability data from Figure 6 of Zhai et al. 2025
+into NWB (Neurodata Without Borders) format. The data combines patch-clamp recordings
+with simultaneous two-photon imaging to examine dendritic excitability changes
+in a mouse model of Parkinson's disease and levodopa-induced dyskinesia.
+
+For detailed experimental context, protocols, data structure, and analysis methods,
+see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_6_conversion_notes.md
+"""
+
 import re
 import uuid
 import warnings
