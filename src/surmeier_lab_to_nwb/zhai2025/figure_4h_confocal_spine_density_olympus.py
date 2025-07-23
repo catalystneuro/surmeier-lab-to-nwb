@@ -1,4 +1,5 @@
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
@@ -227,6 +228,16 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     # Use current date as session start time (OIF files don't contain reliable timestamps)
     session_start_time = datetime.now().astimezone()
 
+    # Create BIDS-style base session ID with detailed timestamp when available
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure4h_ConfocalSpineDensityOlympus_methodological_validation_{timestamp}"
+    script_specific_id = f"Sub{animal_id}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
@@ -243,9 +254,9 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
                 f"Acquisition includes {len(oif_files)} image stacks from animal {animal_id} "
                 f"processed for Figure 4H spine density comparison analysis."
             ),
-            "identifier": f"zhai2025_fig4h_olympus_confocal_{animal_id}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "session_id": f"fig4h_{animal_id}",
+            "session_id": session_id,
             "keywords": [
                 "confocal microscopy",
                 "spine density",

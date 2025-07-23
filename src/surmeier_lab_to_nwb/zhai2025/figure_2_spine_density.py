@@ -1,4 +1,5 @@
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -418,7 +419,6 @@ def parse_session_info(session_folder: Path) -> Dict[str, Any]:
         "session_start_time": session_start_time,
         "animal_id": animal_id,
         "date_str": f"{session_start_time.year}-{session_start_time.month:02d}-{session_start_time.day:02d}",
-        "session_id": f"{session_start_time.year}{session_start_time.month:02d}{session_start_time.day:02d}_{animal_id}",
     }
 
 
@@ -541,6 +541,14 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     if verbose:
         print(f"Session date: {session_info['date_str']}, Animal: {session_info['animal_id']}")
 
+    # Create session ID following new pattern
+    base_session_id = f"figure2_SpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_start_time'].strftime('%Y%m%d_%H%M%S')}"
+    script_specific_id = f"Animal{session_info['animal_id']}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
+    # Add session_id to session_info
+    session_info["session_id"] = session_id
+
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
@@ -562,9 +570,9 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
                 f"using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai). On average, 2 proximal "
                 f"and 2 distal dendrites were imaged and analyzed per neuron."
             ),
-            "identifier": f"zhai2025_fig2_spine_density_{session_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
-            "session_id": f"{condition}_{session_info['session_id']}",
+            "session_id": session_info["session_id"],
             "keywords": ["spine density", "dendritic spines", "two-photon microscopy"],
         }
     }

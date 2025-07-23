@@ -24,7 +24,7 @@ from pynwb.epoch import TimeIntervals
 from pynwb.file import Subject
 from tqdm import tqdm
 
-from surmeier_lab_to_nwb.zhai2025.behavior_interfaces import (
+from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
     AIMBehavioralDynamicTableInterface,
     AIMBehavioralTimeSeriesInterface,
     build_source_data_from_aim_excel_table,
@@ -99,12 +99,23 @@ def convert_session_to_nwbfile(
     # Parse session information
     session_info = parse_session_info_from_animal_data(session_date, animal_id, genotype)
 
+    # Create BIDS-style base session ID with detailed timestamp when available
+    session_start_time = session_info["session_start_time"]
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure7_BehavioralAIM_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Sub{session_info['animal_id']}_Session{session_number}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     # Update metadata for behavioral experiment
     session_specific_metadata = {
         "NWBFile": {
             "session_description": "Figure 7 Behavioral Assessment - AIM scoring for dyskinesia analysis in CDGI study",
             "identifier": f"figure7_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
-            "session_id": f"figure7_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
+            "session_id": session_id,
             "session_start_time": session_info["session_start_time"],
             "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
             "experiment_description": (

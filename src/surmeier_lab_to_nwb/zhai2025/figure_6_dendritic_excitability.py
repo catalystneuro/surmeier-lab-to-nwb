@@ -1,4 +1,5 @@
 import re
+import uuid
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -204,8 +205,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     where recording_folder represents different recordings from the same animal.
     """
 
-    if verbose:
-        print(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
+    if tqdm_progress_callback is not None:
+        tqdm_progress_callback(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
 
     # Get all recording folders within the session folder
     all_recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
@@ -214,8 +215,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if not all_recording_folders:
         raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
 
-    if verbose:
-        print(f"  Total recordings found: {len(all_recording_folders)}")
+    if tqdm_progress_callback is not None:
+        tqdm_progress_callback(f"  Total recordings found: {len(all_recording_folders)}")
 
     # Calculate recording IDs, session start times, and create interface mappings
     ophys_session_start_times = []  # (ophys_time, recording_folder, recording_id)
@@ -224,8 +225,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     recording_id_to_folder = {}
     t_starts = {}  # t_starts[recording_id][interface] = t_start_offset
 
-    if verbose:
-        print(f"  Validating session start times and calculating recording IDs...")
+    if tqdm_progress_callback is not None:
+        tqdm_progress_callback(f"  Validating session start times and calculating recording IDs...")
 
     for recording_folder in all_recording_folders:
         # Find main experiment XML file (ophys)
@@ -251,11 +252,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
         # Compare session start times
         time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-        if verbose:
-            print(f"    Times for {recording_folder.name}:")
-            print(f"      Ophys time: {ophys_session_start_time}")
-            print(f"      Intracellular time: {intracellular_session_start_time}")
-            print(f"      Difference: {time_diff:.1f} seconds")
+        if tqdm_progress_callback is not None:
+            tqdm_progress_callback(f"    Times for {recording_folder.name}:")
+            tqdm_progress_callback(f"      Ophys time: {ophys_session_start_time}")
+            tqdm_progress_callback(f"      Intracellular time: {intracellular_session_start_time}")
+            tqdm_progress_callback(f"      Difference: {time_diff:.1f} seconds")
 
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
@@ -293,11 +294,13 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
         earliest_interface = "intracellular_electrophysiology"
 
-    if verbose:
-        print(f"  Overall session start time: {session_start_time}")
-        print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
-        print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
-        print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
+    if tqdm_progress_callback is not None:
+        tqdm_progress_callback(f"  Overall session start time: {session_start_time}")
+        tqdm_progress_callback(
+            f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}"
+        )
+        tqdm_progress_callback(f"    Earliest line scan ophys time: {earliest_ophys_time}")
+        tqdm_progress_callback(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
 
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
@@ -315,10 +318,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "line_scan_calcium_channel": ophys_t_start,  # Ch2/Fluo4 line scan uses ophys timing
         }
 
-        if verbose:
-            print(f"    Recording {folder.name} ({recording_id}) temporal alignment:")
-            print(f"      Line scan interfaces (structural Ch1 + calcium Ch2) t_start = {ophys_t_start:.3f} seconds")
-            print(f"      Intracellular electrophysiology interface t_start = {intracellular_t_start:.3f} seconds")
+        if tqdm_progress_callback is not None:
+            tqdm_progress_callback(f"    Recording {folder.name} ({recording_id}) temporal alignment:")
+            tqdm_progress_callback(
+                f"      Line scan interfaces (structural Ch1 + calcium Ch2) t_start = {ophys_t_start:.3f} seconds"
+            )
+            tqdm_progress_callback(
+                f"      Intracellular electrophysiology interface t_start = {intracellular_t_start:.3f} seconds"
+            )
 
     # Get first recording info for session description
     first_recording_folder = next(iter(recording_id_to_folder.values()))
@@ -331,6 +338,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
+    # Create BIDS-style base session ID with detailed timestamp when available
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure6_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_folder_path.name}"
+
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
@@ -342,7 +357,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"Recorded on {session_date_str}. "
                 f"Total recordings: {len(all_recording_folders)}."
             ),
-            "identifier": f"zhai2025_fig6_dendritic_{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"Figure 6 dendritic excitability changes in iSPNs during condition '{condition}'. "
@@ -354,7 +369,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"(~90 μm) locations serve as surrogate estimate of dendritic depolarization extent. "
                 f"M1R antagonist treatment: THP (3 mg/kg, i.p.) + ex vivo VU 0255035 (5 μM)."
             ),
-            "session_id": f"{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "session_id": base_session_id,
             "keywords": [
                 "calcium imaging",
                 "dendritic excitability",
@@ -461,17 +476,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         structural_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_structural_channel"])
         calcium_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_calcium_channel"])
 
-        if verbose:
-            print(f"  Processing recording for folder: {recording_folder.name}")
-            print(f"    Recording ID: {recording_id}")
-            print(f"    Location ID: {location_id}")
-            print(
+        if tqdm_progress_callback is not None:
+            tqdm_progress_callback(f"  Processing recording for folder: {recording_folder.name}")
+            tqdm_progress_callback(f"    Recording ID: {recording_id}")
+            tqdm_progress_callback(f"    Location ID: {location_id}")
+            tqdm_progress_callback(
                 f"    Line scan structural channel (Ch1/Alexa568) temporal alignment offset: {t_starts[recording_id]['line_scan_structural_channel']:.3f} seconds"
             )
-            print(
+            tqdm_progress_callback(
                 f"    Line scan calcium channel (Ch2/Fluo4) temporal alignment offset: {t_starts[recording_id]['line_scan_calcium_channel']:.3f} seconds"
             )
-            print(
+            tqdm_progress_callback(
                 f"    Intracellular electrophysiology temporal alignment offset: {t_starts[recording_id]['intracellular']:.3f} seconds"
             )
 
@@ -642,12 +657,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-        if verbose:
-            print(f"    Added line scan imaging data")
-            print(f"    Successfully processed recording: {recording_folder.name}")
+        if tqdm_progress_callback is not None:
+            tqdm_progress_callback(f"    Added line scan imaging data")
+            tqdm_progress_callback(f"    Successfully processed recording: {recording_folder.name}")
 
-    if verbose:
-        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
+    if tqdm_progress_callback is not None:
+        tqdm_progress_callback(f"Successfully processed all recordings from session: {session_folder_path.name}")
 
     # Build icephys table hierarchical structure following PyNWB best practices
     if verbose:
@@ -747,7 +762,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Control verbose output from here
-    verbose = True  # Set to True for detailed output
+    # verbose = True  # Set to True for detailed output
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -772,16 +787,16 @@ if __name__ == "__main__":
 
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
-
-        print(f"Processing Figure 6 dendritic excitability data for: {condition}")
+        if tqdm_progress_callback is not None:
+            tqdm_progress_callback(f"Processing Figure 6 dendritic excitability data for: {condition}")
 
         # Get all session folders (e.g., 0217a, 0218b, etc.)
         # Note: Each session folder corresponds to a single animal
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        if verbose:
-            print(f"Found {len(session_folders)} session folders")
+        if tqdm_progress_callback is not None:
+            tqdm_progress_callback(f"Found {len(session_folders)} session folders")
 
         # Process each session folder with progress bar
         with tqdm(
@@ -794,7 +809,7 @@ if __name__ == "__main__":
                 nwbfile = convert_session_to_nwbfile(
                     session_folder_path=session_folder,
                     condition=condition,
-                    verbose=verbose,
+                    tqdm_progress_callback=pbar.write,
                 )
 
                 # Create output filename

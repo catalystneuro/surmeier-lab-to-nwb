@@ -1,4 +1,5 @@
 import re
+import uuid
 from pathlib import Path
 from typing import Any, Dict
 
@@ -193,7 +194,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
-    session_id = f"{session_start_time.strftime('%Y%m%d')}_Cell{session_info['cell_number']}"
+
+    # Create session ID following new pattern
+    base_session_id = f"figure3_SomaticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    script_specific_id = f"Cell{session_info['cell_number']}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     session_info.update(
         {
             "date_str": session_date_str,
@@ -218,7 +224,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"with current injection steps from -120 pA to +300 pA (500 ms duration each). "
                 f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
             ),
-            "identifier": f"zhai2025_fig3_somatic_{session_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"Somatic excitability changes in iSPNs during condition '{condition}'. "

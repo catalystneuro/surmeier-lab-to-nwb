@@ -1,4 +1,5 @@
 import re
+import uuid
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -283,6 +284,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_folder = next(iter(recording_id_to_folder.values()))
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
+    # Create session ID following new pattern
+    base_session_id = f"figure3_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    script_specific_id = f"Cell{first_recording_info['cell_number']}_{session_folder_path.name}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
@@ -291,14 +297,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) "
                 f"with Ca2+ imaging. Cell {first_recording_info['cell_number']} in date {first_recording_info['date'].strftime('%Y-%m-%d')}."
             ),
-            "identifier": f"zhai2025_fig3_dendritic_{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"Dendritic excitability changes in iSPNs during condition '{condition}'. "
                 f"This experiment is part of Figure 3 from Zhai et al. 2025, investigating how LID affects "
                 f"iSPN excitability and the role of D2 receptor signaling. Multiple recordings from one subject."
             ),
-            "session_id": f"{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "session_id": session_id,
             "keywords": [
                 "dendritic excitability",
                 "current injection",
@@ -660,8 +666,10 @@ if __name__ == "__main__":
 
     from tqdm import tqdm
 
-    # Control verbose output from here
-    verbose = False  # Set to True for detailed output
+    # Set to True to enable verbose output
+    verbose = False
+    # Set to True to process only two sessions per condition (for testing)
+    stub_test = False
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -695,18 +703,16 @@ if __name__ == "__main__":
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
+        if stub_test:
+            session_folders = session_folders[:2]  # Take only the first two sessions for stub test
+
         if verbose:
-            print(f"Found {len(session_folders)} session folders")
+            print(f"Found {len(session_folders)} session folders (stub_test={stub_test})")
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = (
-            tqdm(
-                session_folders,
-                desc=f"Converting {condition} from figure_3_dendritic_excitability to NWB",
-                disable=verbose,
-            )
-            if not verbose
-            else session_folders
+        session_iterator = tqdm(
+            session_folders,
+            desc=f"Converting {condition} from figure_3_dendritic_excitability to NWB",
         )
 
         for session_folder in session_iterator:

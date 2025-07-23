@@ -24,7 +24,7 @@ from pynwb.epoch import TimeIntervals
 from pynwb.file import Subject
 from tqdm import tqdm
 
-from surmeier_lab_to_nwb.zhai2025.behavior_interfaces import (
+from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
     AIMBehavioralDynamicTableInterface,
     AIMBehavioralTimeSeriesInterface,
     build_source_data_from_aim_excel_table_figure8,
@@ -104,7 +104,7 @@ def convert_session_to_nwbfile(
         "NWBFile": {
             "session_description": "Figure 8 Behavioral Assessment - AIM scoring for dyskinesia analysis in M1R CRISPR study",
             "identifier": f"figure8_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
-            "session_id": f"figure8_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
+            "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
             "session_start_time": session_info["session_start_time"],
             "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
             "experiment_description": (

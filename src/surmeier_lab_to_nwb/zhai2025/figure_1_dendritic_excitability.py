@@ -1,4 +1,5 @@
 import re
+import uuid
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -287,6 +288,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
+    # Create BIDS-style base session ID with detailed timestamp when available
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure1_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_folder_path.name}"
+
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
@@ -297,7 +306,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"Recorded on {session_date_str}. "
                 f"Total recordings: {len(all_recording_folders)}."
             ),
-            "identifier": f"zhai2025_fig1_dendritic_{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"Dendritic excitability changes in dSPNs during condition '{condition}'. "
@@ -308,7 +317,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"Ca2+ signals at proximal (~40 μm) and distal (~90 μm) locations serve as surrogate estimate "
                 f"of dendritic depolarization extent. Multiple cells from one animal."
             ),
-            "session_id": f"{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "session_id": base_session_id,
             "keywords": [
                 "calcium imaging",
                 "dendritic excitability",

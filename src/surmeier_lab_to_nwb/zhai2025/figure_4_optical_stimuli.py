@@ -26,6 +26,7 @@ Date: 2025
 """
 
 import re
+import uuid
 from pathlib import Path
 from typing import Dict
 
@@ -214,7 +215,12 @@ def convert_session_to_nwbfile(
 
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
-    session_id = f"{session_start_time.strftime('%Y%m%d')}_{session_info['session_letter']}"
+
+    # Create session ID following new pattern
+    base_session_id = f"figure4_OpticalStimuli_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    script_specific_id = f"Session{session_info['session_letter']}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     session_info.update(
         {
             "date_str": session_date_str,
@@ -239,7 +245,7 @@ def convert_session_to_nwbfile(
                 f"every 30 seconds. Analysis of asynchronous EPSCs between 40-400 ms post-stimulation to measure "
                 f"unitary synaptic strength. Session {session_info['session_letter']}, {len(recording_folders)} sweeps."
             ),
-            "identifier": f"zhai2025_fig4_sr_oepsc_{session_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"Figure 4 Sr²⁺-oEPSC experiment from Zhai et al. 2025 investigating corticostriatal synaptic strength "

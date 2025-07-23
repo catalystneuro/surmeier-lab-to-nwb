@@ -1,4 +1,5 @@
 import re
+import uuid
 import warnings
 from pathlib import Path
 from typing import Any, Dict
@@ -295,9 +296,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
 
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
-    session_id = (
-        f"{session_start_time.strftime('%Y%m%d')}_{session_info['animal_id']}_Cell{session_info['cell_number']}"
-    )
+
+    # Create session ID following new pattern
+    base_session_id = f"figure7_DendriticExcitability_oxoM_{genotype}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    script_specific_id = f"Animal{session_info['animal_id']}_Cell{session_info['cell_number']}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     session_info.update(
         {
             "date_str": session_date_str,
@@ -324,7 +328,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
                 f"to evoke back-propagating action potentials and calcium transients in dendrites. "
                 f"Animal {session_info['animal_id']}, Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
             ),
-            "identifier": f"zhai2025_fig7E_oxoM_dendritic_{session_info['session_id']}_{genotype}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"oxotremorine-M effects on dendritic excitability in {genotype_description} iSPNs. "

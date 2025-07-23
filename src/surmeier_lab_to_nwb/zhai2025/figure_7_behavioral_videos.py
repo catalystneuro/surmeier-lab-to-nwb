@@ -12,6 +12,7 @@ The script handles:
 """
 
 import logging
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -205,9 +206,9 @@ def convert_session_to_nwbfile(
     conversion_specific_metadata = {
         "NWBFile": {
             "session_description": f"Figure 7 Behavioral Videos - Contralateral rotation behavior assessment for CDGI knockout dyskinesia study",
-            "identifier": f"zhai2025_figure7_videos_{animal_id}_{session_date.replace('-', '')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "session_id": f"figure7_videos_{animal_id}_{session_date.replace('-', '')}",
+            "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
             "experiment_description": (
                 "Behavioral video recordings of contralateral rotation behavior for dyskinesia assessment "
                 "in CDGI knockout mice following L-DOPA treatment. Videos capture behavioral responses "

@@ -1,4 +1,5 @@
 import re
+import uuid
 from pathlib import Path
 from typing import Any, Dict
 
@@ -6,7 +7,9 @@ from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
-from surmeier_lab_to_nwb.zhai2025.image_stack_interfaces import NikonImageStackInterface
+from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
+    NikonImageStackInterface,
+)
 
 
 def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
@@ -55,9 +58,6 @@ def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
     # Extract location (proximal/distal)
     location = "proximal" if "proxi" in filename.lower() else "unknown"
 
-    # Create session identifier
-    session_id = f"{animal_id}_slide{slide_num}_slice{slice_num}"
-
     # Create container name - simplified format
     container_name = f"ImagesCell{cell_num}"
     if dendrite_info:
@@ -70,7 +70,6 @@ def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
         "cell_number": cell_num,
         "dendrite_info": dendrite_info,
         "location": location,
-        "session_id": session_id,
         "container_name": container_name,
         "description": (
             f"High-resolution confocal image stack of {location} dendrite from iSPN cell {cell_num} "
@@ -114,6 +113,14 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     # Get session start time from ND2 metadata
     session_start_time = interface.get_session_start_time()
 
+    # Create BIDS-style base session ID with detailed timestamp when available
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure4_ConfocalSpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{file_info['animal_id']}"
+
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
@@ -133,9 +140,9 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
                 f"confocal data demonstrates detection of approximately 2x more spines compared to "
                 f"standard two-photon microscopy, validating methodological differences in spine counting."
             ),
-            "identifier": f"zhai2025_fig4_confocal_spine_density_{file_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "session_id": f"{condition}_{file_info['session_id']}",
+            "session_id": f"{base_session_id}_Cell{file_info['cell_number']}_Slide{file_info['slide_number']}_Slice{file_info['slice_number']}",
             "keywords": [
                 "confocal microscopy",
                 "spine density",
@@ -234,21 +241,15 @@ if __name__ == "__main__":
                 print(f"Found {len(nd2_files)} ND2 files in {condition}")
 
             # Process each ND2 file with progress bar
-            file_iterator = (
-                tqdm(
-                    nd2_files,
-                    desc=f"Converting {dataset['name']} {condition} from figure_4_confocal_spine_density_nikon to NWB",
-                    disable=verbose,
-                )
-                if not verbose
-                else nd2_files
+            file_iterator = tqdm(
+                nd2_files,
+                desc=f"Converting {dataset['name']} {condition} from figure_4_confocal_spine_density_nikon to NWB",
+                disable=verbose,
             )
 
             for nd2_file in file_iterator:
                 if verbose:
                     print(f"  File: {nd2_file.name}")
-                    print(f"  Session ID: {file_info['session_id']}")
-                    print(f"  Container: {file_info['container_name']}")
 
                 # Convert ND2 file to NWB format
                 nwbfile = convert_session_to_nwbfile(nd2_file, condition, verbose=verbose)
@@ -264,9 +265,6 @@ if __name__ == "__main__":
                 configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
                 if verbose:
                     print(f"Successfully saved: {nwbfile_path.name}")
-
-        if not verbose:
-            print(f"Completed {dataset['name']} {condition}")
 
     if verbose:
         print(f"\nConfocal spine density conversion completed!")

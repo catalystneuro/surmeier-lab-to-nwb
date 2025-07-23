@@ -1,4 +1,5 @@
 import re
+import uuid
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -287,6 +288,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
+    # Create session ID following new pattern
+    base_session_id = f"figure7_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    script_specific_id = f"Cell{first_recording_info['cell_number']}_{session_folder_path.name}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
@@ -297,7 +303,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"pathway to test role in dendritic excitability adaptations. Recorded on {session_date_str}. "
                 f"Total recordings: {len(all_recording_folders)}."
             ),
-            "identifier": f"zhai2025_fig7_dendritic_{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"Figure 7 dendritic excitability changes in CDGI knockout mice during condition '{condition}'. "
@@ -310,7 +316,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"locations serve as surrogate estimate of dendritic depolarization extent. CDGI KO mice: conditional "
                 f"knockout targeting striatal spiny projection neurons."
             ),
-            "session_id": f"{session_folder_path.name}_{condition.replace(' ', '_')}",
+            "session_id": session_id,
             "keywords": [
                 "calcium imaging",
                 "dendritic excitability",

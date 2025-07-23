@@ -25,3 +25,4 @@ NWBFile:
 Subject:
   species: Mus musculus
   description: A rich text description of the subject
+  strain: "C57BL/6"

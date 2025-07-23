@@ -77,6 +77,7 @@ not reflect the actual stimulation parameters used in the experiments.
 """
 
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -237,7 +238,15 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     # Create session-specific metadata with Chicago timezone
     central_tz = ZoneInfo("America/Chicago")
     session_start_time = datetime.combine(session_info["session_date"], datetime.min.time()).replace(tzinfo=central_tz)
-    session_id = f"{condition.replace(' ', '_')}_{session_info['date_str']}_{session_info['slice_info']}_{session_info['treatment']}_{session_info['stimulation']}_s{session_info['session_number']}"
+
+    # Create BIDS-style base session ID with detailed timestamp when available
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure5_AcetylcholineGRAB_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_info['slice_info']}"
+    session_id = f"{base_session_id}_Session{session_info['session_number']}"
 
     session_specific_metadata = {
         "NWBFile": {
@@ -247,7 +256,7 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
                 f"Session {session_info['session_number']} from {session_info['slice_info']}. Two-photon microscopy "
                 f"at 920nm excitation measuring ACh release dynamics with electrical stimulation."
             ),
-            "identifier": f"zhai2025_fig5_grabatch_{session_id}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
                 f"Figure 5 GRABACh3.0 experiment from Zhai et al. 2025 investigating acetylcholine release "

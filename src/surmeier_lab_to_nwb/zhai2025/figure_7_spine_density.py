@@ -1,4 +1,5 @@
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -429,7 +430,7 @@ def parse_session_info(session_folder: Path) -> Dict[str, Any]:
         "session_start_time": session_start_time,
         "animal_id": animal_id,
         "date_str": f"{session_start_time.year}-{session_start_time.month:02d}-{session_start_time.day:02d}",
-        "session_id": f"{session_start_time.year}{session_start_time.month:02d}{session_start_time.day:02d}_{animal_id}",
+        "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
     }
 
 
@@ -574,9 +575,9 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
                 f"using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai). This data is part of "
                 f"Figure 7, which investigates the role of Cav3.1 channels in spine density."
             ),
-            "identifier": f"zhai2025_fig7_spine_density_{session_info['session_id']}_{condition.replace(' ', '_')}",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
-            "session_id": f"{condition}_{session_info['session_id']}",
+            "session_id": f"{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_id']}",
             "keywords": [
                 "spine density",
                 "dendritic spines",
