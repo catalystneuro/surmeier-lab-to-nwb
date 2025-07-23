@@ -256,7 +256,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "M1R antagonist",
                 "trihexyphenidyl",
             ],
-        }
+        },
+        "Subject": {
+            "subject_id": f"M1R_antagonist_mouse_{session_info['session_id']}",
+            "description": (
+                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
+                f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
+                f"{treatment_description}. Animal {session_info['animal_letter']}, "
+                f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            ),
+            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+        },
     }
 
     # Deep merge with paper metadata
@@ -275,20 +285,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for M1R antagonist experiments (Figure 6)
+    # Create subject using merged metadata
     subject = Subject(
-        subject_id=f"M1R_antagonist_mouse_{session_info['session_id']}",
-        species="Mus musculus",
-        strain="C57Bl/6",
-        description=(
-            f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-            f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
-            f"{treatment_description}. Animal {session_info['animal_letter']}, "
-            f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
-        ),
-        genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
-        sex="M",
-        age="P7W/P12W",  # ISO format for 7-12 weeks
+        subject_id=metadata["Subject"]["subject_id"],
+        species=metadata["Subject"]["species"],
+        strain=metadata["Subject"]["strain"],
+        description=metadata["Subject"]["description"],
+        genotype=metadata["Subject"]["genotype"],
+        sex=metadata["Subject"]["sex"],
+        age=metadata["Subject"]["age"],
     )
     nwbfile.subject = subject
 

@@ -326,7 +326,19 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "Fluo-4",
                 "Alexa Fluor 568",
             ],
-        }
+        },
+        "Subject": {
+            "subject_id": f"dSPN_mouse_{session_folder_path.name}",
+            "description": (
+                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle (MFB). "
+                f"dSPNs identified by Drd1-Tdtomato expression (positive selection). "
+                f"Animal {session_folder_path.name} recorded on {session_date_str}. "
+                f"Lesion assessment: drug-free forelimb-use asymmetry test (cylinder test). "
+                f"LID induction: dyskinesiogenic doses of levodopa (6 mg/kg first two sessions, "
+                f"12 mg/kg later sessions, supplemented with 12 mg/kg benserazide) every other day for at least five sessions."
+            ),
+            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+        },
     }
 
     # Deep merge with paper metadata
@@ -345,22 +357,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for dSPN experiments (Figure 1)
+    # Create subject using merged metadata
     subject = Subject(
-        subject_id=f"dSPN_mouse_{session_folder_path.name}",
-        species="Mus musculus",
-        strain="C57Bl/6",
-        description=(
-            f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle (MFB). "
-            f"dSPNs identified by Drd1-Tdtomato expression (positive selection). "
-            f"Animal {session_folder_path.name} recorded on {session_date_str}. "
-            f"Lesion assessment: drug-free forelimb-use asymmetry test (cylinder test). "
-            f"LID induction: dyskinesiogenic doses of levodopa (6 mg/kg first two sessions, "
-            f"12 mg/kg later sessions, supplemented with 12 mg/kg benserazide) every other day for at least five sessions."
-        ),
-        genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
-        sex="M",
-        age="P7W/P12W",  # ISO format for 7-12 weeks
+        subject_id=metadata["Subject"]["subject_id"],
+        species=metadata["Subject"]["species"],
+        strain=metadata["Subject"]["strain"],
+        description=metadata["Subject"]["description"],
+        genotype=metadata["Subject"]["genotype"],
+        sex=metadata["Subject"]["sex"],
+        age=metadata["Subject"]["age"],
     )
     nwbfile.subject = subject
 

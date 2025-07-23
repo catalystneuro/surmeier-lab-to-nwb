@@ -24,5 +24,6 @@ NWBFile:
     """Generic description of the experiment."""
 Subject:
   species: Mus musculus
-  description: A rich text description of the subject
   strain: "C57BL/6"
+  sex: "M"
+  age: "P7W/P12W"  # Adult mice, 7-12 weeks in ISO 8601 format

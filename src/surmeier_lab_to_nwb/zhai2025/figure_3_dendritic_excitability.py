@@ -309,7 +309,16 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "dendritic excitability",
                 "current injection",
             ],
-        }
+        },
+        "Subject": {
+            "subject_id": f"iSPN_mouse_{session_folder_path.name}",
+            "description": (
+                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
+                f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
+                f"Session {session_folder_path.name} recorded on {session_date_str}."
+            ),
+            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+        },
     }
 
     # Deep merge with paper metadata
@@ -328,19 +337,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for iSPN experiments
+    # Create subject using merged metadata
     subject = Subject(
-        subject_id=f"iSPN_mouse_{session_folder_path.name}",
-        species="Mus musculus",
-        strain="C57Bl/6",
-        description=(
-            f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-            f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
-            f"Session {session_folder_path.name} recorded on {session_date_str}."
-        ),
-        genotype="Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
-        sex="M",
-        age="P7W/P12W",  # ISO format for 7-12 weeks
+        subject_id=metadata["Subject"]["subject_id"],
+        species=metadata["Subject"]["species"],
+        strain=metadata["Subject"]["strain"],
+        description=metadata["Subject"]["description"],
+        genotype=metadata["Subject"]["genotype"],
+        sex=metadata["Subject"]["sex"],
+        age=metadata["Subject"]["age"],
     )
     nwbfile.subject = subject
 

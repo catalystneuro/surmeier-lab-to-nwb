@@ -258,7 +258,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "CRISPR-Cas9",
                 "gene editing",
             ],
-        }
+        },
+        "Subject": {
+            "subject_id": f"{cell_type}_M1R_CRISPR_mouse_{session_info['session_id']}",
+            "description": cell_description,
+            "genotype": f"Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic; {genetic_manipulation}",
+        },
     }
 
     # Deep merge with paper metadata
@@ -277,15 +282,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for M1R CRISPR experiments (Figure 8)
+    # Create subject using merged metadata
     subject = Subject(
-        subject_id=f"{cell_type}_M1R_CRISPR_mouse_{session_info['session_id']}",
-        species="Mus musculus",
-        strain="C57Bl/6",
-        description=cell_description,
-        genotype=f"Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic; {genetic_manipulation}",
-        sex="M",
-        age="P7W/P12W",  # ISO format for 7-12 weeks
+        subject_id=metadata["Subject"]["subject_id"],
+        species=metadata["Subject"]["species"],
+        strain=metadata["Subject"]["strain"],
+        description=metadata["Subject"]["description"],
+        genotype=metadata["Subject"]["genotype"],
+        sex=metadata["Subject"]["sex"],
+        age=metadata["Subject"]["age"],
     )
     nwbfile.subject = subject
 

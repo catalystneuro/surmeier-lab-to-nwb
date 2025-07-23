@@ -596,7 +596,16 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
                 "Cav3.1",
                 "knockout",
             ],
-        }
+        },
+        "Subject": {
+            "subject_id": f"dSPN_mouse_{session_info['animal_id']}",
+            "description": (
+                f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
+                f"modeling Parkinson's disease. CDGI knockout study for spine density analysis. "
+                f"dSPNs identified by Drd1-Tdtomato expression. Animal {session_info['animal_id']} recorded on {session_info['date_str']}."
+            ),
+            "genotype": "Drd1-Tdtomato+",
+        },
     }
 
     # Merge paper metadata with session-specific metadata
@@ -615,19 +624,15 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for Figure 7 CDGI knockout spine density experiments
+    # Create subject using merged metadata
     subject = Subject(
-        subject_id=f"dSPN_mouse_{session_info['animal_id']}",
-        species="Mus musculus",
-        strain="Drd1-Tdtomato transgenic",
-        description=(
-            f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
-            f"modeling Parkinson's disease. CDGI knockout study for spine density analysis. "
-            f"dSPNs identified by Drd1-Tdtomato expression. Animal {session_info['animal_id']} recorded on {session_info['date_str']}."
-        ),
-        genotype="Drd1-Tdtomato+",
-        sex="M",
-        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
+        subject_id=merged_metadata["Subject"]["subject_id"],
+        species=merged_metadata["Subject"]["species"],
+        strain=merged_metadata["Subject"]["strain"],
+        description=merged_metadata["Subject"]["description"],
+        genotype=merged_metadata["Subject"]["genotype"],
+        sex=merged_metadata["Subject"]["sex"],
+        age=merged_metadata["Subject"]["age"],
     )
     nwbfile.subject = subject
 

@@ -275,7 +275,16 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
                 "pharmacology",
                 "electrical stimulation",
             ],
-        }
+        },
+        "Subject": {
+            "subject_id": f"grabatch_mouse_{session_info['slice_info']}",
+            "description": (
+                f"{condition_descriptions[condition]}. Striatal injection of AAV-GRABACh3.0 for "
+                f"acetylcholine sensor expression in cholinergic interneurons. Session recorded on "
+                f"{session_info['date_str']} from {session_info['slice_info']}."
+            ),
+            "genotype": "Wild-type with AAV-GRABACh3.0",
+        },
     }
 
     # Deep merge with paper metadata
@@ -301,18 +310,15 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
         "LID off": "Dyskinetic mouse in off-state (24-48h post-levodopa) with established levodopa-induced dyskinesia",
     }
 
+    # Create subject using merged metadata
     subject = Subject(
-        subject_id=f"grabatch_mouse_{session_info['slice_info']}",
-        species="Mus musculus",
-        strain="C57BL/6J with striatal GRABACh3.0 expression",
-        description=(
-            f"{condition_descriptions[condition]}. Striatal injection of AAV-GRABACh3.0 for "
-            f"acetylcholine sensor expression in cholinergic interneurons. Session recorded on "
-            f"{session_info['date_str']} from {session_info['slice_info']}."
-        ),
-        genotype="Wild-type with AAV-GRABACh3.0",
-        sex="M/F",  # Mixed cohort
-        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
+        subject_id=metadata["Subject"]["subject_id"],
+        species=metadata["Subject"]["species"],
+        strain=metadata["Subject"]["strain"],
+        description=metadata["Subject"]["description"],
+        genotype=metadata["Subject"]["genotype"],
+        sex=metadata["Subject"]["sex"],
+        age=metadata["Subject"]["age"],
     )
     nwbfile.subject = subject
 
@@ -470,13 +476,7 @@ if __name__ == "__main__":
         print(f"Found {len(all_sessions)} total sessions across all conditions")
 
     # Use tqdm for progress bar when verbose is disabled
-    session_iterator = (
-        tqdm(all_sessions, desc="Converting sessions from figure_5_acetylcholine_grabatch to NWB", disable=verbose)
-        if not verbose
-        else all_sessions
-    )
-
-    success_count = 0
+    session_iterator = tqdm(all_sessions, desc="Converting sessions from figure_5_acetylcholine_grabatch to NWB")
 
     for session_info in session_iterator:
         session_folder_path = session_info["session_folder_path"]
@@ -487,6 +487,8 @@ if __name__ == "__main__":
         elif not verbose:
             session_iterator.set_description(f"Processing {session_folder_path.name}")
 
+        # session_folder_path = Path("/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 5_SF2/UL control/04022024slice1ROI1/BOT_04022024_slice1ROI1_ACh-002")
+        # assert session_folder_path.exists(), f"Session folder does not exist: {session_folder_path}"
         # Convert session to NWB format
         nwbfile = convert_session_to_nwbfile(
             session_folder=session_folder_path,

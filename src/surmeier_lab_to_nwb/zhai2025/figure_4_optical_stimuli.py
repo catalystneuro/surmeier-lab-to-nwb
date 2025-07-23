@@ -265,7 +265,17 @@ def convert_session_to_nwbfile(
                 "synaptic strength",
                 "asynchronous EPSCs",
             ],
-        }
+        },
+        "Subject": {
+            "subject_id": f"iSPN_mouse_{session_info['session_id']}",
+            "description": (
+                f"Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
+                f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP "
+                f"injection into motor cortex for optogenetic experiments. iSPNs identified by lack of Drd2-EGFP expression. "
+                f"Session {session_info['session_letter']} recorded on {session_info['date_str']}."
+            ),
+            "genotype": "Drd2-EGFP+",
+        },
     }
 
     # Deep merge with paper metadata
@@ -284,20 +294,15 @@ def convert_session_to_nwbfile(
         keywords=metadata["NWBFile"]["keywords"],
     )
 
-    # Create subject metadata for Sr²⁺-oEPSC experiments (Figure 4)
+    # Create subject using merged metadata
     subject = Subject(
-        subject_id=f"iSPN_mouse_{session_info['session_id']}",
-        species="Mus musculus",
-        strain="Drd2-EGFP transgenic",
-        description=(
-            f"Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
-            f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP "
-            f"injection into motor cortex for optogenetic experiments. iSPNs identified by lack of Drd2-EGFP expression. "
-            f"Session {session_info['session_letter']} recorded on {session_info['date_str']}."
-        ),
-        genotype="Drd2-EGFP+",
-        sex="M",
-        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
+        subject_id=metadata["Subject"]["subject_id"],
+        species=metadata["Subject"]["species"],
+        strain=metadata["Subject"]["strain"],
+        description=metadata["Subject"]["description"],
+        genotype=metadata["Subject"]["genotype"],
+        sex=metadata["Subject"]["sex"],
+        age=metadata["Subject"]["age"],
     )
     nwbfile.subject = subject
 
