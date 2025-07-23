@@ -755,20 +755,18 @@ if __name__ == "__main__":
             if verbose:
                 print(f"\nProcessing session folder: {session_folder.name}")
 
-                # Convert all recordings from this session to NWB format
-                nwbfile = convert_session_to_nwbfile(
-                    session_folder_path=session_folder,
-                    condition=condition,
-                    verbose=verbose,
-                )
+            # Convert all recordings from this session to NWB format
+            nwbfile = convert_session_to_nwbfile(
+                session_folder_path=session_folder,
+                condition=condition,
+                verbose=verbose,
+            )
 
-                # Create output filename
-                condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
-                nwbfile_path = (
-                    nwb_files_dir / f"figure7_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
-                )
+            # Create output filename
+            condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
+            nwbfile_path = nwb_files_dir / f"figure7_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
 
-                # Write NWB file
-                configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                if verbose:
-                    print(f"Successfully saved: {nwbfile_path.name}")
+            # Write NWB file
+            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+            if verbose:
+                print(f"Successfully saved: {nwbfile_path.name}")

@@ -737,8 +737,6 @@ if __name__ == "__main__":
         for session_folder in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder.name}")
-            else:
-                session_iterator.set_description(f"Processing {session_folder.name}")
 
             if verbose:
                 print(f"\nProcessing session: {session_folder.name}")
