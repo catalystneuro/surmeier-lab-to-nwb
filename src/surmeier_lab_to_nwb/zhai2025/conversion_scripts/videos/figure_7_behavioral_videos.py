@@ -1,16 +1,17 @@
 """
-Supplementary Figure 3 Behavioral Video Conversion Script
+Figure 7 Behavioral Video Conversion Script
 
-This script processes behavioral video recordings from Supplementary Figure 3 of the Zhai et al. 2025 paper,
-specifically the M1R CRISPR behavioral assessment for dyskinesia in gene-edited mice.
+This script processes behavioral video recordings from Figure 7 of the Zhai et al. 2025 paper,
+specifically the contralateral rotation behavior for dyskinesia assessment in CDGI knockout mice.
 
 The script handles:
-- Behavioral video files (.mov/.mp4) from M1R CRISPR experimental sessions
+- Behavioral video files (.mov/.mp4) from multiple experimental sessions
 - Video metadata extraction and organization by animal and session
 - Integration with NWB format using appropriate video interfaces
-- M1R gene editing context and L-DOPA treatment timing
+- Session timing and L-DOPA treatment context
 """
 
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -25,14 +26,14 @@ from pynwb.file import Subject
 from tqdm import tqdm
 
 
-def find_video_sessions_supfig3(video_base_path: Path) -> Dict[str, Path]:
+def find_video_sessions(video_base_path: Path) -> Dict[str, Path]:
     """
-    Find all video session directories for Supplementary Figure 3.
+    Find all video session directories for Figure 7.
 
     Parameters
     ----------
     video_base_path : Path
-        Base path to M1R CRISPR video directories
+        Base path to CDGI KO video directories
 
     Returns
     -------
@@ -55,9 +56,9 @@ def find_video_sessions_supfig3(video_base_path: Path) -> Dict[str, Path]:
     return sessions
 
 
-def extract_video_metadata_supfig3(video_path: Path) -> Dict[str, Any]:
+def extract_video_metadata_figure7(video_path: Path) -> Dict[str, Any]:
     """
-    Extract metadata from Supplementary Figure 3 video filename.
+    Extract metadata from Figure 7 video filename.
 
     Parameters
     ----------
@@ -71,17 +72,16 @@ def extract_video_metadata_supfig3(video_path: Path) -> Dict[str, Any]:
     """
     filename = video_path.stem  # Remove extension
 
-    # Common patterns for M1R CRISPR videos:
-    # 8592_1_20min, 4790_1_40min, 9366_2_60min, etc.
+    # Common patterns for Figure 7 CDGI videos:
+    # ET2586_1_20min, 1944_1_20min, 1590_1_20min, etc.
 
     metadata = {
         "animal_id": "unknown",
         "session_number": 1,
         "time_point_min": 0,
         "file_format": video_path.suffix.lower(),
-        "genotype": "M1R CRISPR",  # Default for Sup Fig 3, may need refinement
+        "genotype": "CDGI KO",  # All Figure 7 videos are CDGI knockout
         "treatment": "L-DOPA",
-        "genetic_modification": "M1R deletion via CRISPR-Cas9",
     }
 
     # Try to parse animal ID and time point
@@ -114,16 +114,12 @@ def extract_video_metadata_supfig3(video_path: Path) -> Dict[str, Any]:
             if time_point.isdigit():
                 metadata["time_point_min"] = int(time_point)
 
-    # Infer genotype based on experimental design
-    # M1R CRISPR vs Control groups in Supplementary Figure 3
-    metadata["genotype"] = "M1R CRISPR"  # Most videos are M1R CRISPR, some may be controls
-
     return metadata
 
 
-def group_videos_by_animal_supfig3(session_path: Path) -> Dict[str, List[Path]]:
+def group_videos_by_animal(session_path: Path) -> Dict[str, List[Path]]:
     """
-    Group video files by animal ID within a Supplementary Figure 3 session.
+    Group video files by animal ID within a session.
 
     Parameters
     ----------
@@ -142,7 +138,7 @@ def group_videos_by_animal_supfig3(session_path: Path) -> Dict[str, List[Path]]:
         if subsession_dir.is_dir():
             for video_file in subsession_dir.iterdir():
                 if video_file.suffix.lower() in [".mov", ".mp4"]:
-                    metadata = extract_video_metadata_supfig3(video_file)
+                    metadata = extract_video_metadata_figure7(video_file)
                     animal_id = metadata["animal_id"]
 
                     if animal_id != "unknown":
@@ -157,36 +153,33 @@ def convert_session_to_nwbfile(
     session_date: str,
     animal_id: str,
     video_files: List[Path],
-    genotype: str,
     verbose: bool = False,
 ) -> NWBFile:
     """
-    Convert M1R CRISPR behavioral video recordings from a single experimental session for a single subject to NWB format.
+    Convert behavioral video recordings from a single experimental session for a single subject to NWB format.
 
     This function processes video files from a single behavioral session (one animal on one date) containing
-    multiple time points of video recordings during L-DOPA treatment in M1R CRISPR experiments. We organize by
-    session (animal + date) because:
+    multiple time points of video recordings during L-DOPA treatment. We organize by session (animal + date)
+    because:
 
     1. **Experimental design**: Each session represents a complete L-DOPA behavioral assessment for one animal
        on one experimental date, with videos recorded at multiple time points (20, 40, 60, 80, 100, 120 min)
-       to assess the effects of M1R gene editing on dyskinetic behaviors
 
     2. **Temporal coherence**: All videos within a session share the same experimental context (same animal,
-       same M1R CRISPR treatment status, same behavioral protocol) and form a temporally coherent sequence
-       following L-DOPA administration
+       same treatment protocol, same experimental conditions) and form a temporally coherent sequence
 
     3. **NWB structure**: This allows proper temporal alignment of all video recordings within a single NWB file,
-       enabling synchronized analysis of behavioral changes across the entire M1R CRISPR treatment session
+       enabling synchronized analysis of behavioral changes across the entire treatment session
 
-    4. **Gene editing context**: Each session represents the behavioral outcome of a specific genetic manipulation
-       (M1R deletion via CRISPR-Cas9), making the session the natural unit for analyzing gene editing effects
+    4. **Data integrity**: Each session forms a complete behavioral assessment unit that should be analyzed
+       together, making it the natural granularity for NWB file organization
 
     Parameters
     ----------
     session_date : str
         Session date in YYYY-MM-DD format
     animal_id : str
-        Animal identifier (e.g., "8592", "4790")
+        Animal identifier (e.g., "ET2586", "1944")
     video_files : List[Path]
         List of video file paths for this animal session
     verbose : bool, default=False
@@ -195,7 +188,7 @@ def convert_session_to_nwbfile(
     Returns
     -------
     NWBFile
-        NWB file object containing all video data from the M1R CRISPR session
+        NWB file object containing all video data from the session
     """
     if not video_files:
         raise ValueError(f"No video files found for {animal_id} on {session_date}")
@@ -204,34 +197,40 @@ def convert_session_to_nwbfile(
     session_start_time = datetime.strptime(session_date, "%Y-%m-%d")
     session_start_time = session_start_time.replace(tzinfo=ZoneInfo("US/Central"))
 
+    # Create BIDS-style session ID following general pattern
+    genotype = "CDGI KO"  # All Figure 7 videos are CDGI knockout
+    timestamp = session_start_time.strftime("%Y%m%d")
+    base_session_id = f"figure7_BehavioralVideos_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Animal{animal_id}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
     # Load general metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
-    # Determine genotype based on video metadata
-    first_video_metadata = extract_video_metadata_supfig3(video_files[0])
-    genotype = first_video_metadata["genotype"]
+    # Load metadata if available
+    specific_metadata_path = Path(__file__).parent / "metadata" / "figure_7_behavioral_videos.yaml"
+    specific_metadata = None
+    if specific_metadata_path.exists():
+        specific_metadata = load_dict_from_file(specific_metadata_path)
 
     # Create session-specific metadata
     conversion_specific_metadata = {
         "NWBFile": {
-            "session_description": f"Supplementary Figure 3 Behavioral Videos - M1R CRISPR behavioral assessment for dyskinesia study",
-            "identifier": f"zhai2025_supfig3_videos_{animal_id}_{session_date.replace('-', '')}",
+            "session_description": f"Figure 7 Behavioral Videos - Contralateral rotation behavior assessment for CDGI knockout dyskinesia study",
+            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "session_id": f"supfig3_videos_{animal_id}_{session_date.replace('-', '')}",
+            "session_id": session_id,
             "experiment_description": (
-                "Behavioral video recordings for dyskinesia assessment in M1R CRISPR gene-edited mice "
-                "following L-DOPA treatment. Videos capture behavioral responses at multiple time points "
-                "(20, 40, 60, 80, 100, 120 minutes) post-injection to assess the effects of M1R deletion "
-                "on dyskinetic behaviors. Data corresponds to Supplementary Figure 3 from Zhai et al. 2025."
+                "Behavioral video recordings of contralateral rotation behavior for dyskinesia assessment "
+                "in CDGI knockout mice following L-DOPA treatment. Videos capture behavioral responses "
+                "at multiple time points (20, 40, 60, 80, 100, 120 minutes) post-injection to assess "
+                "dyskinetic behaviors. Data corresponds to Figure 7 from Zhai et al. 2025."
             ),
             "keywords": [
-                "M1R CRISPR",
-                "gene editing",
-                "CRISPR-Cas9",
-                "muscarinic receptor",
-                "iSPNs",
+                "contralateral rotation",
                 "behavioral assessment",
+                "CDGI",
                 "AIM",
                 "Abnormal Involuntary Movement",
             ],
@@ -240,14 +239,14 @@ def convert_session_to_nwbfile(
             "subject_id": animal_id,
             "species": "Mus musculus",
             "strain": "C57BL/6J",
-            "genotype": genotype,
+            "genotype": "CDGI KO",
             "sex": "M",
             "age": "P7W/P12W",  # 7-12 weeks old
-            "description": f"M1R CRISPR study mouse for behavioral video assessment - Supplementary Figure 3, animal ID: {animal_id}",
+            "description": f"CDGI knockout mouse for behavioral video assessment - Figure 7, animal ID: {animal_id}",
             "genotype_description": (
                 "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "
-                "back-crossed to C57BL/6 background. M1R deletion achieved via CRISPR-Cas9 "
-                "gene editing specifically targeting indirect pathway spiny projection neurons (iSPNs)."
+                "back-crossed to C57BL/6 background. Crossed with CDGI-null line maintained "
+                "on C57BL/6J background for behavioral dyskinesia studies."
             ),
         },
     }
@@ -280,13 +279,13 @@ def convert_session_to_nwbfile(
     )
 
     # Sort videos by time point for proper temporal organization
-    video_metadata_list = [(vid, extract_video_metadata_supfig3(vid)) for vid in video_files]
+    video_metadata_list = [(vid, extract_video_metadata_figure7(vid)) for vid in video_files]
     video_metadata_list.sort(key=lambda x: x[1]["time_point_min"])
 
     # Add time intervals for behavioral epochs
     behavioral_epochs = TimeIntervals(
         name="behavioral_epochs",
-        description="Time intervals for behavioral video recordings during L-DOPA treatment in M1R CRISPR study",
+        description="Time intervals for behavioral video recordings during L-DOPA treatment",
     )
 
     # Add custom columns for behavioral video metadata
@@ -307,17 +306,12 @@ def convert_session_to_nwbfile(
         description="Treatment condition",
     )
     behavioral_epochs.add_column(
-        name="genotype",
-        description="Animal genotype (M1R CRISPR vs Control)",
-    )
-    behavioral_epochs.add_column(
-        name="genetic_modification",
-        description="Type of genetic modification applied",
-    )
-    behavioral_epochs.add_column(
         name="video_file",
         description="Path to the video file",
     )
+
+    # Track video names to ensure uniqueness
+    video_name_counter = {}
 
     for video_file, vid_metadata in video_metadata_list:
         # Calculate video start time relative to session start
@@ -337,24 +331,35 @@ def convert_session_to_nwbfile(
             session_number=vid_metadata["session_number"],
             time_point_min=vid_metadata["time_point_min"],
             treatment="L-DOPA",
-            genotype=vid_metadata["genotype"],
-            genetic_modification=vid_metadata["genetic_modification"],
             video_file=str(video_file),
         )
 
-        # Create video interface for each video
+        # Create unique video name with counter for duplicates
+        base_video_name = f"video_{video_file.stem}"
+        if base_video_name in video_name_counter:
+            video_name_counter[base_video_name] += 1
+            video_name = f"{base_video_name}_{video_name_counter[base_video_name]}"
+        else:
+            video_name_counter[base_video_name] = 0
+            video_name = base_video_name
+
         video_interface = ExternalVideoInterface(
             file_paths=[video_file],
+            video_name=video_name,
             verbose=False,
         )
 
-        # Add video to NWB file with unique name
-        video_name = f"video_{animal_id}_{vid_metadata['session_number']}_{vid_metadata['time_point_min']}min"
+        # Add video to NWB file
         video_interface.add_to_nwbfile(
             nwbfile=nwbfile,
             metadata={
-                "name": video_name,
-                "description": f"M1R CRISPR behavioral video at {vid_metadata['time_point_min']} minutes post L-DOPA treatment for dyskinesia assessment",
+                "Behavior": {
+                    "ExternalVideos": {
+                        video_name: {
+                            "description": f"Behavioral video at {vid_metadata['time_point_min']} minutes post L-DOPA treatment for contralateral rotation assessment",
+                        }
+                    }
+                }
             },
         )
 
@@ -371,32 +376,24 @@ if __name__ == "__main__":
     import argparse
 
     # Set up argument parser
-    parser = argparse.ArgumentParser(
-        description="Convert Supplementary Figure 3 M1R CRISPR behavioral videos to NWB format"
-    )
+    parser = argparse.ArgumentParser(description="Convert Figure 7 behavioral videos to NWB format")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
 
     # Set up paths
     video_base_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Sup. Figure 3/M1R CRISPR videos"
+        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 7/contralateral rotations/CDGI KO videos"
     )
-    output_base_path = Path("./nwb_files/supplementary_figure_3/behavioral_videos")
+    output_base_path = Path("./nwb_files/videos/figure_7")
 
     # Create output directory
     output_base_path.mkdir(parents=True, exist_ok=True)
 
-    # Load metadata if available
-    metadata_path = Path(__file__).parent / "metadata" / "supplementary_figure_3_behavioral_videos.yaml"
-    metadata = None
-    if metadata_path.exists():
-        metadata = load_dict_from_file(metadata_path)
-
-    # Control test execution
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
+    # Setup logging
     verbose = False
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
     # Find all video sessions
-    sessions = find_video_sessions_supfig3(video_base_path)
+    sessions = find_video_sessions(video_base_path)
 
     # Apply stub_test filtering if enabled
     if stub_test:
@@ -406,26 +403,25 @@ if __name__ == "__main__":
             print(f"stub_test enabled: processing only first {len(sessions)} sessions")
 
     if verbose:
-        print(f"Found {len(sessions)} Supplementary Figure 3 video sessions")
+        print(f"Found {len(sessions)} Figure 7 video sessions")
 
     # Process each session
-    for session_date, session_path in tqdm(sessions.items(), desc="Converting Supplementary Figure3 Videos"):
+    for session_date, session_path in tqdm(sessions.items(), desc="Converting Figure7 Videos", disable=not verbose):
+        if verbose:
+            print(f"\nProcessing Figure 7 session: {session_date}")
 
         # Group videos by animal
-        animals = group_videos_by_animal_supfig3(session_path)
+        animals = group_videos_by_animal(session_path)
 
         # Create NWB files for each animal
         for animal_id, video_files in animals.items():
             if verbose:
                 print(f"  Animal: {animal_id} ({len(video_files)} videos)")
 
-            # Determine genotype based on video metadata
-            first_video_metadata = extract_video_metadata_supfig3(video_files[0])
-            genotype = first_video_metadata["genotype"]
-
             # Create output filename
+            genotype = "CDGI KO"  # All Figure 7 videos are CDGI knockout
             genotype_safe = genotype.replace(" ", "_").replace("-", "_")
-            output_filename = f"zhai2025_supfig3_videos_{animal_id}_{session_date.replace('-', '')}_{genotype_safe}.nwb"
+            output_filename = f"zhai2025_figure7_videos_{animal_id}_{session_date.replace('-', '')}_{genotype_safe}.nwb"
             output_path = output_base_path / output_filename
 
             # Create NWB file
@@ -433,7 +429,6 @@ if __name__ == "__main__":
                 session_date=session_date,
                 animal_id=animal_id,
                 video_files=sorted(video_files),
-                genotype=genotype,
                 verbose=verbose,
             )
 
@@ -443,4 +438,4 @@ if __name__ == "__main__":
                 print(f"    Saved: {output_path}")
 
     if verbose:
-        print(f"\nSupplementary Figure 3 video conversion complete. Files saved to: {output_base_path}")
+        print(f"\nFigure 7 video conversion complete. Files saved to: {output_base_path}")

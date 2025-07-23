@@ -19,17 +19,17 @@ from surmeier_lab_to_nwb.zhai2025.interfaces import (
 
 def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any]:
     """
-    Parse essential recording information from dendritic excitability recording folder names.
+    Parse essential recording information from Figure 7 dendritic excitability recording folder names.
     Only extracts location and trial information - session start time comes from XML metadata.
 
     Expected folder name format: [date]_Cell[cell_number]_[location][location_number][variant]_[experiment_type]-[trial_number]
     Examples:
-    - 05232016_Cell1_dist1_trio-001 (MMDDYYYY format)
-    - 20160523_Cell1_dist1real_trio-001 (YYYYMMDD format with variant)
+    - 05262016_Cell1_dist1_trio-001 (MMDDYYYY format)
+    - 05262016_Cell2_prox2_trio-003 (MMDDYYYY format with different cell/location)
 
     Date formats:
-    - MMDDYYYY: Month, day, year (e.g., 05232016 = May 23, 2016)
-    - YYYYMMDD: Year, month, day (e.g., 20160523 = May 23, 2016)
+    - YYYYMMDD: Year, month, day (e.g., 20160523)
+    - MMDDYYYY: Month, day, year (e.g., 05232016)
     Format is auto-detected based on first digit (if '2', assumes YYYYMMDD format)
 
     Experiment types:
@@ -76,7 +76,7 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
         r"(?P<location>dist|prox|)"  # Location: "dist" (distal) or "prox" (proximal)
         r"(?P<location_number>\d+)"  # Location number: 1, 2, etc.
         r"(?:(?P<variant_suffix>real))?"  # Optional variant suffix: "real" after location
-        r"(?:_(?P<experiment_type>trio|bsl))?"  # Optional experiment type: "trio" or "bsl"
+        r"(?:_(?P<experiment_type>[Tt]rio|bsl))?"  # Optional experiment type: "trio"/"Trio" or "bsl"
         r"(?:_(?P<sch_suffix>SCH))?"  # Optional SCH suffix for SCH condition
         r"-(?P<trial_number>\d+)"  # Trial number: 001, 002, etc.
     )
@@ -138,14 +138,14 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
 
 def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
     """
-    Convert all dendritic excitability recordings from a session folder to a single NWB format file.
+    Convert all Figure 7 dendritic excitability recordings from a session folder to a single NWB format file.
 
     Parameters
     ----------
     session_folder_path : Path
         Path to the session folder (corresponds to a single animal/subject)
     condition : str
-        Experimental condition (e.g., "LID off-state", "LID on-state", "LID on-state with SCH")
+        Experimental condition (e.g., "KO off-state", "KO on-state")
     verbose : bool, default=False
         Enable verbose output showing detailed processing information
 
@@ -157,8 +157,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     Notes
     -----
     Each session folder corresponds to a single animal. The structure is:
-    session_folder/cell_folder/recording_folder/files
-    where cell_folder represents different cells from the same animal (e.g., 0202a1, 0202a2)
+    session_folder/recording_folder/files
+    where recording_folder represents different recordings from the same animal.
     """
 
     if verbose:
@@ -282,62 +282,64 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
-    # Create BIDS-style base session ID with detailed timestamp when available
-    if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
-    else:
-        timestamp = session_start_time.strftime("%Y%m%d")
-
-    base_session_id = f"figure1_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_folder_path.name}"
+    # Create session ID following new pattern
+    base_session_id = f"figure7_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    script_specific_id = f"Cell{first_recording_info['cell_number']}_{session_folder_path.name}"
+    session_id = f"{base_session_id}_{script_specific_id}"
 
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
-                f"Dendritic excitability assessment in direct pathway spiny projection neurons (dSPNs) "
-                f"for condition '{condition}'. Combined patch clamp electrophysiology and two-photon "
-                f"laser scanning microscopy (2PLSM). Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) "
-                f"with simultaneous Ca2+ imaging to assess back-propagating action potential invasion. "
-                f"Recorded on {session_date_str}. "
+                f"Figure 7 dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. "
+                f"Combined patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM). "
+                f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous Ca2+ imaging "
+                f"to assess back-propagating action potential invasion. CDGI knockout disrupts M1 muscarinic signaling "
+                f"pathway to test role in dendritic excitability adaptations. Recorded on {session_date_str}. "
                 f"Total recordings: {len(all_recording_folders)}."
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": (
-                f"Dendritic excitability changes in dSPNs during condition '{condition}'. "
-                f"This experiment is part of Figure 1 from Zhai et al. 2025, investigating how LID affects "
-                f"dSPN excitability. Methodology: combination of patch clamp electrophysiology and 2PLSM. "
-                f"dSPNs filled with Ca2+-sensitive dye Fluo-4 (100 μM) and Ca2+-insensitive dye Alexa Fluor 568 (50 μM). "
-                f"Somatically delivered current steps evoke spikes that back-propagate into dendrites. "
-                f"Ca2+ signals at proximal (~40 μm) and distal (~90 μm) locations serve as surrogate estimate "
-                f"of dendritic depolarization extent. Multiple cells from one animal."
+                f"Figure 7 dendritic excitability changes in CDGI knockout mice during condition '{condition}'. "
+                f"This experiment is part of Figure 7 from Zhai et al. 2025, investigating the role of M1 muscarinic "
+                f"signaling in LID-induced dendritic adaptations using CDGI knockout mice. CDGI (Calmodulin-dependent "
+                f"protein kinase kinase) is essential for M1R-mediated adenylyl cyclase inhibition. Methodology: "
+                f"combination of patch clamp electrophysiology and 2PLSM. Cells filled with Ca2+-sensitive dye Fluo-4 "
+                f"(100 μM) and Ca2+-insensitive dye Alexa Fluor 568 (50 μM). Somatically delivered current steps evoke "
+                f"spikes that back-propagate into dendrites. Ca2+ signals at proximal (~40 μm) and distal (~90 μm) "
+                f"locations serve as surrogate estimate of dendritic depolarization extent. CDGI KO mice: conditional "
+                f"knockout targeting striatal spiny projection neurons."
             ),
-            "session_id": base_session_id,
+            "session_id": session_id,
             "keywords": [
                 "calcium imaging",
                 "dendritic excitability",
                 "current injection",
                 "back-propagating action potentials",
+                "CDGI knockout",
+                "M1 muscarinic receptor",
+                "levodopa-induced dyskinesia",
                 "Fluo-4",
                 "Alexa Fluor 568",
             ],
         },
         "Subject": {
-            "subject_id": f"dSPN_mouse_{session_folder_path.name}",
+            "subject_id": f"CDGI_KO_mouse_{session_folder_path.name}",
             "description": (
-                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle (MFB). "
-                f"dSPNs identified by Drd1-Tdtomato expression (positive selection). "
-                f"Animal {session_folder_path.name} recorded on {session_date_str}. "
-                f"Lesion assessment: drug-free forelimb-use asymmetry test (cylinder test). "
-                f"LID induction: dyskinesiogenic doses of levodopa (6 mg/kg first two sessions, "
-                f"12 mg/kg later sessions, supplemented with 12 mg/kg benserazide) every other day for at least five sessions."
+                f"CDGI conditional knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle (MFB). "
+                f"CDGI (Calmodulin-dependent protein kinase kinase) knockout disrupts M1 muscarinic receptor signaling "
+                f"pathway in striatal spiny projection neurons. Animal {session_folder_path.name} recorded on {session_date_str}. "
+                f"Lesion assessment: drug-free forelimb-use asymmetry test (cylinder test). LID induction: dyskinesiogenic "
+                f"doses of levodopa (6 mg/kg first two sessions, 12 mg/kg later sessions, supplemented with 12 mg/kg "
+                f"benserazide) every other day for at least five sessions. Recording condition: {condition}."
             ),
-            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+            "genotype": "CDGI conditional knockout (Camk2g-flox/flox; Dlx5/6-Cre)",
         },
     }
 
@@ -389,6 +391,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     intracellular_recording_table.add_column(
         name="recording_id", description="Full recording identifier containing location and trial information"
     )
+    intracellular_recording_table.add_column(
+        name="cdgi_genotype", description="CDGI knockout genotype status for this recording"
+    )
 
     # Data structures for tracking icephys table indices
     recording_indices = []  # Store all intracellular recording indices
@@ -436,7 +441,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"    Intracellular electrophysiology temporal alignment offset: {t_starts[recording_id]['intracellular']:.3f} seconds"
             )
 
-        # Find electrophysiology XML file (exact name from Figure 1 notes)
+        # Find electrophysiology XML file (exact name from Figure 7 notes)
         electrophysiology_xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
 
         if not electrophysiology_xml_file.exists():
@@ -455,17 +460,18 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Get and update intracellular metadata
         intracellular_metadata = intracellular_interface.get_metadata()
 
-        # Update electrode description for dSPN dendritic recording (Figure 1)
+        # Update electrode description for CDGI knockout dendritic recording (Figure 7)
         # One electrode per cell and location combination
         electrode_name = f"IntracellularElectrode{location_id}"
         intracellular_metadata["Icephys"]["IntracellularElectrodes"][icephys_metadata_key].update(
             {
                 "name": electrode_name,
                 "description": (
-                    f"Recording from dSPN {recording_info['location_description']} - {condition} - "
+                    f"Recording from CDGI knockout mouse {recording_info['location_description']} - {condition} - "
                     f"Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']} - "
                     f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous "
-                    f"two-photon line scan imaging of calcium transients"
+                    f"two-photon line scan imaging of calcium transients. "
+                    f"CDGI genotype: Conditional knockout (Camk2g-flox/flox; Dlx5/6-Cre)"
                 ),
                 "cell_id": recording_info["cell_number"],
                 "location": recording_info["location_description"],
@@ -483,10 +489,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             {
                 "name": series_name,
                 "description": (
-                    f"Current clamp recording from dSPN {recording_info['location_description']} - "
+                    f"Current clamp recording from CDGI knockout mouse {recording_info['location_description']} - "
                     f"{condition} - Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']} - "
                     f"Three 2 nA current injections, 2 ms each, at 50 Hz. Stimulus protocol: "
-                    f"PulseCount=3, PulseWidth=2ms, PulseSpacing=18ms (50Hz), FirstPulseDelay=900ms"
+                    f"PulseCount=3, PulseWidth=2ms, PulseSpacing=18ms (50Hz), FirstPulseDelay=900ms. "
+                    f"CDGI knockout disrupts M1R-mediated adenylyl cyclase inhibition pathway."
                 ),
             }
         )
@@ -500,6 +507,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Calculate dendrite distance based on location type (approximate values from literature)
         dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40  # distal ~90μm, proximal ~40μm
 
+        # Determine CDGI genotype status
+        cdgi_genotype = "CDGI KO (Camk2g-flox/flox; Dlx5/6-Cre)"
+
         # Add intracellular recording entry with essential metadata annotations
         recording_index = nwbfile.add_intracellular_recording(
             electrode=current_clamp_series.electrode,
@@ -510,6 +520,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             dendrite_number=int(recording_info["location_number"]),
             trial_number=int(recording_info["trial_number"]),
             recording_id=recording_id,
+            cdgi_genotype=cdgi_genotype,
         )
 
         # Track recording index and metadata for table building
@@ -634,6 +645,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     repetitions_table.add_column(
         name="dendrite_number", description="Number identifier for the specific dendritic location"
     )
+    repetitions_table.add_column(name="cdgi_genotype", description="CDGI knockout genotype status for this repetition")
 
     repetition_indices = []
     for location_id, location_recording_indices in location_to_recording_indices.items():
@@ -650,24 +662,28 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             location_sequential_indices.append(sequential_recording_indices[seq_index])
 
         dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40
+        cdgi_genotype = "CDGI KO (Camk2g-flox/flox; Dlx5/6-Cre)"
 
         repetition_index = nwbfile.add_icephys_repetition(
             sequential_recordings=location_sequential_indices,
             dendrite_distance_um=dendrite_distance_um,
             dendrite_type=recording_info["location_full"],  # "Distal" or "Proximal"
             dendrite_number=int(recording_info["location_number"]),
+            cdgi_genotype=cdgi_genotype,
         )
         repetition_indices.append(repetition_index)
 
-    # Step 4: Build experimental conditions table (group all repetitions by LID condition)
+    # Step 4: Build experimental conditions table (group all repetitions by CDGI knockout condition)
     # Note: Cell information is per-session data, stored at NWBFile level, not per-recording
     experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
     experimental_conditions_table.add_column(
-        name="condition", description="Experimental condition for L-DOPA induced dyskinesia study"
+        name="condition", description="Experimental condition for CDGI knockout study in LID"
     )
+    experimental_conditions_table.add_column(name="cdgi_genotype", description="CDGI knockout genotype details")
 
+    cdgi_genotype = "CDGI KO (Camk2g-flox/flox; Dlx5/6-Cre)"
     experimental_condition_index = nwbfile.add_icephys_experimental_condition(
-        repetitions=repetition_indices, condition=condition
+        repetitions=repetition_indices, condition=condition, cdgi_genotype=cdgi_genotype
     )
 
     if verbose:
@@ -706,18 +722,15 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
 
     # Set the base path to your data
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-
-    base_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 1/Dendritic excitability"
-    )
+    base_path = Path("./link_to_raw_data/Figure 7/KO DE on vs off")
 
     # Create nwb_files directory at root level
-    nwb_files_dir = root_dir / "nwb_files" / "figure_1" / "dendritic_excitability"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "dendritic_excitability" / "figure_7"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    # Figure 1 dendritic conditions
-    conditions = ["LID off-state", "LID on-state", "LID on-state with SCH"]
+    # Figure 7 dendritic conditions
+    conditions = ["KO off-state", "KO on-state"]
 
     for condition in conditions:
         condition_path = base_path / condition
@@ -726,34 +739,12 @@ if __name__ == "__main__":
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
         if verbose:
-            print(f"Processing dendritic excitability data for: {condition}")
+            print(f"Processing Figure 7 dendritic excitability data for: {condition}")
 
-        # Get all folders under condition and determine session folders
-        # Heuristic: if a folder has more than 3 children, it is a session_folder
-        # otherwise its children are session_folders
-        all_folders = [f for f in condition_path.iterdir() if f.is_dir()]
-        all_folders.sort()
-
-        session_folders = []
-
-        for folder in all_folders:
-            # Count subdirectories
-            subdirs = [f for f in folder.iterdir() if f.is_dir()]
-
-            if len(subdirs) > 3:
-                # This folder is a session_folder (like 0707b with 6 recording folders)
-                session_folders.append(folder)
-                if verbose:
-                    print(f"  Folder {folder.name} has {len(subdirs)} subdirs - is a session_folder")
-            else:
-                # This folder's children are session_folders (like 0706a with 0706a1, 0706a2)
-                session_folders.extend(subdirs)
-                if verbose:
-                    print(f"  Folder {folder.name} has {len(subdirs)} subdirs - its children are session_folders")
-
+        # Get all session folders (e.g., 0525a, 0525b, etc.)
+        # Note: Each session folder corresponds to a single animal
+        session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
-        if verbose:
-            print(f"Found {len(session_folders)} session folders total")
 
         # Apply stub_test filtering if enabled
         if stub_test:
@@ -761,10 +752,15 @@ if __name__ == "__main__":
             if verbose:
                 print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
 
+        if verbose:
+            print(f"Found {len(session_folders)} session folders")
+
         # Process each session folder with progress bar
+        # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
             session_folders,
-            desc=f"Converting Figure1 DendriticExcitability {condition}",
+            desc=f"Converting Figure7 DendriticExcitability {condition}",
+            disable=verbose,
         )
 
         for session_folder in session_iterator:
@@ -779,8 +775,8 @@ if __name__ == "__main__":
             )
 
             # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
-            nwbfile_path = nwb_files_dir / f"figure1_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
+            condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
+            nwbfile_path = nwb_files_dir / f"figure7_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

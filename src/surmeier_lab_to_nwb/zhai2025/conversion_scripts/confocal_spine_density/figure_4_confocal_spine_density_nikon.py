@@ -123,7 +123,7 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     base_session_id = f"figure4_ConfocalSpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{file_info['animal_id']}"
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata
@@ -237,8 +237,8 @@ if __name__ == "__main__":
     ]
 
     # Create output directory
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_4" / "confocal_spine_density_nikon"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "confocal_spine_density" / "figure_4"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     for dataset in datasets:

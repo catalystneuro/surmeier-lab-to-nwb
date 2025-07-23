@@ -232,7 +232,7 @@ def convert_session_to_nwbfile(
         print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using precise session start time from XML
@@ -545,7 +545,7 @@ def main():
 
     # Define raw data and output paths
     raw_data_root = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Sr-oEPSC")
-    output_root = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/figure_4/sr_oepsc")
+    output_root = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/spine_density/figure_4")
 
     # Create output directory
     output_root.mkdir(parents=True, exist_ok=True)

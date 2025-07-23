@@ -188,10 +188,7 @@ def find_xml_metadata_file(subfolder: Path) -> Optional[Path]:
     # Each folder contains exactly one XML file - find it by suffix
     xml_files = [f for f in subfolder.iterdir() if f.suffix == ".xml"]
 
-    if xml_files:
-        return xml_files[0]  # Return the single XML file
-
-    return None
+    return xml_files[0]  # Return the single XML file
 
 
 def extract_z_slice_info(tiff_file: Path) -> Dict[str, Any]:
@@ -235,11 +232,11 @@ def extract_z_slice_info(tiff_file: Path) -> Dict[str, Any]:
     cell_number = cell_match.group(1) if cell_match else "unknown"
 
     if "dist" in filename:
-        location_match = re.search(r"dist(\d+)", filename)
+        location_match = re.search(r"dist([a-z0-9]+)", filename, re.IGNORECASE)
         location = "distal"
         dendrite_num = location_match.group(1) if location_match else "1"
     elif "prox" in filename:
-        location_match = re.search(r"prox(\d+)", filename)
+        location_match = re.search(r"prox([a-z0-9]+)", filename, re.IGNORECASE)
         location = "proximal"
         dendrite_num = location_match.group(1) if location_match else "1"
     else:
@@ -366,13 +363,25 @@ def extract_date_from_tiff_filename(tiff_file: Path) -> datetime:
     """
     filename = tiff_file.name
 
-    # Look for date pattern YYYYMMDD in filename
+    # Look for date pattern YYYYMMDD or MMDDYYYY in filename
     date_match = re.search(r"(\d{8})", filename)
     if date_match:
         date_str = date_match.group(1)
+
+        # Try YYYYMMDD format first
         year = int(date_str[:4])
         month = int(date_str[4:6])
         day = int(date_str[6:8])
+
+        # If month is invalid, try MMDDYYYY format
+        if month < 1 or month > 12:
+            month = int(date_str[:2])
+            day = int(date_str[2:4])
+            year = int(date_str[4:8])
+
+            # Validate the corrected date
+            if month < 1 or month > 12 or day < 1 or day > 31:
+                raise ValueError(f"Could not parse valid date from: {date_str} in filename: {filename}")
     else:
         raise ValueError(f"Could not extract date from filename: {filename}")
 
@@ -401,14 +410,16 @@ def parse_session_info(session_folder: Path) -> Dict[str, Any]:
     for subfolder in session_folder.iterdir():
         if subfolder.is_dir():
             tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
-            tiff_date = extract_date_from_tiff_filename(tiff_files[0])
-            if tiff_date:
-                session_start_time = tiff_date
+            if tiff_files:
+                tiff_date = extract_date_from_tiff_filename(tiff_files[0])
+                if tiff_date:
+                    session_start_time = tiff_date
+                    break
             else:
                 raise ValueError(f"Could not extract date from TIFF file in folder: {subfolder.name}")
 
     # Extract animal ID from folder name
-    # TODO: this is a guess in the moment, need to confirm
+    # Figure 7 uses iSPNs, adjust animal ID extraction for different naming pattern
     folder_name = session_folder.name
     if "2019" in folder_name:
         animal_id = folder_name[8:] if len(folder_name) > 8 else "unknown"
@@ -422,7 +433,7 @@ def parse_session_info(session_folder: Path) -> Dict[str, Any]:
     }
 
 
-def parse_container_info(subfolder_name: str) -> Dict[str, str]:
+def parse_container_info(subfolder_name: str, session_id: str) -> Dict[str, str]:
     """
     Parse container information from subfolder names.
 
@@ -440,38 +451,39 @@ def parse_container_info(subfolder_name: str) -> Dict[str, str]:
     Dict[str, str]
         Dictionary containing container name and description
     """
-    # Extract cell number and location
-    cell_match = re.search(r"Cell(\d+)", subfolder_name)
+    # Extract cell number and location - case insensitive
+    subfolder_name_lower = subfolder_name.lower()
+    cell_match = re.search(r"cell(\d+)", subfolder_name_lower)
     cell_number = cell_match.group(1) if cell_match else "unknown"
 
-    # Extract location (proximal/distal) and dendrite number
-    if "dist" in subfolder_name:
-        location_match = re.search(r"dist(\d+)", subfolder_name)
+    # Extract location (proximal/distal) and dendrite identifier - case insensitive
+    if "dist" in subfolder_name_lower:
+        location_match = re.search(r"dist([a-z0-9]+)", subfolder_name_lower)
         location = "Distal"
         dendrite_num = location_match.group(1) if location_match else "1"
-    elif "prox" in subfolder_name:
-        location_match = re.search(r"prox(\d+)", subfolder_name)
-        location = "Proximal"
-        dendrite_num = location_match.group(1) if location_match else "1"
-    elif "Prox" in subfolder_name:
-        location_match = re.search(r"Prox_(\d+)", subfolder_name)
+    elif "prox" in subfolder_name_lower:
+        location_match = re.search(r"prox([a-z0-9]+)", subfolder_name_lower)
         location = "Proximal"
         dendrite_num = location_match.group(1) if location_match else "1"
     else:
         raise ValueError(f"Could not determine location from subfolder name: {subfolder_name}")
 
-    container_name = f"Images{location}{dendrite_num}"
+    # Extract the unique numeric suffix from the subfolder name
+    suffix_match = re.search(r"-(\d+)$", subfolder_name)
+    unique_suffix = suffix_match.group(1) if suffix_match else ""
 
-    # TODO: figure out what real means here
-    # Most likely the experiment was done twice and this is "correct"
+    container_name = f"Images{location}{dendrite_num}{unique_suffix}"
+
+    # Handle "real" designation if present
     if "real" in subfolder_name:
         container_name += "Real"
 
     # Add distance information based on location
     distance_info = "proximal (~40 μm from soma)" if location == "Proximal" else "distal (>80 μm from soma)"
 
+    # Note: Figure 7 data is from iSPNs (indirect pathway), not dSPNs
     description = (
-        f"Image stack of {location.lower()} dendrite {dendrite_num} from dSPN cell {cell_number} "
+        f"Image stack of {location.lower()} dendrite {dendrite_num} from iSPN cell {cell_number} "
         f"for spine density analysis. Location: {distance_info}. "
         f"Acquired with 0.15 μm pixels, 0.3 μm z-steps using two-photon microscopy. "
         f"Images deconvolved in AutoQuant X3.0.4 and analyzed using NeuronStudio."
@@ -520,14 +532,14 @@ def create_microscope_device(nwbfile: NWBFile, xml_metadata: Dict[str, Any]) -> 
 
 def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
     """
-    Convert spine density data to NWB format.
+    Convert spine density data to NWB format for Figure 7.
 
     Parameters
     ----------
     session_folder_path : Path
-        Path to the top level folders in the conditions for spiny density figure 2
+        Path to the top level folders in the conditions for spine density figure 7
     condition : str
-        The experimental condition (e.g., 'control dSPN', 'LID on-state dSPN')
+        The experimental condition (e.g., 'KO off', 'KO on')
     verbose : bool, default=False
         Enable verbose output showing detailed processing information
 
@@ -541,46 +553,56 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     if verbose:
         print(f"Session date: {session_info['date_str']}, Animal: {session_info['animal_id']}")
 
-    # Create session ID following new pattern
-    base_session_id = f"figure2_SpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{session_info['session_start_time'].strftime('%Y%m%d_%H%M%S')}"
-    script_specific_id = f"Animal{session_info['animal_id']}"
-    session_id = f"{base_session_id}_{script_specific_id}"
-
-    # Add session_id to session_info
-    session_info["session_id"] = session_id
-
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     if verbose:
         print(f"Loaded paper metadata from: {metadata_file_path}")
         print(f"Experiment description: {paper_metadata['NWBFile']['experiment_description'][:100]}...")
 
-    # Create session-specific metadata
+    # Create BIDS-style base session ID with detailed timestamp when available
+    session_start_time = session_info["session_start_time"]
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure7_SpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Sub{session_info['animal_id']}"
+    session_id = f"{base_session_id}_{script_specific_id}"
+
+    # Create session-specific metadata for Figure 7
     session_specific_metadata = {
         "NWBFile": {
             "session_description": (
-                f"Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) "
+                f"Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) from Cav3.1 T-type calcium channel knockout (KO) mice "
                 f"for condition {condition}. Two-photon laser scanning microscopy was used to acquire "
                 f"Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) "
                 f"and distal (>80 μm from soma). Acquisition parameters: 0.15 μm pixels, 0.3 μm z-steps, "
                 f"60x objective (NA=1.0), optical zoom 5.2x, 10 μs dwell time. Images were deconvolved "
                 f"using AutoQuant X3.0.4 (MediaCybernetics) and semi-automated spine counting was performed "
-                f"using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai). On average, 2 proximal "
-                f"and 2 distal dendrites were imaged and analyzed per neuron."
+                f"using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai). This data is part of "
+                f"Figure 7, which investigates the role of Cav3.1 channels in spine density."
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
-            "session_id": session_info["session_id"],
-            "keywords": ["spine density", "dendritic spines", "two-photon microscopy"],
+            "session_id": session_id,
+            "keywords": [
+                "spine density",
+                "dendritic spines",
+                "two-photon microscopy",
+                "iSPNs",
+                "Cav3.1",
+                "knockout",
+            ],
         },
         "Subject": {
-            "subject_id": f"dSPN_mouse_{session_info['session_id']}",
+            "subject_id": f"dSPN_mouse_{session_info['animal_id']}",
             "description": (
                 f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
-                f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. "
-                f"dSPNs identified by Drd1-Tdtomato expression. Session {session_info['session_id']} recorded on {session_info['date_str']}."
+                f"modeling Parkinson's disease. CDGI knockout study for spine density analysis. "
+                f"dSPNs identified by Drd1-Tdtomato expression. Animal {session_info['animal_id']} recorded on {session_info['date_str']}."
             ),
             "genotype": "Drd1-Tdtomato+",
         },
@@ -627,15 +649,27 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"  Processing: {subfolder.name}")
 
         # Parse container information
-        container_info = parse_container_info(subfolder.name)
+        container_info = parse_container_info(subfolder.name, session_id)
 
         if verbose:
             print(f"    Container name: {container_info['container_name']}")
 
         # Get all TIFF files in the folder, excluding projection images
         all_tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
-        # Filter out projection images (_xy.tif, _xz.tif, _zy.tif) and keep only Z-stack images
-        tiff_files = sorted([f for f in all_tiff_files if not f.name.startswith("_")])
+        # Filter out projection images (_xy.tif, _xz.tif, _zy.tif, project_xy.tif, *_xy.tif, etc.) and keep only Z-stack images
+        tiff_files = sorted(
+            [
+                f
+                for f in all_tiff_files
+                if not (
+                    f.name.startswith("_")
+                    or "project" in f.name.lower()
+                    or f.name.endswith("_xy.tif")
+                    or f.name.endswith("_xz.tif")
+                    or f.name.endswith("_zy.tif")
+                )
+            ]
+        )
         assert len(tiff_files) > 0, f"No Z-stack TIFF files found in {subfolder.name}"
 
         if verbose:
@@ -692,7 +726,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"    Successfully added image stack: {container_info['container_name']}")
 
     if verbose:
-        print(f"Conversion completed for session: {session_info['session_id']}")
+        print(f"Conversion completed for session: {session_info['animal_id']}")
 
     return nwbfile
 
@@ -708,18 +742,20 @@ if __name__ == "__main__":
 
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
-    # Define the base path to the data
-    base_path = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 2_SF1A/Spine density/")
+    # Define the base path to the data - Figure 7 spine density (two-photon method, iSPNs)
+    base_path = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 7/KO spine density/")
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_2" / "spine_density"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "spine_density" / "figure_7"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    conditions = ["PD dSPN", "LID off-state dSPN", "control dSPN", "LID on-state dSPN"]
+    # Figure 7 conditions use iSPNs (indirect pathway)
+    conditions = ["KO off", "KO on"]
+
     for condition in conditions:
         condition_path = base_path / condition
-        assert condition_path.exists(), f"Base path does not exist: {base_path}"
+        assert condition_path.exists(), f"Base path does not exist: {condition_path}"
 
         if verbose:
             print(f"Processing spine density data for: {condition=}")
@@ -728,21 +764,17 @@ if __name__ == "__main__":
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        if verbose:
-            print(f"Found {len(session_folders)} session folders")
-
         # Apply stub_test filtering if enabled
         if stub_test:
             session_folders = session_folders[:2]
             if verbose:
                 print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
 
-        # Use tqdm for progress bar  when verbose is disabled
-        session_iterator = (
-            tqdm(session_folders, desc=f"Converting Figure2 SpineDensity {condition}", disable=verbose)
-            if not verbose
-            else session_folders
-        )
+        if verbose:
+            print(f"Found {len(session_folders)} session folders")
+
+        # Use tqdm for progress bar when verbose is disabled
+        session_iterator = tqdm(session_folders, desc=f"Converting Figure7 SpineDensity {condition}")
 
         for session_folder_path in session_iterator:
             if verbose:
@@ -757,9 +789,12 @@ if __name__ == "__main__":
 
             # Create output filename
             condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
-            nwbfile_path = nwb_files_dir / f"figure2_spine_density_{condition_safe}_{session_folder_path.name}.nwb"
+            nwbfile_path = nwb_files_dir / f"figure7_spine_density_{condition_safe}_{session_folder_path.name}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
+
+        if not verbose:
+            print(f"Completed {condition}: {len(session_folders)} sessions processed")

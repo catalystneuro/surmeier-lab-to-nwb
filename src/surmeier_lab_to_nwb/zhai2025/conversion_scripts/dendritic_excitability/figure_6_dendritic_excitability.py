@@ -326,7 +326,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using session start time from XML
@@ -777,8 +777,8 @@ if __name__ == "__main__":
     base_path = Path("./link_to_raw_data/Figure 6/Dendritic excitability")
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_6" / "dendritic_excitability"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "dendritic_excitability" / "figure_6"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 6 dendritic conditions
@@ -811,6 +811,7 @@ if __name__ == "__main__":
             session_folders,
             desc=f"Converting Figure6 DendriticExcitability {condition}",
             disable=verbose,
+            unit=" session",
         )
 
         for session_folder in session_iterator:

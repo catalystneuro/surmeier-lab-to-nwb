@@ -211,7 +211,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using precise session start time from XML
@@ -448,8 +448,8 @@ if __name__ == "__main__":
     base_path = Path("./link_to_raw_data/Figure 3/Somatic excitability")
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_3" / "somatic_excitability"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "somatic_excitability" / "figure_3"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 3 somatic excitability conditions
@@ -483,6 +483,7 @@ if __name__ == "__main__":
                 session_folders,
                 desc=f"Converting Figure3 SomaticExcitability {condition}",
                 disable=verbose,
+                unit=" session",
             )
             if not verbose
             else session_folders

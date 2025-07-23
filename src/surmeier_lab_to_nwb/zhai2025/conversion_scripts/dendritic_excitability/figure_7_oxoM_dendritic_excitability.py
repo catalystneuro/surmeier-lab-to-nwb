@@ -321,7 +321,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         print(f"Session date: {session_info['date_str']}")
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using precise session start time from XML
@@ -697,8 +697,8 @@ if __name__ == "__main__":
     base_path = Path("./link_to_raw_data/Figure 7/oxoM on DE")
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_7" / "oxoM_dendritic_excitability"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "dendritic_excitability" / "figure_7"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 7 oxotremorine-M dendritic excitability genotypes

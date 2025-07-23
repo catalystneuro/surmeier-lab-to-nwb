@@ -550,7 +550,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         print(f"Session date: {session_info['date_str']}, Animal: {session_info['animal_id']}")
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     if verbose:
@@ -743,8 +743,8 @@ if __name__ == "__main__":
     base_path = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 6/Spine density/")
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_6" / "spine_density"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "spine_density" / "figure_6"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 6 conditions use iSPNs (indirect pathway)

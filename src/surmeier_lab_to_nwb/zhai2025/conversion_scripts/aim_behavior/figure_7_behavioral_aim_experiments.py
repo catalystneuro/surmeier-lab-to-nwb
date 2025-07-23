@@ -1,13 +1,13 @@
 """
-Figure 8 Behavioral Data Conversion Script
+Figure 7 Behavioral Data Conversion Script
 
-This script processes the behavioral data from Figure 8 of the Zhai et al. 2025 paper,
-including AIM (Abnormal Involuntary Movement) scoring for M1R CRISPR knockout mice.
+This script processes the behavioral data from Figure 7 of the Zhai et al. 2025 paper,
+including AIM (Abnormal Involuntary Movement) scoring for CDGI knockout mice.
 
 The script handles:
 - AIM scoring data from Excel files with multiple sessions using behavioral_utils
-- Genotype information (M1R CRISPR vs Control)
-- Optimized DynamicTable structure for Figure 8 analysis
+- Genotype information (CDGI KO vs WT)
+- Optimized DynamicTable structure for Figure 7J reproduction
 """
 
 import logging
@@ -27,7 +27,7 @@ from tqdm import tqdm
 from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
     AIMBehavioralDynamicTableInterface,
     AIMBehavioralTimeSeriesInterface,
-    build_source_data_from_aim_excel_table_figure8,
+    build_source_data_from_aim_excel_table,
 )
 
 
@@ -42,7 +42,7 @@ def parse_session_info_from_animal_data(session_date: str, animal_id: int, genot
     animal_id : int
         Animal identifier
     genotype : str
-        Animal genotype (M1R CRISPR, Control, or unknown)
+        Animal genotype (KO, WT, or unknown)
 
     Returns
     -------
@@ -57,7 +57,7 @@ def parse_session_info_from_animal_data(session_date: str, animal_id: int, genot
         "genotype": genotype,
         "session_date": session_date,
         "session_start_time": date_obj.replace(tzinfo=ZoneInfo("US/Central")),
-        "original_animal_id": f"M1R#{animal_id}",
+        "original_animal_id": f"ET#{animal_id}",
     }
 
 
@@ -81,7 +81,7 @@ def convert_session_to_nwbfile(
     animal_id : int
         Animal identifier
     genotype : str
-        Animal genotype (M1R CRISPR or Control)
+        Animal genotype
     processed_data_csv_path : Path
         Path to the processed CSV file containing AIM data
     verbose : bool, default=False
@@ -93,37 +93,41 @@ def convert_session_to_nwbfile(
         NWB file with the converted data
     """
     # Load general metadata
-    metadata_path = Path(__file__).parent / "metadata.yaml"
+    metadata_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     metadata = load_dict_from_file(metadata_path)
 
     # Parse session information
     session_info = parse_session_info_from_animal_data(session_date, animal_id, genotype)
 
-    # Create BIDS-style session ID following general pattern
-    timestamp = session_info["session_start_time"].strftime("%Y%m%d_%H%M%S")
-    base_session_id = f"figure8_BehavioralAim_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
-    script_specific_id = f"Animal{animal_id}_Session{session_number}"
+    # Create BIDS-style base session ID with detailed timestamp when available
+    session_start_time = session_info["session_start_time"]
+    if hasattr(session_start_time, "hour"):
+        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = session_start_time.strftime("%Y%m%d")
+
+    base_session_id = f"figure7_BehavioralAIM_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    script_specific_id = f"Sub{session_info['animal_id']}_Session{session_number}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
     # Update metadata for behavioral experiment
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": "Figure 8 Behavioral Assessment - AIM scoring for dyskinesia analysis in M1R CRISPR study",
-            "identifier": f"figure8_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
+            "session_description": "Figure 7 Behavioral Assessment - AIM scoring for dyskinesia analysis in CDGI study",
+            "identifier": f"figure7_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
             "session_id": session_id,
             "session_start_time": session_info["session_start_time"],
             "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
             "experiment_description": (
-                "Behavioral assessment of M1R CRISPR knockout mice using AIM scoring to evaluate "
-                "dyskinesia severity following L-DOPA treatment. Data corresponds to Figure 8 from "
-                "Zhai et al. 2025. M1R CRISPR uses CRISPR-Cas9 gene editing to delete M1 muscarinic "
-                "receptors specifically from iSPNs. Uses optimized DynamicTable for figure analysis."
+                "Behavioral assessment of CDGI knockout mice using AIM scoring to evaluate "
+                "dyskinesia severity following L-DOPA treatment. Data corresponds to Figure 7J "
+                "from Zhai et al. 2025. Uses optimized DynamicTable for figure reproduction."
             ),
         },
         "Subject": {
             "subject_id": session_info["original_animal_id"],
             "genotype": session_info["genotype"],
-            "description": f"M1R CRISPR study animal - {session_info['genotype']}",
+            "description": f"CDGI study animal - {session_info['genotype']}",
             "species": "Mus musculus",
             "strain": "C57BL/6J",
             "sex": "M",
@@ -132,9 +136,9 @@ def convert_session_to_nwbfile(
                 "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "
                 "back-crossed to C57BL/6 background. "
                 + (
-                    "M1R CRISPR: AAV-Cas9 + AAV-gRNA-FusionRed for M1R deletion in iSPNs."
-                    if "CRISPR" in session_info["genotype"]
-                    else "Control: Saline + AAV-gRNA-FusionRed (no M1R deletion)."
+                    "Crossed with CDGI-null line maintained on C57BL/6J background."
+                    if "KO" in session_info["genotype"]
+                    else "Wild-type CDGI."
                 )
             ),
         },
@@ -218,7 +222,7 @@ if __name__ == "__main__":
 
     # Set up argument parser
     parser = argparse.ArgumentParser(
-        description="Convert Figure 8 M1R CRISPR AIM behavioral data to NWB format with optimized DynamicTable structure"
+        description="Convert AIM behavioral data to NWB format with optimized DynamicTable structure"
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose output (show detailed processing for each file)"
@@ -237,26 +241,27 @@ if __name__ == "__main__":
     stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Set the base path to your data
-    base_dir = Path(__file__).parent
+    base_dir = Path(__file__).parent.parent.parent  # Go up to zhai2025 level
     aim_excel_data_file_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 8/M1R CRISPR AIMs/AIM raw score_M1R CRISPR.xlsx"
+        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 7/AIM rating/AIM testing_CDGI KO.xlsx"
     )
-    processed_data_csv_path = base_dir / "assets" / "processed_aim_behavioral_data" / "figure_8_aim_processed_data.csv"
+    genotype_path = base_dir / "assets" / "data_connections_D2_figures_3_4_6_7_8.csv"
+    processed_data_csv_path = base_dir / "assets" / "processed_aim_behavioral_data" / "figure_7_aim_processed_data.csv"
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_8" / "behavioral"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "aim_behavior" / "figure_7"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     if verbose:
-        print("Processing Figure 8 M1R CRISPR Behavioral Assessment data with optimized DynamicTable")
+        print("Processing Figure 7 Behavioral Assessment data with optimized DynamicTable")
 
     if verbose:
         print("Verbose mode: ON - Detailed processing information will be shown")
-        print("Parsing M1R CRISPR AIM Excel data...")
+        print("Parsing AIM Excel data...")
 
-    # Parse AIM data using Figure 8 specific pipeline
-    pivot_df = build_source_data_from_aim_excel_table_figure8(aim_excel_data_file_path, verbose=verbose)
+    # Parse AIM data using unified pipeline
+    pivot_df = build_source_data_from_aim_excel_table(aim_excel_data_file_path, genotype_path, verbose=verbose)
 
     # Create processed data directory and save processed data for interface use
     processed_data_csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -283,18 +288,16 @@ if __name__ == "__main__":
         print("=" * 60)
 
     # Process each session - use tqdm for non-verbose mode
-    iterator = (
-        sessions_list
-        if verbose
-        else tqdm(
-            sessions_list,
-            desc="Converting Figure8 AIMBehavior",
-            unit="session",
-            ncols=80,
-        )
+    iterator = tqdm(
+        sessions_list,
+        desc="Converting Figure7 AIMBehavior",
     )
 
     for (session_date, session_number, animal_id, genotype), session_data in iterator:
+        # Use genotype as condition for behavioral experiments
+        condition = genotype
+        condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
+
         if verbose:
             print(f"\nProcessing: Animal {animal_id} ({genotype}) on {session_date} session {session_number}")
             print(f"  Session data shape: {session_data.shape}")
@@ -313,7 +316,8 @@ if __name__ == "__main__":
 
         # Create output filename
         nwbfile_path = (
-            nwb_files_dir / f"figure8_behavioral_{animal_id}_{session_date.replace('-', '')}_s{session_number}.nwb"
+            nwb_files_dir
+            / f"figure7_behavioral_{animal_id}_{session_date.replace('-', '')}_s{session_number}_{condition_safe}.nwb"
         )
 
         # Write NWB file

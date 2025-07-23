@@ -239,7 +239,7 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
         raise FileNotFoundError(f"No XML metadata file found in {session_folder}")
 
     # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent / "metadata.yaml"
+    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
     paper_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata with Chicago timezone
@@ -439,8 +439,8 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"Base path does not exist: {base_path}")
 
     # Create nwb_files directory at root level
-    root_dir = Path(__file__).parent.parent.parent.parent  # Go up to repo root
-    nwb_files_dir = root_dir / "nwb_files" / "figure_5" / "grabatch"
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    nwb_files_dir = root_dir / "nwb_files" / "acetylcholine_imaging" / "figure_5"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Get all sessions across all conditions
