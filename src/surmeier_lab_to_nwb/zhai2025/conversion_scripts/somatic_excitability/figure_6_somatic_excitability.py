@@ -228,60 +228,38 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if verbose:
         print(f"Session date: {session_info['date_str']}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata using precise session start time from XML
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_6_somatic_excitability"]
 
-    # Determine treatment description based on condition
+    # Handle pharmacology conditions dynamically
+    pharmacology_text = general_metadata["NWBFile"]["pharmacology"]
     if condition == "M1R antagonist":
-        treatment_description = (
-            "M1R antagonist trihexyphenidyl hydrochloride (THP, 3 mg/kg, i.p.) administered "
-            "at beginning of LID off-state, with recording 16 hours later"
-        )
-        condition_description = "M1R antagonist treatment effects on iSPN somatic excitability"
-        pharmacology_addition = " M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered at beginning of LID off-state, with recording 16 hours later for assessment of M1R contribution to dyskinetic adaptations."
-    else:
-        treatment_description = "Saline control injection with matched timing and volume"
-        condition_description = "Control condition for M1R antagonist study of iSPN somatic excitability"
-        pharmacology_addition = ""
+        pharmacology_text += " " + script_template["pharmacology_conditions"]["antagonist"]
 
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Somatic excitability assessment in iSPNs for condition '{condition}'. "
-                f"Whole-cell patch clamp recording in current clamp mode with current injection steps "
-                f"from -120 pA to +300 pA (500 ms duration each). {treatment_description}. "
-                f"Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, cell_number=session_info["cell_number"], date_str=session_info["date_str"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"{condition_description} during LID off-state. "
-                f"This experiment is part of Figure 6 from Zhai et al. 2025, investigating whether "
-                f"M1R signaling mediates dendritic vs somatic alterations in iSPNs during dyskinesia. "
-                f"F-I protocol with {len(recording_folders)} current steps."
-            ),
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_info["session_id"],
-            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
-            "keywords": [
-                "somatic excitability",
-                "F-I relationship",
-                "rheobase",
-                "M1R antagonist",
-                "trihexyphenidyl",
-            ],
+            "pharmacology": pharmacology_text,
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"M1R_antagonist_mouse_{session_info['session_id']}",
-            "description": (
-                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-                f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
-                f"{treatment_description}. Animal {session_info['animal_letter']}, "
-                f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "description": script_template["Subject"]["description"].format(
+                cell_number=session_info["cell_number"], date_str=session_info["date_str"]
             ),
-            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 

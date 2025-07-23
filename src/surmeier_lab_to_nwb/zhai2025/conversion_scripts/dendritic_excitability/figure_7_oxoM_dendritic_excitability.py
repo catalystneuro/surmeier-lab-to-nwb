@@ -333,54 +333,50 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     if verbose:
         print(f"Session date: {session_info['date_str']}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata using precise session start time from XML
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_7_oxoM_dendritic_excitability"]
+
+    # Handle conditional pharmacology for oxotremorine-M treatment
+    pharmacology_addition = ""
+    if "pharmacology_conditions" in script_template["NWBFile"]:
+        if "oxotremorine_M" in script_template["NWBFile"]["pharmacology_conditions"]:
+            pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["oxotremorine_M"]
+
+    # Create session-specific metadata from template with runtime substitutions
     genotype_description = "CDGI knockout" if genotype == "KO" else "wildtype"
 
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Dendritic excitability assessment with oxotremorine-M in {genotype_description} iSPNs. "
-                f"Combined patch clamp electrophysiology and two-photon calcium imaging with paired "
-                f"before/after oxo-M protocol. Three 2 nA current injections (2 ms each, ~50 Hz) delivered "
-                f"to evoke back-propagating action potentials and calcium transients in dendrites. "
-                f"Animal {session_info['animal_id']}, Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                genotype_description=genotype_description,
+                animal_id=session_info["animal_id"],
+                cell_number=session_info["cell_number"],
+                date_str=session_info["date_str"],
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"oxotremorine-M effects on dendritic excitability in {genotype_description} iSPNs. "
-                f"This experiment is part of Figure 7E from Zhai et al. 2025, investigating whether "
-                f"CDGI is required for M1 receptor-mediated dendritic changes. Paired before/after design "
-                f"with {len(baseline_recordings)} baseline and {len(post_oxoM_recordings)} post-drug recordings "
-                f"across {len(recordings_by_location)} dendritic locations."
-            ),
             "session_id": session_info["session_id"],
-            "keywords": [
-                "dendritic excitability",
-                "calcium imaging",
-                "oxotremorine-M",
-                "M1 receptor",
-                "CDGI",
-                "back-propagating action potentials",
-            ],
+            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"CDGI_{genotype}_oxoM_mouse_{session_info['session_id']}",
-            "description": (
-                f"{genotype_full} mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-                f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
-                f"Tested with oxotremorine-M (muscarinic M1 receptor agonist) in paired before/after protocol. "
-                f"Animal {session_info['animal_id']}, Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "subject_id": f"CDGI_{genotype}_oxoM_mouse_{session_info['animal_id']}",
+            "description": script_template["Subject"]["description"].format(
+                genotype_full=genotype_full,
+                animal_id=session_info["animal_id"],
+                cell_number=session_info["cell_number"],
+                date_str=session_info["date_str"],
             ),
-            "genotype": genotype_bg,
+            "genotype": script_template["Subject"]["genotype"] if genotype == "KO" else "Wild-type CDGI",
         },
     }
 
-    # Deep merge with general metadata
+    # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata

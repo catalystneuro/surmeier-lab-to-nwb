@@ -92,9 +92,13 @@ def convert_session_to_nwbfile(
     NWBFile
         NWB file with the converted data
     """
-    # Load general metadata
-    metadata_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    metadata = load_dict_from_file(metadata_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_8_behavioral_aim_experiments"]
 
     # Parse session information
     session_info = parse_session_info_from_animal_data(session_date, animal_id, genotype)

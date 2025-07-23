@@ -294,9 +294,13 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_folder = next(iter(recording_id_to_folder.values()))
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_7_dendritic_excitability"]
 
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
@@ -306,57 +310,27 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     script_specific_id = f"Cell{first_recording_info['cell_number']}_{session_folder_path.name}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Figure 7 dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. "
-                f"Combined patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM). "
-                f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous Ca2+ imaging "
-                f"to assess back-propagating action potential invasion. CDGI knockout disrupts M1 muscarinic signaling "
-                f"pathway to test role in dendritic excitability adaptations. Recorded on {session_date_str}. "
-                f"Total recordings: {len(all_recording_folders)}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, date_str=session_date_str, num_recordings=len(all_recording_folders)
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"Figure 7 dendritic excitability changes in CDGI knockout mice during condition '{condition}'. "
-                f"This experiment is part of Figure 7 from Zhai et al. 2025, investigating the role of M1 muscarinic "
-                f"signaling in LID-induced dendritic adaptations using CDGI knockout mice. CDGI (Calmodulin-dependent "
-                f"protein kinase kinase) is essential for M1R-mediated adenylyl cyclase inhibition. Methodology: "
-                f"combination of patch clamp electrophysiology and 2PLSM. Cells filled with Ca2+-sensitive dye Fluo-4 "
-                f"(100 μM) and Ca2+-insensitive dye Alexa Fluor 568 (50 μM). Somatically delivered current steps evoke "
-                f"spikes that back-propagate into dendrites. Ca2+ signals at proximal (~40 μm) and distal (~90 μm) "
-                f"locations serve as surrogate estimate of dendritic depolarization extent. CDGI KO mice: conditional "
-                f"knockout targeting striatal spiny projection neurons."
-            ),
             "session_id": session_id,
-            "keywords": [
-                "calcium imaging",
-                "dendritic excitability",
-                "current injection",
-                "back-propagating action potentials",
-                "CDGI knockout",
-                "M1 muscarinic receptor",
-                "levodopa-induced dyskinesia",
-                "Fluo-4",
-                "Alexa Fluor 568",
-            ],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"CDGI_KO_mouse_{session_folder_path.name}",
-            "description": (
-                f"CDGI conditional knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle (MFB). "
-                f"CDGI (Calmodulin-dependent protein kinase kinase) knockout disrupts M1 muscarinic receptor signaling "
-                f"pathway in striatal spiny projection neurons. Animal {session_folder_path.name} recorded on {session_date_str}. "
-                f"Lesion assessment: drug-free forelimb-use asymmetry test (cylinder test). LID induction: dyskinesiogenic "
-                f"doses of levodopa (6 mg/kg first two sessions, 12 mg/kg later sessions, supplemented with 12 mg/kg "
-                f"benserazide) every other day for at least five sessions. Recording condition: {condition}."
+            "subject_id": f"CDGI_dendritic_mouse_{session_folder_path.name}",
+            "description": script_template["Subject"]["description"].format(
+                animal_id=session_folder_path.name, date_str=session_date_str, condition=condition
             ),
-            "genotype": "CDGI conditional knockout (Camk2g-flox/flox; Dlx5/6-Cre)",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 
-    # Deep merge with general metadata
+    # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata

@@ -229,44 +229,39 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if verbose:
         print(f"Session date: {session_info['date_str']}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata using precise session start time from XML
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_7_somatic_excitability"]
 
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Somatic excitability assessment in CDGI knockout iSPNs for condition '{condition}'. "
-                f"Whole-cell patch clamp recording in current clamp mode with current injection steps "
-                f"from -120 pA to +300 pA (500 ms duration each). Animal {session_info['animal_letter']}, "
-                f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition,
+                animal_letter=session_info["animal_letter"],
+                cell_number=session_info["cell_number"],
+                date_str=session_info["date_str"],
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"CDGI knockout effects on iSPN somatic excitability during condition '{condition}'. "
-                f"This experiment is part of Figure 7 from Zhai et al. 2025, investigating the role of "
-                f"CalDAG-GEFI in iSPN excitability changes during LID. F-I protocol with {len(recording_folders)} current steps."
+            "experiment_description": script_template["NWBFile"]["experiment_description"].format(
+                condition=condition, num_current_steps=len(recording_folders)
             ),
             "session_id": session_info["session_id"],
-            "keywords": [
-                "somatic excitability",
-                "F-I relationship",
-                "rheobase",
-                "CDGI knockout",
-                "CalDAG-GEFI",
-            ],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"CDGI_KO_mouse_{session_info['session_id']}",
-            "description": (
-                f"CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-                f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
-                f"Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "description": script_template["Subject"]["description"].format(
+                animal_letter=session_info["animal_letter"],
+                cell_number=session_info["cell_number"],
+                date_str=session_info["date_str"],
             ),
-            "genotype": "CalDAG-GEFI knockout on Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic background",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 

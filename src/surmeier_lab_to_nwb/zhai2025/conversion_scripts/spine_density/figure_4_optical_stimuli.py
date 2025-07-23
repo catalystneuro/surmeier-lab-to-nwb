@@ -21,8 +21,6 @@ Key differences from Figure 2:
 - Same optogenetic protocol and LED stimulation parameters
 - Same virus (AAV5-hSyn-hChR2(H134R)-EYFP) and injection coordinates
 
-Author: Generated with Claude Code
-Date: 2025
 """
 
 import re
@@ -231,54 +229,35 @@ def convert_session_to_nwbfile(
     if verbose:
         print(f"Session date: {session_info['date_str']}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata using precise session start time from XML
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_4_optical_stimuli"]
+
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Sr²⁺-oEPSC recordings from iSPNs in dorsolateral striatum under {condition} condition. "
-                f"Voltage clamp at -70 mV in Ca²⁺-free ACSF containing 3 mM SrCl₂ and 10 μM gabazine. "
-                f"Optogenetic stimulation of ChR2-expressing corticostriatal terminals with 0.3 ms blue LED pulses "
-                f"every 30 seconds. Analysis of asynchronous EPSCs between 40-400 ms post-stimulation to measure "
-                f"unitary synaptic strength. Session {session_info['session_letter']}, {len(recording_folders)} sweeps."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, session_letter=session_info["session_letter"], num_sweeps=len(recording_folders)
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"Figure 4 Sr²⁺-oEPSC experiment from Zhai et al. 2025 investigating corticostriatal synaptic strength "
-                f"changes between LID off-state and on-state in iSPN cells. Strontium substitution enables detection of individual "
-                f"synaptic events rather than summed responses, revealing state-dependent changes in synaptic amplitude "
-                f"that correlate with spine morphology changes during dyskinesia."
-            ),
             "session_id": session_info["session_id"],
-            "keywords": [
-                "Sr2+-oEPSC",
-                "voltage clamp",
-                "corticostriatal synapses",
-                "iSPN",
-                "optogenetics",
-                "ChR2",
-                "levodopa-induced dyskinesia",
-                "synaptic strength",
-                "asynchronous EPSCs",
-            ],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_mouse_{session_info['session_id']}",
-            "description": (
-                f"Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
-                f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP "
-                f"injection into motor cortex for optogenetic experiments. iSPNs identified by lack of Drd2-EGFP expression. "
-                f"Session {session_info['session_letter']} recorded on {session_info['date_str']}."
+            "subject_id": f"iSPN_optical_mouse_{session_info['session_letter']}",
+            "description": script_template["Subject"]["description"].format(
+                session_letter=session_info["session_letter"], date_str=session_info["date_str"]
             ),
-            "genotype": "Drd2-EGFP+",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 
-    # Deep merge with general metadata
+    # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata

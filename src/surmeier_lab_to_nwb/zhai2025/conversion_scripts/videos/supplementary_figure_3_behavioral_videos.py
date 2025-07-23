@@ -204,50 +204,35 @@ def convert_session_to_nwbfile(
     session_start_time = datetime.strptime(session_date, "%Y-%m-%d")
     session_start_time = session_start_time.replace(tzinfo=ZoneInfo("US/Central"))
 
-    # Load general metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["supplementary_figure_3_behavioral_videos"]
 
     # Determine genotype based on video metadata
     first_video_metadata = extract_video_metadata_supfig3(video_files[0])
     genotype = first_video_metadata["genotype"]
 
-    # Create session-specific metadata
+    # Create session-specific metadata from template with runtime substitutions
     conversion_specific_metadata = {
         "NWBFile": {
-            "session_description": f"Supplementary Figure 3 Behavioral Videos - M1R CRISPR behavioral assessment for dyskinesia study",
+            "session_description": script_template["NWBFile"]["session_description"].format(animal_id=animal_id),
             "identifier": f"zhai2025_supfig3_videos_{animal_id}_{session_date.replace('-', '')}",
             "session_start_time": session_start_time,
             "session_id": f"supfig3_videos_{animal_id}_{session_date.replace('-', '')}",
-            "experiment_description": (
-                "Behavioral video recordings for dyskinesia assessment in M1R CRISPR gene-edited mice "
-                "following L-DOPA treatment. Videos capture behavioral responses at multiple time points "
-                "(20, 40, 60, 80, 100, 120 minutes) post-injection to assess the effects of M1R deletion "
-                "on dyskinetic behaviors. Data corresponds to Supplementary Figure 3 from Zhai et al. 2025."
-            ),
-            "keywords": [
-                "M1R CRISPR",
-                "gene editing",
-                "CRISPR-Cas9",
-                "muscarinic receptor",
-                "iSPNs",
-                "behavioral assessment",
-                "AIM",
-                "Abnormal Involuntary Movement",
-            ],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": animal_id,
-            "description": (
-                f"M1R CRISPR study mouse for behavioral video assessment - Supplementary Figure 3, animal ID: {animal_id}. "
-                f"M1R deletion achieved via CRISPR-Cas9 gene editing specifically targeting indirect pathway spiny projection neurons (iSPNs). "
-                f"Genotype: {genotype}"
-            ),
-            "genotype": genotype,
+            "subject_id": f"M1R_CRISPR_mouse_{animal_id}",
+            "description": script_template["Subject"]["description"].format(animal_id=animal_id, genotype=genotype),
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 
-    # Deep merge with general metadata
+    # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, conversion_specific_metadata)
 
     # Create NWB file with merged metadata

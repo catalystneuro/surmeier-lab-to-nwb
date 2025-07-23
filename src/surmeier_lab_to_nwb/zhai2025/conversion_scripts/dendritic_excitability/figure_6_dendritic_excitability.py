@@ -338,9 +338,13 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_folder = next(iter(recording_id_to_folder.values()))
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_6_dendritic_excitability"]
 
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
@@ -355,64 +359,36 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     script_specific_id = f"Sub{session_folder_path.name}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
-    # Create pharmacology addition based on condition
+    # Handle conditional pharmacology based on condition
     pharmacology_addition = ""
-    if "antagonist" in condition:
-        pharmacology_addition = " M1 muscarinic receptor antagonists: Trihexyphenidyl (THP, 3 mg/kg i.p.) for systemic M1R blockade, plus VU 0255035 (5 μM bath application) for selective M1R antagonism in brain slices."
+    if "antagonist" in condition and "pharmacology_conditions" in script_template["NWBFile"]:
+        if "antagonist" in script_template["NWBFile"]["pharmacology_conditions"]:
+            pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["antagonist"]
 
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Figure 6 dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) "
-                f"for condition '{condition}'. Combined patch clamp electrophysiology and two-photon "
-                f"laser scanning microscopy (2PLSM). Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) "
-                f"with simultaneous Ca2+ imaging to assess back-propagating action potential invasion. "
-                f"Testing M1R contribution to LID-induced dendritic adaptations. "
-                f"Recorded on {session_date_str}. "
-                f"Total recordings: {len(all_recording_folders)}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, date_str=session_date_str, num_recordings=len(all_recording_folders)
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"Figure 6 dendritic excitability changes in iSPNs during condition '{condition}'. "
-                f"This experiment is part of Figure 6 from Zhai et al. 2025, investigating M1R contribution "
-                f"to LID-induced dendritic adaptations in iSPNs. Methodology: combination of patch clamp "
-                f"electrophysiology and 2PLSM. iSPNs filled with Ca2+-sensitive dye Fluo-4 (100 μM) and "
-                f"Ca2+-insensitive dye Alexa Fluor 568 (50 μM). Somatically delivered current steps evoke "
-                f"spikes that back-propagate into dendrites. Ca2+ signals at proximal (~40 μm) and distal "
-                f"(~90 μm) locations serve as surrogate estimate of dendritic depolarization extent. "
-                f"M1R antagonist treatment: THP (3 mg/kg, i.p.) + ex vivo VU 0255035 (5 μM)."
-            ),
             "session_id": session_id,
             "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
-            "keywords": [
-                "calcium imaging",
-                "dendritic excitability",
-                "current injection",
-                "back-propagating action potentials",
-                "M1 muscarinic receptor",
-                "levodopa-induced dyskinesia",
-                "iSPN",
-                "Fluo-4",
-                "Alexa Fluor 568",
-            ],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_mouse_{session_folder_path.name}",
-            "description": (
-                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle (MFB). "
-                f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection for indirect pathway). "
-                f"Animal {session_folder_path.name} recorded on {session_date_str}. "
-                f"Lesion assessment: drug-free forelimb-use asymmetry test (cylinder test). "
-                f"LID induction: dyskinesiogenic doses of levodopa (6 mg/kg first two sessions, "
-                f"12 mg/kg later sessions, supplemented with 12 mg/kg benserazide) every other day for at least five sessions. "
-                f"M1R antagonist treatment: {'THP (3 mg/kg, i.p.) + VU 0255035 (5 μM)' if 'antagonist' in condition else 'Saline control'}."
+            "subject_id": f"iSPN_dendritic_mouse_{session_folder_path.name}",
+            "description": script_template["Subject"]["description"].format(
+                animal_id=session_folder_path.name,
+                date_str=session_date_str,
+                treatment="THP (3 mg/kg, i.p.) + VU 0255035 (5 μM)" if "antagonist" in condition else "Saline control",
             ),
-            "genotype": "Drd2 BAC transgenic (indirect pathway marker)",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 
-    # Deep merge with general metadata
+    # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata

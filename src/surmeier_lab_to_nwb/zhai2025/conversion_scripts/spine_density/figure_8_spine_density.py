@@ -570,12 +570,16 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     if verbose:
         print(f"Session date: {session_info['date_str']}, Animal: {session_info['animal_id']}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_8_spine_density"]
 
     if verbose:
-        print(f"Loaded general metadata from: {metadata_file_path}")
+        print(f"Loaded general metadata from: {general_metadata_path}")
         print(f"Experiment description: {general_metadata['NWBFile']['experiment_description'][:100]}...")
 
     # Create BIDS-style base session ID with detailed timestamp when available
@@ -589,41 +593,30 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     script_specific_id = f"Sub{session_info['animal_id']}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
-    # Create session-specific metadata for Figure 8
+    # Handle conditional surgery based on condition
+    surgery_addition = ""
+    if "CRISPR" in condition and "surgery_conditions" in script_template["NWBFile"]:
+        if "CRISPR" in script_template["NWBFile"]["surgery_conditions"]:
+            surgery_addition = " " + script_template["NWBFile"]["surgery_conditions"]["CRISPR"]
+
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) with M1R CRISPR knockdown "
-                f"for condition {condition}. Two-photon laser scanning microscopy was used to acquire "
-                f"Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) "
-                f"and distal (>80 μm from soma). Acquisition parameters: 0.15 μm pixels, 0.3 μm z-steps, "
-                f"60x objective (NA=1.0), optical zoom 5.2x, 10 μs dwell time. Images were deconvolved "
-                f"using AutoQuant X3.0.4 (MediaCybernetics) and semi-automated spine counting was performed "
-                f"using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai). This data is part of "
-                f"Figure 8, which investigates the role of M1R signaling in spine density using CRISPR."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, animal_id=session_info["animal_id"], date_str=session_info["date_str"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
             "session_id": session_id,
-            "surgery": general_metadata["NWBFile"]["surgery"]
-            + " M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs.",
-            "keywords": [
-                "spine density",
-                "dendritic spines",
-                "two-photon microscopy",
-                "iSPNs",
-                "M1R",
-                "CRISPR",
-            ],
+            "surgery": general_metadata["NWBFile"]["surgery"] + surgery_addition,
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"dSPN_mouse_{session_info['animal_id']}",
-            "description": (
-                f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
-                f"modeling Parkinson's disease. M1R CRISPR study for spine density analysis. "
-                f"dSPNs identified by Drd1-Tdtomato expression. Animal {session_info['animal_id']} recorded on {session_info['date_str']}."
+            "subject_id": f"M1R_CRISPR_mouse_{session_info['animal_id']}",
+            "description": script_template["Subject"]["description"].format(
+                animal_id=session_info["animal_id"], date_str=session_info["date_str"]
             ),
-            "genotype": "Drd1-Tdtomato+",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 

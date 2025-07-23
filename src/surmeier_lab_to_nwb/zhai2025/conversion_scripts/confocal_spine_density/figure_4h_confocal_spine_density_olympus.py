@@ -251,36 +251,31 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     script_specific_id = f"Sub{animal_id}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_4h_confocal_spine_density_olympus"]
+
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"High-resolution confocal spine density imaging using Olympus FV10i system "
-                f"for methodological validation study. Multiple dendritic segments were imaged "
-                f"at 60x magnification (NA=1.35) with 0.125 μm z-steps and ~0.207 μm pixels. "
-                f"Data demonstrates that confocal microscopy detects approximately 2x more spines "
-                f"compared to standard two-photon microscopy due to superior resolution. "
-                f"Acquisition includes {len(oif_files)} image stacks from animal {animal_id} "
-                f"processed for Figure 4H spine density comparison analysis."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                num_stacks=len(oif_files), animal_id=animal_id
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_id,
-            "surgery": general_metadata["NWBFile"]["surgery"]
-            + " Sparse iSPN labeling achieved via stereotaxic injection of AAV-Cre into dorsolateral striatum of WT mice followed by AAV-FLEX-tdTomato for reporter expression.",
-            "keywords": [
-                "confocal microscopy",
-                "spine density",
-                "Olympus FV10i",
-                "methodological validation",
-                "high-resolution imaging",
-                "dendritic spines",
-            ],
-        }
+            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
+            "keywords": script_template["NWBFile"]["keywords"],
+        },
+        "Subject": {
+            "subject_id": f"iSPN_confocal_olympus_mouse_{animal_id}",
+            "description": script_template["Subject"]["description"].format(animal_id=animal_id),
+            "genotype": script_template["Subject"]["genotype"],
+        },
     }
 
     # Merge general metadata with session-specific metadata

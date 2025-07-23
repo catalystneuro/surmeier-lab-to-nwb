@@ -204,42 +204,31 @@ def convert_session_to_nwbfile(
     script_specific_id = f"Animal{animal_id}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
-    # Load general metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_7_behavioral_videos"]
+
+    # Create session-specific metadata from template with runtime substitutions
     conversion_specific_metadata = {
         "NWBFile": {
-            "session_description": f"Figure 7 Behavioral Videos - Contralateral rotation behavior assessment for CDGI knockout dyskinesia study",
+            "session_description": script_template["NWBFile"]["session_description"].format(animal_id=animal_id),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_id,
-            "experiment_description": (
-                "Behavioral video recordings of contralateral rotation behavior for dyskinesia assessment "
-                "in CDGI knockout mice following L-DOPA treatment. Videos capture behavioral responses "
-                "at multiple time points (20, 40, 60, 80, 100, 120 minutes) post-injection to assess "
-                "dyskinetic behaviors. Data corresponds to Figure 7 from Zhai et al. 2025."
-            ),
-            "keywords": [
-                "contralateral rotation",
-                "behavioral assessment",
-                "CDGI",
-                "AIM",
-                "Abnormal Involuntary Movement",
-            ],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": animal_id,
-            "description": (
-                f"CDGI knockout mouse for behavioral video assessment - Figure 7, animal ID: {animal_id}. "
-                f"Crossed with CDGI-null line maintained on C57BL/6J background for behavioral dyskinesia studies."
-            ),
-            "genotype": "CDGI KO",
+            "subject_id": f"CDGI_mouse_{animal_id}",
+            "description": script_template["Subject"]["description"].format(animal_id=animal_id),
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 
-    # Deep merge with general metadata
+    # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, conversion_specific_metadata)
 
     # Create NWB file with merged metadata

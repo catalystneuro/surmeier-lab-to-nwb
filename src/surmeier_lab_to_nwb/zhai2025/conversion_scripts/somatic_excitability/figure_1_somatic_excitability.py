@@ -235,46 +235,42 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if verbose:
         print(f"Session date: {session_info['date_str']}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata using precise session start time from XML
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_1_somatic_excitability"]
 
+    # Handle conditional pharmacology based on condition
+    pharmacology_addition = ""
+    if "SCH" in condition and "pharmacology_conditions" in script_template["NWBFile"]:
+        if "SCH" in script_template["NWBFile"]["pharmacology_conditions"]:
+            pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["SCH"]
+
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) "
-                f"for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode "
-                f"with current injection steps from -120 pA to +300 pA (500 ms duration each). "
-                f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, cell_number=session_info["cell_number"], date_str=session_info["date_str"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"Somatic excitability changes in dSPNs during condition '{condition}'. "
-                f"This experiment is part of Figure 1 from Zhai et al. 2025, investigating how LID affects "
-                f"dSPN excitability and the role of D1 receptor signaling. F-I protocol with {len(recording_folders)} current steps."
-            ),
             "session_id": session_info["session_id"],
-            "keywords": [
-                "somatic excitability",
-                "F-I relationship",
-                "rheobase",
-            ],
+            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"dSPN_mouse_{session_info['session_id']}",
-            "description": (
-                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-                f"dSPNs identified by Drd1-Tdtomato expression (positive selection). "
-                f"Cell {session_info['cell_number']} recorded on {session_info['date_str']}."
+            "subject_id": f"dSPN_mouse_{session_info['cell_number']}",
+            "description": script_template["Subject"]["description"].format(
+                cell_number=session_info["cell_number"], date_str=session_info["date_str"]
             ),
-            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 
-    # Deep merge with general metadata
+    # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata

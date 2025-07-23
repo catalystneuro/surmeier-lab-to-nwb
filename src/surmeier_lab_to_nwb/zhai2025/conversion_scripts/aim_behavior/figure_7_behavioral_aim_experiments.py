@@ -92,9 +92,13 @@ def convert_session_to_nwbfile(
     NWBFile
         NWB file with the converted data
     """
-    # Load general metadata
-    metadata_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_7_behavioral_aim_experiments"]
 
     # Parse session information
     session_info = parse_session_info_from_animal_data(session_date, animal_id, genotype)
@@ -110,36 +114,24 @@ def convert_session_to_nwbfile(
     script_specific_id = f"Sub{session_info['animal_id']}_Session{session_number}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
-    # Update metadata for behavioral experiment
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": "Figure 7 Behavioral Assessment - AIM scoring for dyskinesia analysis in CDGI study",
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                genotype=genotype, animal_id=session_info["animal_id"], session_number=session_number
+            ),
             "identifier": f"figure7_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
             "session_id": session_id,
             "session_start_time": session_info["session_start_time"],
-            "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
-            "experiment_description": (
-                "Behavioral assessment of CDGI knockout mice using AIM scoring to evaluate "
-                "dyskinesia severity following L-DOPA treatment. Data corresponds to Figure 7J "
-                "from Zhai et al. 2025. Uses optimized DynamicTable for figure reproduction."
-            ),
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": session_info["original_animal_id"],
-            "genotype": session_info["genotype"],
-            "description": f"CDGI study animal - {session_info['genotype']}",
-            "species": "Mus musculus",
-            "strain": "C57BL/6J",
-            "sex": "M",
-            "age": "P7W/P12W",  # 7-12 weeks old
-            "genotype_description": (
-                "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "
-                "back-crossed to C57BL/6 background. "
-                + (
-                    "Crossed with CDGI-null line maintained on C57BL/6J background."
-                    if "KO" in session_info["genotype"]
-                    else "Wild-type CDGI."
-                )
+            "subject_id": f"CDGI_mouse_{session_info['original_animal_id']}",
+            "genotype": (
+                script_template["Subject"]["genotype"] if "KO" in session_info["genotype"] else "Wild-type CDGI"
+            ),
+            "description": script_template["Subject"]["description"].format(
+                genotype=session_info["genotype"], animal_id=session_info["original_animal_id"]
             ),
         },
     }

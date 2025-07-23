@@ -223,9 +223,13 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if verbose:
         print(f"Session date: {session_info['date_str']}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_8_somatic_excitability"]
 
     # Determine cell type and description based on condition
     if condition == "M1R CRISPR":
@@ -245,39 +249,27 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
         genetic_manipulation = "Control (AAV-gRNA-FusionRed only, no M1R deletion)"
 
-    # Create session-specific metadata using precise session start time from XML
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"M1R CRISPR somatic excitability assessment in {cell_type}s "
-                f"for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode "
-                f"with current injection steps from -120 pA to +300 pA (500 ms duration each). "
-                f"Cell {session_info['cell_number']} from animal {session_info['animal_id']} recorded on {session_info['date_str']}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, cell_number=session_info["cell_number"], date_str=session_info["date_str"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"M1R CRISPR effects on {cell_type} somatic excitability during condition '{condition}'. "
-                f"This experiment is part of Figure 8 from Zhai et al. 2025, investigating how M1R deletion "
-                f"affects {cell_type} excitability and dyskinetic behaviors using CRISPR-Cas9 gene editing. "
-                f"F-I protocol with {len(recording_folders)} current steps."
+            "experiment_description": script_template["NWBFile"]["experiment_description"].format(
+                cell_type=cell_type, condition=condition, num_current_steps=len(recording_folders)
             ),
             "session_id": session_info["session_id"],
-            "surgery": general_metadata["NWBFile"]["surgery"]
-            + " M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs.",
-            "keywords": [
-                "somatic excitability",
-                "F-I relationship",
-                "rheobase",
-                "M1R CRISPR",
-                "CRISPR-Cas9",
-                "gene editing",
-            ],
+            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"{cell_type}_M1R_CRISPR_mouse_{session_info['session_id']}",
-            "description": cell_description,
-            "genotype": f"Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic; {genetic_manipulation}",
+            "description": script_template["Subject"]["description"].format(
+                cell_number=session_info["cell_number"], date_str=session_info["date_str"]
+            ),
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 

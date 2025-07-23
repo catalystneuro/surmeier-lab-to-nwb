@@ -562,44 +562,39 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     # Add session_id to session_info
     session_info["session_id"] = session_id
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_2_spine_density"]
 
     if verbose:
-        print(f"Loaded general metadata from: {metadata_file_path}")
-        print(f"Experiment description: {general_metadata['NWBFile']['experiment_description'][:100]}...")
+        print(f"Loaded general metadata from: {general_metadata_path}")
 
-    # Create session-specific metadata
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) "
-                f"for condition {condition}. Two-photon laser scanning microscopy was used to acquire "
-                f"Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) "
-                f"and distal (>80 μm from soma). Acquisition parameters: 0.15 μm pixels, 0.3 μm z-steps, "
-                f"60x objective (NA=1.0), optical zoom 5.2x, 10 μs dwell time. Images were deconvolved "
-                f"using AutoQuant X3.0.4 (MediaCybernetics) and semi-automated spine counting was performed "
-                f"using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai). On average, 2 proximal "
-                f"and 2 distal dendrites were imaged and analyzed per neuron."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, animal_id=session_info["animal_id"], date_str=session_info["date_str"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_info["session_id"],
-            "keywords": ["spine density", "dendritic spines", "two-photon microscopy"],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"dSPN_mouse_{session_info['session_id']}",
-            "description": (
-                f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
-                f"modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. "
-                f"dSPNs identified by Drd1-Tdtomato expression. Session {session_info['session_id']} recorded on {session_info['date_str']}."
+            "description": script_template["Subject"]["description"].format(
+                session_id=session_info["session_id"], date_str=session_info["date_str"]
             ),
-            "genotype": "Drd1-Tdtomato+",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 
-    # Merge general metadata with session-specific metadata
+    # Deep merge with general metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with explicit arguments

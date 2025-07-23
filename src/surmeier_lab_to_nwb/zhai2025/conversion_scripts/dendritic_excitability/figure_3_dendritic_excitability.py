@@ -287,9 +287,13 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             print(f"      Line scan interfaces (structural Ch1 + calcium Ch2) t_start = {ophys_t_start:.3f} seconds")
             print(f"      Intracellular electrophysiology interface t_start = {intracellular_t_start:.3f} seconds")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_3_dendritic_excitability"]
 
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
@@ -303,41 +307,32 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     script_specific_id = f"Cell{first_recording_info['cell_number']}_{session_folder_path.name}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
-    # Create pharmacology addition based on condition
-    pharmacology_addition = ""
-    if "sul" in condition:
-        pharmacology_addition = " Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced dendritic excitability changes in iSPNs."
+    # Handle pharmacology conditions dynamically
+    pharmacology_text = general_metadata["NWBFile"]["pharmacology"]
+    if "sul" in condition.lower():
+        pharmacology_text += " " + script_template["pharmacology_conditions"]["sulpiride"]
 
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) "
-                f"for condition '{condition}'. Combined patch clamp electrophysiology and two-photon "
-                f"laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) "
-                f"with Ca2+ imaging. Cell {first_recording_info['cell_number']} in date {first_recording_info['date'].strftime('%Y-%m-%d')}."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition,
+                cell_number=first_recording_info["cell_number"],
+                date_str=first_recording_info["date"].strftime("%Y-%m-%d"),
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"Dendritic excitability changes in iSPNs during condition '{condition}'. "
-                f"This experiment is part of Figure 3 from Zhai et al. 2025, investigating how LID affects "
-                f"iSPN excitability and the role of D2 receptor signaling. Multiple recordings from one subject."
-            ),
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_id,
-            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
-            "keywords": [
-                "dendritic excitability",
-                "current injection",
-            ],
+            "pharmacology": pharmacology_text,
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"iSPN_mouse_{session_folder_path.name}",
-            "description": (
-                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. "
-                f"iSPNs identified by lack of Drd1-Tdtomato expression (negative selection). "
-                f"Session {session_folder_path.name} recorded on {session_date_str}."
+            "description": script_template["Subject"]["description"].format(
+                cell_number=first_recording_info["cell_number"], date_str=session_date_str
             ),
-            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 

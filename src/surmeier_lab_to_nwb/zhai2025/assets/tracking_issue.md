@@ -9,6 +9,8 @@
 
 # Scope of Work points
 
+[Scope of Work Link (Private)](https://docs.google.com/document/d/1ITmVEEOQ1TbBC8hvZvkdQ-VcdW9_ynUWFwfRxBBrAGQ/edit?tab=t.0#heading=h.6ol4x2q1uqwd)
+
 These are the points that we wrote in the scope of work
 
 ## Build interfaces to convert the following data streams to NWB format:
@@ -24,6 +26,8 @@ These are the points that we wrote in the scope of work
 - [x] Integrate behavioral annotations from Surmeier lab custom format [Behavioral AIM Scoring Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
 - [x] Include behavioral video recordings [Conversion Scripts for Video](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
 - [x] Include electrical stimulation signals and metadata [All the Prairie View Interfaces Extract Stimulation Metadata]
+
+
 
 # Conversion of figures data
 
@@ -236,8 +240,10 @@ First ensure that the raw data is available and on dandi and then we can do thes
 - [x] use ndx-optogenetics
 
 # Data uploading and conversion packaging
-- [ ] Setup Dandiset(s):
-- [ ] README/Documentation:
+- [ ] Create Dandiset(s):
+- [ ] Add protocols.io to dandiset
+- [ ] Add metadata to Dandiset
+- [ ] README/Documentation here in the repo.
 - [ ] Example Notebooks:
 - [ ] Middle Meeting
 - [ ] Final Meeting

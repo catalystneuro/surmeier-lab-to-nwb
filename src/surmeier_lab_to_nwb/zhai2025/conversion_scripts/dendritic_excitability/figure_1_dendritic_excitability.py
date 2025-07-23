@@ -295,11 +295,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_folder = next(iter(recording_id_to_folder.values()))
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
-
-    # Create session-specific metadata using session start time from XML
+    # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
     # Create BIDS-style base session ID with detailed timestamp when available
@@ -310,48 +306,33 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     base_session_id = f"figure1_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_folder_path.name}"
 
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_1_dendritic_excitability"]
+
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"Dendritic excitability assessment in direct pathway spiny projection neurons (dSPNs) "
-                f"for condition '{condition}'. Combined patch clamp electrophysiology and two-photon "
-                f"laser scanning microscopy (2PLSM). Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) "
-                f"with simultaneous Ca2+ imaging to assess back-propagating action potential invasion. "
-                f"Recorded on {session_date_str}. "
-                f"Total recordings: {len(all_recording_folders)}."
-            ),
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, cell_number=first_recording_info["cell_number"], date_str=session_date_str
+            )
+            + f" Total recordings: {len(all_recording_folders)}.",
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"Dendritic excitability changes in dSPNs during condition '{condition}'. "
-                f"This experiment is part of Figure 1 from Zhai et al. 2025, investigating how LID affects "
-                f"dSPN excitability. Methodology: combination of patch clamp electrophysiology and 2PLSM. "
-                f"dSPNs filled with Ca2+-sensitive dye Fluo-4 (100 μM) and Ca2+-insensitive dye Alexa Fluor 568 (50 μM). "
-                f"Somatically delivered current steps evoke spikes that back-propagate into dendrites. "
-                f"Ca2+ signals at proximal (~40 μm) and distal (~90 μm) locations serve as surrogate estimate "
-                f"of dendritic depolarization extent. Multiple cells from one animal."
-            ),
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": base_session_id,
-            "keywords": [
-                "calcium imaging",
-                "dendritic excitability",
-                "current injection",
-                "back-propagating action potentials",
-                "Fluo-4",
-                "Alexa Fluor 568",
-            ],
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"dSPN_mouse_{session_folder_path.name}",
-            "description": (
-                f"Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle (MFB). "
-                f"dSPNs identified by Drd1-Tdtomato expression (positive selection). "
-                f"Animal {session_folder_path.name} recorded on {session_date_str}. "
-                f"Lesion assessment: drug-free forelimb-use asymmetry test (cylinder test). "
-                f"LID induction: dyskinesiogenic doses of levodopa (6 mg/kg first two sessions, "
-                f"12 mg/kg later sessions, supplemented with 12 mg/kg benserazide) every other day for at least five sessions."
+            "description": script_template["Subject"]["description"].format(
+                cell_number=first_recording_info["cell_number"], date_str=session_date_str
             ),
-            "genotype": "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 

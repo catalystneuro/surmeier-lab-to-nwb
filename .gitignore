@@ -180,3 +180,5 @@ notebooks/analysis_outputs/
 
 # Claude context file
 CLAUDE.md
+
+src/surmeier_lab_to_nwb/zhai2025/somatic_experiment/*

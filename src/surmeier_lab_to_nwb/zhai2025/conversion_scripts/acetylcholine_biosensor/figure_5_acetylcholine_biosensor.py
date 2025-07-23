@@ -146,13 +146,6 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     NWBFile
         NWB file with the converted data
     """
-    # Define condition descriptions for metadata
-    condition_descriptions = {
-        "UL control": "Unlesioned control mouse with healthy striatum and intact dopaminergic system",
-        "PD": "6-OHDA lesioned mouse (>95 per cent dopamine depletion) modeling Parkinson's disease",
-        "LID off": "Dyskinetic mouse in off-state (24-48h post-levodopa) with established levodopa-induced dyskinesia",
-    }
-
     # Parse session information
     session_info = parse_session_info_from_folder_name(session_folder)
 
@@ -177,9 +170,13 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     if not xml_metadata_file:
         raise FileNotFoundError(f"No XML metadata file found in {session_folder}")
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_5_acetylcholine_biosensor"]
 
     # Create session-specific metadata with Chicago timezone
     central_tz = ZoneInfo("America/Chicago")
@@ -194,63 +191,43 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     base_session_id = f"figure5_AcetylcholineGRAB_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_info['slice_info']}"
     session_id = f"{base_session_id}_Session{session_info['session_number']}"
 
-    # Create surgery and pharmacology additions based on treatment
-    surgery_addition = " AAV-GRABACh3.0 injection into dorsolateral striatum for acetylcholine biosensor expression in cholinergic interneurons."
+    # Handle surgery addition from template
+    surgery_text = general_metadata["NWBFile"]["surgery"] + " " + script_template["surgery_addition"]
 
-    # Add pharmacology information based on treatment type
-    pharmacology_additions = []
+    # Handle pharmacology conditions dynamically
+    pharmacology_text = general_metadata["NWBFile"]["pharmacology"]
     treatment = session_info["treatment"]
     if treatment == "sulpiride" or "sul" in treatment:
-        pharmacology_additions.append(
-            "Sulpiride: D2 receptor antagonist (10 μM bath application) to block dopamine D2 receptors and investigate cholinergic modulation."
-        )
+        pharmacology_text += " " + script_template["pharmacology_conditions"]["sulpiride"]
     elif treatment == "quinpirole" or "quin" in treatment:
-        pharmacology_additions.append(
-            "Quinpirole: D2 receptor agonist (10 μM bath application) to activate dopamine D2 receptors and modulate acetylcholine release."
-        )
+        pharmacology_text += " " + script_template["pharmacology_conditions"]["quinpirole"]
     elif treatment == "50nM_dopamine" or "50nMDA" in treatment:
-        pharmacology_additions.append(
-            "Dopamine: 50 nM bath application to modulate cholinergic interneuron activity and acetylcholine release dynamics."
-        )
+        pharmacology_text += " " + script_template["pharmacology_conditions"]["dopamine"]
 
-    pharmacology_addition = " " + " ".join(pharmacology_additions) if pharmacology_additions else ""
-
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"GRABACh3.0 acetylcholine sensor imaging session from striatal slice - {condition} condition. "
-                f"Treatment: {session_info['treatment']}, Stimulation: {session_info['stimulation']}, "
-                f"Session {session_info['session_number']} from {session_info['slice_info']}. Two-photon microscopy "
-                f"at 920nm excitation measuring ACh release dynamics with electrical stimulation."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition,
+                treatment=session_info["treatment"],
+                stimulation=session_info["stimulation"],
+                session_number=session_info["session_number"],
+                slice_info=session_info["slice_info"],
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": (
-                f"Figure 5 GRABACh3.0 experiment from Zhai et al. 2025 investigating acetylcholine release "
-                f"dynamics in Parkinson's disease and levodopa-induced dyskinesia. Single session recording "
-                f"with {session_info['treatment']} treatment and {session_info['stimulation']} protocol."
-            ),
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_id,
-            "surgery": general_metadata["NWBFile"]["surgery"] + surgery_addition,
-            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
-            "keywords": [
-                "GRABACh3.0",
-                "acetylcholine",
-                "two-photon microscopy",
-                "cholinergic interneurons",
-                "levodopa-induced dyskinesia",
-                "pharmacology",
-                "electrical stimulation",
-            ],
+            "surgery": surgery_text,
+            "pharmacology": pharmacology_text,
+            "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"grabatch_mouse_{session_info['slice_info']}",
-            "description": (
-                f"{condition_descriptions[condition]}. Striatal injection of AAV-GRABACh3.0 for "
-                f"acetylcholine sensor expression in cholinergic interneurons. Session recorded on "
-                f"{session_info['date_str']} from {session_info['slice_info']}."
+            "description": script_template["Subject"]["description"].format(
+                session_id=session_id, date_str=session_info["date_str"]
             ),
-            "genotype": "Wild-type with AAV-GRABACh3.0",
+            "genotype": script_template["Subject"]["genotype"],
         },
     }
 

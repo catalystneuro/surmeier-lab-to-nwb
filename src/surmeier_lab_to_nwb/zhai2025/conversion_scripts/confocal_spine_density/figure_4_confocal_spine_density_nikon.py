@@ -135,41 +135,35 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
 
     base_session_id = f"figure4_ConfocalSpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{file_info['animal_id']}"
 
-    # Load metadata from YAML file
-    metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    general_metadata = load_dict_from_file(metadata_file_path)
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
 
-    # Create session-specific metadata
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template["figure_4_confocal_spine_density_nikon"]
+
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": (
-                f"High-resolution confocal spine density analysis in indirect pathway spiny projection "
-                f"neurons (iSPNs) for condition {condition}. Confocal laser scanning microscopy was used "
-                f"to acquire Z-stack images at approximately 30 μm from the soma using a Nikon AXR system. "
-                f"Acquisition parameters: 0.09 μm pixels, 0.125 μm z-steps, 60x oil immersion objective "
-                f"(NA=1.49). Images were de-noised and deconvolved using Nikon NIS-Elements AR 5.41.02, "
-                f"then analyzed using Imaris 10.0.0 with Labkit pixel classification and supervised "
-                f"learning for automated spine detection. Manual validation was performed with thinnest "
-                f"spine head set at 0.188 μm and maximum spine length of 5 μm. This high-resolution "
-                f"confocal data demonstrates detection of approximately 2x more spines compared to "
-                f"standard two-photon microscopy, validating methodological differences in spine counting."
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition, animal_id=file_info["animal_id"], cell_number=file_info["cell_number"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": f"{base_session_id}_Cell{file_info['cell_number']}_Slide{file_info['slide_number']}_Slice{file_info['slice_number']}",
-            "keywords": [
-                "confocal microscopy",
-                "spine density",
-                "dendritic spines",
-                "iSPNs",
-                "high-resolution imaging",
-                "Imaris analysis",
-                "methodology validation",
-            ],
-        }
+            "keywords": script_template["NWBFile"]["keywords"],
+        },
+        "Subject": {
+            "subject_id": f"iSPN_confocal_mouse_{file_info['animal_id']}",
+            "description": script_template["Subject"]["description"].format(
+                animal_id=file_info["animal_id"], cell_number=file_info["cell_number"]
+            ),
+            "genotype": script_template["Subject"]["genotype"],
+        },
     }
 
-    # Merge paper metadata with session-specific metadata
+    # Merge general metadata with session-specific metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file
