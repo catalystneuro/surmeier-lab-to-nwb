@@ -290,7 +290,8 @@ if __name__ == "__main__":
     )
 
     for (session_date, session_number, animal_id, genotype), session_data in iterator:
-        # Sanitize condition string for NWB identifier and session_id
+        # Use genotype as condition for behavioral experiments
+        condition = genotype
         condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
 
         if verbose:
@@ -306,7 +307,6 @@ if __name__ == "__main__":
             animal_id=animal_id,
             genotype=genotype,
             processed_data_csv_path=processed_data_csv_path,
-            condition=condition_safe,
             verbose=verbose,
         )
 

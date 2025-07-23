@@ -6,6 +6,7 @@ from typing import Any, Dict
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
+from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
     NikonImageStackInterface,
@@ -170,6 +171,23 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
         session_id=merged_metadata["NWBFile"]["session_id"],
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
+
+    # Create subject metadata for Figure 4 confocal spine density experiments
+    subject = Subject(
+        subject_id=f"confocal_mouse_{file_info['animal_id']}",
+        species="Mus musculus",
+        strain="Drd1-Tdtomato transgenic",
+        description=(
+            f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
+            f"modeling Parkinson's disease. dSPNs identified by Drd1-Tdtomato expression. "
+            f"Confocal microscopy spine density analysis from {file_info['location']} dendrite "
+            f"of cell {file_info['cell_number']} on slide {file_info['slide_number']}, slice {file_info['slice_number']}."
+        ),
+        genotype="Drd1-Tdtomato+",
+        sex="M",
+        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
+    )
+    nwbfile.subject = subject
 
     # Create metadata for the interface with custom container information
     # Following the same pattern as NeuroConv's ImageInterface

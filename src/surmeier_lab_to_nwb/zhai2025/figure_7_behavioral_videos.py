@@ -408,7 +408,8 @@ if __name__ == "__main__":
                 print(f"  Animal: {animal_id} ({len(video_files)} videos)")
 
             # Create output filename
-            genotype_safe = vid_metadata["genotype"].replace(" ", "_").replace("-", "_")
+            genotype = "CDGI KO"  # All Figure 7 videos are CDGI knockout
+            genotype_safe = genotype.replace(" ", "_").replace("-", "_")
             output_filename = f"zhai2025_figure7_videos_{animal_id}_{session_date.replace('-', '')}_{genotype_safe}.nwb"
             output_path = output_base_path / output_filename
 

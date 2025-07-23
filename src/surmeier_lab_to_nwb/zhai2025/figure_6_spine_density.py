@@ -613,13 +613,13 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
     # Create subject metadata for Figure 6 M1R antagonist spine density experiments
     subject = Subject(
-        subject_id=f"dSPN_mouse_{session_info['session_id']}",
+        subject_id=f"dSPN_mouse_{session_info['animal_id']}",
         species="Mus musculus",
         strain="Drd1-Tdtomato transgenic",
         description=(
             f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
             f"modeling Parkinson's disease. M1R antagonist study for spine density analysis. "
-            f"dSPNs identified by Drd1-Tdtomato expression. Session {session_info['session_id']} recorded on {session_info['date_str']}."
+            f"dSPNs identified by Drd1-Tdtomato expression. Animal {session_info['animal_id']} recorded on {session_info['date_str']}."
         ),
         genotype="Drd1-Tdtomato+",
         sex="M",
@@ -640,7 +640,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"  Processing: {subfolder.name}")
 
         # Parse container information
-        container_info = parse_container_info(subfolder.name, session_info["session_id"])
+        container_info = parse_container_info(subfolder.name, session_id)
 
         if verbose:
             print(f"    Container name: {container_info['container_name']}")
@@ -717,7 +717,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             print(f"    Successfully added image stack: {container_info['container_name']}")
 
     if verbose:
-        print(f"Conversion completed for session: {session_info['session_id']}")
+        print(f"Conversion completed for session: {session_info['animal_id']}")
 
     return nwbfile
 
