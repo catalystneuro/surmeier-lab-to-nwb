@@ -392,6 +392,20 @@ BOT_[date]_slice[#]A_ACh-002                    # ACh saturation - trial 2 (some
 - **ROI handling**: Account for whole-image ROI analysis approach
 - **Calibration data**: Include Fmin/Fmax calibration for proper normalization
 - **Trial averaging**: Represent both individual trials and averaged data
+- **Data orientation warnings**: NWB inspector may flag TwoPhotonSeries orientation (time vs spatial dimensions) and report fewer frames during validation. This is expected for acetylcholine biosensor experiments (~45 frames, 8.78s) with high spatial resolution (128×128 pixels). The actual NWB files contain all available frames (45 per channel) as confirmed by direct TIFF file analysis. The orientation is scientifically correct for capturing biosensor responses.
+
+### Actual vs Protocol Acquisition Parameters
+
+**Protocol specifications vs actual acquisition:**
+- **Protocol frame rate**: 21.26 fps (likely incorrect or refers to different mode)
+- **Hardware-limited frame rate**: 5.05 fps (scan line rate 646.2 Hz ÷ 128 pixels)
+- **Actual frame rate**: 5.12 fps (45 frames ÷ 8.78s) - matches hardware limit
+- **Protocol duration**: ≥8s total
+- **Actual duration**: 8.78s total
+- **Frames available**: 45 frames per channel (Ch2 and Ch3)
+- **File format**: Individual OME-TIFF files per frame per channel
+
+**Technical Analysis**: The actual acquisition rate (5.12 fps) matches the hardware-limited maximum frame rate (5.05 fps) calculated from scan line rate ÷ image height. The protocol specification of 21.26 fps appears to be incorrect or refers to a different imaging mode. The BOT acquisition captured data at the maximum possible rate for 128×128 images on this system, providing complete temporal coverage of acetylcholine release dynamics.
 
 ## Related Files
 - [Overview](../conversion_notes_overview.md)

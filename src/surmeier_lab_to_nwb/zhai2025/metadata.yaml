@@ -22,8 +22,13 @@ NWBFile:
     - Graybiel, Ann M.
     - Surmeier, D. James
   experiment_description: |
-    """Generic description of the experiment."""
-Subject:
+    Generic description of the experiment.
+  surgery: |
+    Unilateral stereotaxic lesion: 1 µl of 6-hydroxydopamine (≈3 µg in 0.02 % ascorbate-saline)
+    injected into the right medial forebrain bundle (AP -0.7 mm, ML -1.2 mm, DV -4.75 mm from bregma)
+    under isoflurane anaesthesia; post-operative meloxicam, saline, and warming provided.
+    Lesion efficacy later confirmed by drug-free forelimb-asymmetry (cylinder) test.
+  Subject:
   species: Mus musculus
   strain: "C57BL/6"
   sex: "M"
