@@ -179,7 +179,7 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata with Chicago timezone
     central_tz = ZoneInfo("America/Chicago")
@@ -193,6 +193,27 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
 
     base_session_id = f"figure5_AcetylcholineGRAB_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_info['slice_info']}"
     session_id = f"{base_session_id}_Session{session_info['session_number']}"
+
+    # Create surgery and pharmacology additions based on treatment
+    surgery_addition = " AAV-GRABACh3.0 injection into dorsolateral striatum for acetylcholine biosensor expression in cholinergic interneurons."
+
+    # Add pharmacology information based on treatment type
+    pharmacology_additions = []
+    treatment = session_info["treatment"]
+    if treatment == "sulpiride" or "sul" in treatment:
+        pharmacology_additions.append(
+            "Sulpiride: D2 receptor antagonist (10 μM bath application) to block dopamine D2 receptors and investigate cholinergic modulation."
+        )
+    elif treatment == "quinpirole" or "quin" in treatment:
+        pharmacology_additions.append(
+            "Quinpirole: D2 receptor agonist (10 μM bath application) to activate dopamine D2 receptors and modulate acetylcholine release."
+        )
+    elif treatment == "50nM_dopamine" or "50nMDA" in treatment:
+        pharmacology_additions.append(
+            "Dopamine: 50 nM bath application to modulate cholinergic interneuron activity and acetylcholine release dynamics."
+        )
+
+    pharmacology_addition = " " + " ".join(pharmacology_additions) if pharmacology_additions else ""
 
     session_specific_metadata = {
         "NWBFile": {
@@ -210,6 +231,8 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
                 f"with {session_info['treatment']} treatment and {session_info['stimulation']} protocol."
             ),
             "session_id": session_id,
+            "surgery": general_metadata["NWBFile"]["surgery"] + surgery_addition,
+            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
             "keywords": [
                 "GRABACh3.0",
                 "acetylcholine",
@@ -231,8 +254,8 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
         },
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file
     nwbfile = NWBFile(
@@ -244,6 +267,8 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

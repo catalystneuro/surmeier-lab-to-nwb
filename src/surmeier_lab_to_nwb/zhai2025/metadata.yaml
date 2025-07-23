@@ -2,7 +2,11 @@ NWBFile:
   keywords:
     - corticostriatal
     - Parkinson's disease
-    - "striatum"
+    - Parkinson disease
+    - PD
+    - neurodegeneration
+    - dopamine depletion
+    - striatum
     - levodopa-induced dyskinesia
     - dSPNs
     - iSPNs
@@ -24,11 +28,22 @@ NWBFile:
   experiment_description: |
     Generic description of the experiment.
   surgery: |
-    Unilateral stereotaxic lesion: 1 µl of 6-hydroxydopamine (≈3 µg in 0.02 % ascorbate-saline)
-    injected into the right medial forebrain bundle (AP -0.7 mm, ML -1.2 mm, DV -4.75 mm from bregma)
-    under isoflurane anaesthesia; post-operative meloxicam, saline, and warming provided.
-    Lesion efficacy later confirmed by drug-free forelimb-asymmetry (cylinder) test.
-  Subject:
+    Unilateral stereotaxic lesion: 1 µl of 6-hydroxydopamine
+    (≈3 µg in 0.02 % ascorbate-saline) injected into the right
+    medial forebrain bundle (AP -0.7 mm, ML -1.2 mm, DV -4.75 mm
+    from bregma) under isoflurane anaesthesia; post-operative
+    meloxicam, saline, and warming provided. Lesion efficacy later
+    confirmed by drug-free forelimb-asymmetry (cylinder) test.
+  pharmacology: |
+    Induction anaesthesia with isoflurane (5 % v/v for induction,
+    2 % for maintenance). Pre-operative analgesia: meloxicam
+    0.1 mg kg⁻¹ s.c. Lesion: intracranial 6-hydroxydopamine, 1 µl
+    of 3.5 mg ml⁻¹ free-base 6-OHDA in 0.02 % ascorbate-saline
+    into the right medial forebrain bundle. L-DOPA priming for LID:
+    five i.p. injections every other day—6 mg kg⁻¹ for the first
+    two sessions, 12 mg kg⁻¹ thereafter—each co-administered with
+    benserazide 12 mg kg⁻¹ to inhibit peripheral decarboxylation.
+Subject:
   species: Mus musculus
   strain: "C57BL/6"
   sex: "M"

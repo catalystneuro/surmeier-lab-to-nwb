@@ -206,13 +206,7 @@ def convert_session_to_nwbfile(
 
     # Load general metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
-
-    # Load metadata if available
-    specific_metadata_path = Path(__file__).parent / "metadata" / "figure_7_behavioral_videos.yaml"
-    specific_metadata = None
-    if specific_metadata_path.exists():
-        specific_metadata = load_dict_from_file(specific_metadata_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata
     conversion_specific_metadata = {
@@ -237,22 +231,16 @@ def convert_session_to_nwbfile(
         },
         "Subject": {
             "subject_id": animal_id,
-            "species": "Mus musculus",
-            "strain": "C57BL/6J",
-            "genotype": "CDGI KO",
-            "sex": "M",
-            "age": "P7W/P12W",  # 7-12 weeks old
-            "description": f"CDGI knockout mouse for behavioral video assessment - Figure 7, animal ID: {animal_id}",
-            "genotype_description": (
-                "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "
-                "back-crossed to C57BL/6 background. Crossed with CDGI-null line maintained "
-                "on C57BL/6J background for behavioral dyskinesia studies."
+            "description": (
+                f"CDGI knockout mouse for behavioral video assessment - Figure 7, animal ID: {animal_id}. "
+                f"Crossed with CDGI-null line maintained on C57BL/6J background for behavioral dyskinesia studies."
             ),
+            "genotype": "CDGI KO",
         },
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, conversion_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, conversion_specific_metadata)
 
     # Create NWB file with merged metadata
     nwbfile = NWBFile(
@@ -264,6 +252,8 @@ def convert_session_to_nwbfile(
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

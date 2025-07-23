@@ -94,7 +94,7 @@ def convert_session_to_nwbfile(
     """
     # Load general metadata
     metadata_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    metadata = load_dict_from_file(metadata_path)
+    general_metadata = load_dict_from_file(metadata_path)
 
     # Parse session information
     session_info = parse_session_info_from_animal_data(session_date, animal_id, genotype)
@@ -144,7 +144,7 @@ def convert_session_to_nwbfile(
         },
     }
 
-    metadata = dict_deep_update(metadata, session_specific_metadata)
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWBFile
     nwbfile = NWBFile(
@@ -156,6 +156,8 @@ def convert_session_to_nwbfile(
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

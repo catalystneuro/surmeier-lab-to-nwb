@@ -335,7 +335,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using precise session start time from XML
     genotype_description = "CDGI knockout" if genotype == "KO" else "wildtype"
@@ -380,8 +380,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         },
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata
     nwbfile = NWBFile(
@@ -394,6 +394,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
         keywords=metadata["NWBFile"]["keywords"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
     )
 
     # Create subject using merged metadata

@@ -575,7 +575,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     if verbose:
         print(f"Loaded paper metadata from: {metadata_file_path}")
@@ -617,8 +617,8 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         },
     }
 
-    # Merge paper metadata with session-specific metadata
-    merged_metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Merge general metadata with session-specific metadata
+    merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with explicit arguments
     nwbfile = NWBFile(
@@ -630,6 +630,8 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         institution=merged_metadata["NWBFile"]["institution"],
         experiment_description=merged_metadata["NWBFile"]["experiment_description"],
         session_id=merged_metadata["NWBFile"]["session_id"],
+        surgery=merged_metadata["NWBFile"]["surgery"],
+        pharmacology=merged_metadata["NWBFile"]["pharmacology"],
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
 
