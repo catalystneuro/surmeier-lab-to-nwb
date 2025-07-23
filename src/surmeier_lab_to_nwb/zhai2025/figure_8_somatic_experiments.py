@@ -460,6 +460,7 @@ if __name__ == "__main__":
 
     # Control verbose output from here
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -484,12 +485,19 @@ if __name__ == "__main__":
 
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
+
         if verbose:
             print(f"Processing M1R CRISPR somatic excitability data for: {condition}")
 
         # Get all session folders (each session = one cell from one animal on one date)
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
+
+        # Apply stub_test filtering if enabled
+        if stub_test:
+            session_folders = session_folders[:2]
+            if verbose:
+                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
 
         if verbose:
             print(f"Found {len(session_folders)} session folders")
@@ -498,7 +506,6 @@ if __name__ == "__main__":
         session_iterator = tqdm(
             session_folders,
             desc=f"Converting {condition} from figure_8_somatic_experiments to NWB",
-            disable=verbose,
         )
 
         for session_folder in session_iterator:

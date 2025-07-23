@@ -764,6 +764,7 @@ if __name__ == "__main__":
 
     # Control verbose output from here
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -795,6 +796,12 @@ if __name__ == "__main__":
         # Note: Each session folder corresponds to a single animal
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
+
+        # Apply stub_test filtering if enabled
+        if stub_test:
+            session_folders = session_folders[:2]
+            if verbose:
+                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
 
         if verbose:
             print(f"Found {len(session_folders)} session folders")

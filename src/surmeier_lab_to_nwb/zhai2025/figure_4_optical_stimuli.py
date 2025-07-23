@@ -541,6 +541,7 @@ def main():
 
     # Control verbose output
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Define raw data and output paths
     raw_data_root = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Sr-oEPSC")
@@ -569,6 +570,12 @@ def main():
         ]
 
         session_folders.sort()  # Sort by session name
+
+        # Apply stub_test filtering if enabled
+        if stub_test:
+            session_folders = session_folders[:2]
+            if verbose:
+                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
 
         if verbose:
             print(f"Found {len(session_folders)} session folders")

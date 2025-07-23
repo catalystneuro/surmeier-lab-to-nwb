@@ -696,6 +696,7 @@ if __name__ == "__main__":
 
     # Control verbose output from here
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -753,6 +754,12 @@ if __name__ == "__main__":
         session_folders.sort()
         if verbose:
             print(f"Found {len(session_folders)} session folders total")
+
+        # Apply stub_test filtering if enabled
+        if stub_test:
+            session_folders = session_folders[:2]
+            if verbose:
+                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
 
         # Process each session folder with progress bar
         session_iterator = tqdm(

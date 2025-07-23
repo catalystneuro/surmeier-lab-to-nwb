@@ -674,7 +674,7 @@ if __name__ == "__main__":
     # Set to True to enable verbose output
     verbose = False
     # Set to True to process only two sessions per condition (for testing)
-    stub_test = False
+    stub_test = True
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)

@@ -207,6 +207,13 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     NWBFile
         NWB file with the converted data
     """
+    # Define condition descriptions for metadata
+    condition_descriptions = {
+        "UL control": "Unlesioned control mouse with healthy striatum and intact dopaminergic system",
+        "PD": "6-OHDA lesioned mouse (>95 per cent dopamine depletion) modeling Parkinson's disease",
+        "LID off": "Dyskinetic mouse in off-state (24-48h post-levodopa) with established levodopa-induced dyskinesia",
+    }
+
     # Parse session information
     session_info = parse_session_info_from_folder_name(session_folder)
 
@@ -302,13 +309,6 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
         session_id=metadata["NWBFile"]["session_id"],
         keywords=metadata["NWBFile"]["keywords"],
     )
-
-    # Create subject metadata for GRABACh3.0 experiments (Figure 5)
-    condition_descriptions = {
-        "UL control": "Unlesioned control mouse with healthy striatum and intact dopaminergic system",
-        "PD": "6-OHDA lesioned mouse (>95 per cent dopamine depletion) modeling Parkinson's disease",
-        "LID off": "Dyskinetic mouse in off-state (24-48h post-levodopa) with established levodopa-induced dyskinesia",
-    }
 
     # Create subject using merged metadata
     subject = Subject(
@@ -424,6 +424,7 @@ if __name__ == "__main__":
 
     # Control verbose output
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Suppress warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -471,6 +472,12 @@ if __name__ == "__main__":
                         "parent_folder": session_folder,
                     }
                 )
+
+    # Apply stub_test filtering if enabled
+    if stub_test:
+        all_sessions = all_sessions[:2]
+        if verbose:
+            print(f"stub_test enabled: processing only first {len(all_sessions)} sessions")
 
     if verbose:
         print(f"Found {len(all_sessions)} total sessions across all conditions")

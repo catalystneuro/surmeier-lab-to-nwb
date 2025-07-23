@@ -738,6 +738,7 @@ if __name__ == "__main__":
 
     # Control verbose output
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
@@ -763,21 +764,21 @@ if __name__ == "__main__":
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
+        # Apply stub_test filtering if enabled
+        if stub_test:
+            session_folders = session_folders[:2]
+            if verbose:
+                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
+
         if verbose:
             print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = (
-            tqdm(session_folders, desc=f"Converting {condition} from figure_7_spine_density to NWB", disable=verbose)
-            if not verbose
-            else session_folders
-        )
+        session_iterator = tqdm(session_folders, desc=f"Converting {condition} from figure_7_spine_density to NWB")
 
         for session_folder_path in session_iterator:
             if verbose:
                 print(f"\nProcessing session: {session_folder_path.name}")
-            elif not verbose:
-                session_iterator.set_description(f"Processing {session_folder_path.name}")
 
             # Convert data to NWB format
             nwbfile = convert_data_to_nwb(
@@ -794,8 +795,6 @@ if __name__ == "__main__":
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
             if verbose:
                 print(f"Successfully saved: {nwbfile_path.name}")
-            elif not verbose:
-                session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
 
         if not verbose:
             print(f"Completed {condition}: {len(session_folders)} sessions processed")

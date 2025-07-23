@@ -11,7 +11,6 @@ The script handles:
 - M1R gene editing context and L-DOPA treatment timing
 """
 
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -393,28 +392,31 @@ if __name__ == "__main__":
     if metadata_path.exists():
         metadata = load_dict_from_file(metadata_path)
 
-    # Setup logging
-    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
-
+    # Control test execution
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
+    verbose = False
     # Find all video sessions
     sessions = find_video_sessions_supfig3(video_base_path)
 
-    if args.verbose:
+    # Apply stub_test filtering if enabled
+    if stub_test:
+        sessions_items = list(sessions.items())[:2]
+        sessions = dict(sessions_items)
+        if verbose:
+            print(f"stub_test enabled: processing only first {len(sessions)} sessions")
+
+    if verbose:
         print(f"Found {len(sessions)} Supplementary Figure 3 video sessions")
 
     # Process each session
-    for session_date, session_path in tqdm(sessions.items(), desc="Converting sessions", disable=not args.verbose):
-        if args.verbose:
-            print(f"\nProcessing Supplementary Figure 3 session: {session_date}")
-        else:
-            tqdm.write(f"\nProcessing Supplementary Figure 3 session: {session_date}")
+    for session_date, session_path in tqdm(sessions.items(), desc="Converting sessions"):
 
         # Group videos by animal
         animals = group_videos_by_animal_supfig3(session_path)
 
         # Create NWB files for each animal
         for animal_id, video_files in animals.items():
-            if args.verbose:
+            if verbose:
                 print(f"  Animal: {animal_id} ({len(video_files)} videos)")
 
             # Determine genotype based on video metadata
@@ -432,13 +434,13 @@ if __name__ == "__main__":
                 animal_id=animal_id,
                 video_files=sorted(video_files),
                 genotype=genotype,
-                verbose=args.verbose,
+                verbose=verbose,
             )
 
             # Write the NWB file
             configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path)
-            if args.verbose:
+            if verbose:
                 print(f"    Saved: {output_path}")
 
-    if args.verbose:
+    if verbose:
         print(f"\nSupplementary Figure 3 video conversion complete. Files saved to: {output_base_path}")

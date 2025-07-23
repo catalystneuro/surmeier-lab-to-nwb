@@ -214,6 +214,7 @@ if __name__ == "__main__":
 
     # Control verbose output
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     logging.getLogger("nd2").setLevel(logging.ERROR)
 
@@ -254,6 +255,12 @@ if __name__ == "__main__":
             # Get all ND2 files in condition folder
             nd2_files = list(condition_path.glob("*.nd2"))
             nd2_files.sort()
+
+            # Apply stub_test filtering if enabled
+            if stub_test:
+                nd2_files = nd2_files[:2]
+                if verbose:
+                    print(f"stub_test enabled: processing only first {len(nd2_files)} ND2 files")
 
             if verbose:
                 print(f"Found {len(nd2_files)} ND2 files in {condition}")

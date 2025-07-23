@@ -373,6 +373,7 @@ if __name__ == "__main__":
 
     # Control verbose output
     verbose = False  # Set to True for detailed output
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     logging.getLogger("PIL").setLevel(logging.ERROR)
 
@@ -389,6 +390,12 @@ if __name__ == "__main__":
     # Get all session folders
     session_folders = [f for f in fig4h_path.iterdir() if f.is_dir()]
     session_folders.sort()
+
+    # Apply stub_test filtering if enabled
+    if stub_test:
+        session_folders = session_folders[:2]
+        if verbose:
+            print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
 
     if verbose:
         print(f"Found {len(session_folders)} session folders")
@@ -422,8 +429,6 @@ if __name__ == "__main__":
 
         if verbose:
             print(f"Successfully saved: {nwbfile_path.name}")
-        elif not verbose:
-            session_iterator.write(f"Successfully saved: {nwbfile_path.name}")
 
     if verbose:
         print(f"\nFigure 4H Olympus confocal conversion completed!")

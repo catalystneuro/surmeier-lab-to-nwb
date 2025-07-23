@@ -391,8 +391,16 @@ if __name__ == "__main__":
 
     # Setup logging
     verbose = False
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
     # Find all video sessions
     sessions = find_video_sessions(video_base_path)
+
+    # Apply stub_test filtering if enabled
+    if stub_test:
+        sessions_items = list(sessions.items())[:2]
+        sessions = dict(sessions_items)
+        if verbose:
+            print(f"stub_test enabled: processing only first {len(sessions)} sessions")
 
     if verbose:
         print(f"Found {len(sessions)} Figure 7 video sessions")

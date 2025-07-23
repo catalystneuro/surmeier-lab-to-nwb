@@ -88,7 +88,9 @@ class DendriticTrialsInterface(BaseDataInterface):
             trial_stop_time = trial_start_time + trial_duration
 
             # Calculate dendrite distance based on location type
-            dendrite_distance_um = 90 if recording_info["location_type"] == "dist" else 40
+            # Handle different key names used across different scripts
+            location_key = "location" if "location" in recording_info else "location_type"
+            dendrite_distance_um = 90 if recording_info[location_key] == "dist" else 40
 
             # Store trial data for sorting
             trial_data = {

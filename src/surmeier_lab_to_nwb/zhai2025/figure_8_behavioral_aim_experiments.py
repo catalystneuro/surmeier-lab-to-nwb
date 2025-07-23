@@ -234,6 +234,7 @@ if __name__ == "__main__":
     # Set verbose flag
     verbose = args.verbose
     verbose = False
+    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Set the base path to your data
     base_dir = Path(__file__).parent
@@ -270,8 +271,14 @@ if __name__ == "__main__":
     grouped = pivot_df.groupby(["session_date", "session_number", "animal_id", "genotype"])
     sessions_list = list(grouped)
 
+    # Apply stub_test filtering if enabled
+    if stub_test:
+        sessions_list = sessions_list[:2]
+        if verbose:
+            print(f"stub_test enabled: processing only first {len(sessions_list)} sessions")
+
     if verbose:
-        print(f"Found {len(grouped)} unique sessions to process")
+        print(f"Found {len(sessions_list)} unique sessions to process")
         print("\nDetailed processing log:")
         print("=" * 60)
 
