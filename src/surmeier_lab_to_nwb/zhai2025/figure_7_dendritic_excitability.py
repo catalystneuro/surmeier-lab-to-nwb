@@ -759,7 +759,7 @@ if __name__ == "__main__":
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
             session_folders,
-            desc=f"Converting {condition} from figure_7_dendritic_excitability to NWB",
+            desc=f"Converting Figure7 DendriticExcitability {condition}",
             disable=verbose,
         )
 

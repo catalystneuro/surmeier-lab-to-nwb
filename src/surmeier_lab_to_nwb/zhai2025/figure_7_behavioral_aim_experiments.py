@@ -282,7 +282,7 @@ if __name__ == "__main__":
     # Process each session - use tqdm for non-verbose mode
     iterator = tqdm(
         sessions_list,
-        desc="Converting sessions from figure_7_behavioral_aim_experiments to NWB",
+        desc="Converting Figure7 AIMBehavior",
     )
 
     for (session_date, session_number, animal_id, genotype), session_data in iterator:

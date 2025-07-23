@@ -404,7 +404,7 @@ if __name__ == "__main__":
     session_iterator = (
         tqdm(
             session_folders,
-            desc="Converting sessions from figure_4h_confocal_spine_density_olympus to NWB",
+            desc="Converting Figure4H ConfocalSpineDensity",
             disable=verbose,
         )
         if not verbose

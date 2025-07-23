@@ -268,7 +268,7 @@ if __name__ == "__main__":
             # Process each ND2 file with progress bar
             file_iterator = tqdm(
                 nd2_files,
-                desc=f"Converting {dataset['name']} {condition} from figure_4_confocal_spine_density_nikon to NWB",
+                desc=f"Converting Figure4 ConfocalSpineDensity {dataset['name']} {condition}",
                 disable=verbose,
             )
 

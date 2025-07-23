@@ -581,9 +581,7 @@ def main():
             print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = tqdm(
-            session_folders, desc=f"Converting {condition} from figure_4_optical_stimuli to NWB", disable=verbose
-        )
+        session_iterator = tqdm(session_folders, desc=f"Converting Figure4 OpticalStimuli {condition}", disable=verbose)
 
         # Process each session
         for session_folder in session_iterator:

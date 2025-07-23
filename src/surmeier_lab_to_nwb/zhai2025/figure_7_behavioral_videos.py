@@ -406,9 +406,7 @@ if __name__ == "__main__":
         print(f"Found {len(sessions)} Figure 7 video sessions")
 
     # Process each session
-    for session_date, session_path in tqdm(
-        sessions.items(), desc="Converting sessions from figure_7_behavioral_videos to NWB", disable=not verbose
-    ):
+    for session_date, session_path in tqdm(sessions.items(), desc="Converting Figure7 Videos", disable=not verbose):
         if verbose:
             print(f"\nProcessing Figure 7 session: {session_date}")
 

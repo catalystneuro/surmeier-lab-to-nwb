@@ -483,7 +483,7 @@ if __name__ == "__main__":
         print(f"Found {len(all_sessions)} total sessions across all conditions")
 
     # Use tqdm for progress bar when verbose is disabled
-    session_iterator = tqdm(all_sessions, desc="Converting sessions from figure_5_acetylcholine_grabatch to NWB")
+    session_iterator = tqdm(all_sessions, desc="Converting Figure5 AcetylcholineGrabatch")
 
     for session_info in session_iterator:
         session_folder_path = session_info["session_folder_path"]

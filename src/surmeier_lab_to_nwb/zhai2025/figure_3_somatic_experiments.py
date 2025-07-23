@@ -481,7 +481,7 @@ if __name__ == "__main__":
         session_iterator = (
             tqdm(
                 session_folders,
-                desc=f"Converting {condition} from figure_3_somatic_experiments to NWB",
+                desc=f"Converting Figure3 SomaticExcitability {condition}",
                 disable=verbose,
             )
             if not verbose

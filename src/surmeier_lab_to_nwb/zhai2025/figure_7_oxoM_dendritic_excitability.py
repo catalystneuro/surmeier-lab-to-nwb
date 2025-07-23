@@ -737,7 +737,7 @@ if __name__ == "__main__":
         session_iterator = (
             tqdm(
                 session_folders,
-                desc=f"Processing {genotype}",
+                desc=f"Converting Figure7 OxoMDendriticExcitability {genotype}",
                 unit="session",
                 position=0,
                 leave=True,

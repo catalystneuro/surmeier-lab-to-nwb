@@ -763,7 +763,8 @@ if __name__ == "__main__":
 
         # Process each session folder with progress bar
         session_iterator = tqdm(
-            session_folders, desc=f"Converting {condition} from figure_1_dendritic_excitability to NWB", disable=verbose
+            session_folders,
+            desc=f"Converting Figure1 DendriticExcitability {condition}",
         )
 
         for session_folder in session_iterator:

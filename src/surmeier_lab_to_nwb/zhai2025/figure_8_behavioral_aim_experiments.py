@@ -288,7 +288,7 @@ if __name__ == "__main__":
         if verbose
         else tqdm(
             sessions_list,
-            desc="Converting sessions from figure_8_behavioral_aim_experiments to NWB",
+            desc="Converting Figure8 AIMBehavior",
             unit="session",
             ncols=80,
         )
