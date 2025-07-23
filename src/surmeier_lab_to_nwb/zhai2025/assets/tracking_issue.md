@@ -117,7 +117,7 @@ Image stacks (spine density) like figure 2 but they come in a different format a
 Fluorescence imaging data from two-photon laser scanning microscopy.
 - [x] Build needed interfaces [Prairie View BOT interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/12)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/38)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 
 ## Figure 6:
@@ -155,7 +155,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Conversion script (handle CDGI KO off-state and on-state conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 
 ### Dendritic Excitability (CDGI KO on vs off)
@@ -163,7 +163,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Conversion script (handle CDGI KO off-state and on-state conditions) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 
 ### Dendritic Excitability (oxoM response - CDGI KO vs WT)
@@ -171,25 +171,25 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Conversion script (handle paired before/after oxoM protocol for both KO and WT) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 
 ### Spine Density (CDGI KO on vs off)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/39)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 
 ### Behavioral Assessment (AIM scoring and contralateral rotations)
 - [x] Build needed interfaces (behavioral scoring interface needed) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
 - [x] Conversion script (AIM scores and rotation videos) [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/32)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 
 ### Behavioral Videos (Contralateral rotation documentation)
 - [x] Build video interfaces (ExternalVideoInterface)
 - [x] Conversion script for Figure 7 behavioral videos [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 **Data**: 434 video files documenting contralateral rotation behavior in CDGI KO vs WT mice across multiple experimental sessions (2017-2020). Videos recorded at 20-120 min intervals post L-DOPA injection to assess therapeutic benefit and dyskinesia severity.
 
@@ -222,7 +222,7 @@ M1R CRISPR behavioral video documentation showing dyskinesia assessment in gene-
 ### Behavioral Videos (M1R CRISPR dyskinesia assessment)
 - [x] Build video interfaces (ExternalVideoInterface)
 - [x] Conversion script for Supplementary Figure 3 behavioral videos [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/35)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
 - [ ] Upload data
 **Data**: 464 video files documenting dyskinetic behavior in M1R CRISPR vs Control mice across multiple experimental sessions (2023-2024). Videos recorded at 20-120 min intervals post L-DOPA injection to assess effects of M1R gene editing on dyskinesia severity.
 
