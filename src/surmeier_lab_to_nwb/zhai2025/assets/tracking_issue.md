@@ -96,20 +96,21 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
 - [x] Use ndx-optogenetics extension [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/30)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/b77f8a7dc53c62091597f9975d04d4ab26a96eef)
 - [ ] Upload data
+
 
 ### Spine Density
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/36)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/b77f8a7dc53c62091597f9975d04d4ab26a96eef)
 - [ ] Upload data
 
 ### Confocal Spine Density
 Image stacks (spine density) like figure 2 but they come in a different format as they come from confocal microscopy.
 - [x] Build needed interfaces [Nikon Image Stack Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/13)
 - [x] Conversion script [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/37)
-- [ ] Inspector
+- [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/b77f8a7dc53c62091597f9975d04d4ab26a96eef)
 - [ ] Upload data
 
 ## Figure 5:

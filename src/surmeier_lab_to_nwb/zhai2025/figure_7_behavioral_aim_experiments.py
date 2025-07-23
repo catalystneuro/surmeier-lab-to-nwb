@@ -286,8 +286,6 @@ if __name__ == "__main__":
         else tqdm(
             sessions_list,
             desc="Converting sessions from figure_7_behavioral_aim_experiments to NWB",
-            unit="session",
-            ncols=80,
         )
     )
 
