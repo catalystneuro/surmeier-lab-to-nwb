@@ -217,7 +217,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using precise session start time from XML
     session_specific_metadata = {
@@ -238,6 +238,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"that correlate with spine morphology changes during dyskinesia."
             ),
             "session_id": session_info["session_id"],
+            "surgery": general_metadata["NWBFile"]["surgery"]
+            + " AAV5-hSyn-hChR2(H134R)-EYFP injection into M1 motor cortex: 0.15 µL at coordinates AP +1.15mm, ML -1.60mm, DV -1.55mm relative to Bregma, 4 weeks expression time.",
             "keywords": [
                 "Sr2+-oEPSC",
                 "voltage clamp",
@@ -252,8 +254,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         }
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata
     nwbfile = NWBFile(
@@ -265,6 +267,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

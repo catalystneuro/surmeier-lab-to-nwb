@@ -206,7 +206,7 @@ def convert_session_to_nwbfile(
 
     # Load general metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Determine genotype based on video metadata
     first_video_metadata = extract_video_metadata_supfig3(video_files[0])
@@ -238,22 +238,17 @@ def convert_session_to_nwbfile(
         },
         "Subject": {
             "subject_id": animal_id,
-            "species": "Mus musculus",
-            "strain": "C57BL/6J",
-            "genotype": genotype,
-            "sex": "M",
-            "age": "P7W/P12W",  # 7-12 weeks old
-            "description": f"M1R CRISPR study mouse for behavioral video assessment - Supplementary Figure 3, animal ID: {animal_id}",
-            "genotype_description": (
-                "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "
-                "back-crossed to C57BL/6 background. M1R deletion achieved via CRISPR-Cas9 "
-                "gene editing specifically targeting indirect pathway spiny projection neurons (iSPNs)."
+            "description": (
+                f"M1R CRISPR study mouse for behavioral video assessment - Supplementary Figure 3, animal ID: {animal_id}. "
+                f"M1R deletion achieved via CRISPR-Cas9 gene editing specifically targeting indirect pathway spiny projection neurons (iSPNs). "
+                f"Genotype: {genotype}"
             ),
+            "genotype": genotype,
         },
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, conversion_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, conversion_specific_metadata)
 
     # Create NWB file with merged metadata
     nwbfile = NWBFile(
@@ -265,6 +260,8 @@ def convert_session_to_nwbfile(
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

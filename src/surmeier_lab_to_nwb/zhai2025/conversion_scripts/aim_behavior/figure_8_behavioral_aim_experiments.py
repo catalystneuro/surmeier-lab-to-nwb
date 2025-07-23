@@ -112,6 +112,8 @@ def convert_session_to_nwbfile(
             "identifier": f"figure8_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
             "session_id": session_id,
             "session_start_time": session_info["session_start_time"],
+            "surgery": metadata["NWBFile"]["surgery"]
+            + " M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs.",
             "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
             "experiment_description": (
                 "Behavioral assessment of M1R CRISPR knockout mice using AIM scoring to evaluate "
@@ -152,6 +154,8 @@ def convert_session_to_nwbfile(
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

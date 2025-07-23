@@ -340,7 +340,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using session start time from XML
     session_date_str = session_start_time.strftime("%Y-%m-%d")
@@ -354,6 +354,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     base_session_id = f"figure6_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
     script_specific_id = f"Sub{session_folder_path.name}"
     session_id = f"{base_session_id}_{script_specific_id}"
+
+    # Create pharmacology addition based on condition
+    pharmacology_addition = ""
+    if "antagonist" in condition:
+        pharmacology_addition = " M1 muscarinic receptor antagonists: Trihexyphenidyl (THP, 3 mg/kg i.p.) for systemic M1R blockade, plus VU 0255035 (5 μM bath application) for selective M1R antagonism in brain slices."
 
     session_specific_metadata = {
         "NWBFile": {
@@ -379,6 +384,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"M1R antagonist treatment: THP (3 mg/kg, i.p.) + ex vivo VU 0255035 (5 μM)."
             ),
             "session_id": session_id,
+            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
             "keywords": [
                 "calcium imaging",
                 "dendritic excitability",
@@ -406,8 +412,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         },
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata
     nwbfile = NWBFile(
@@ -419,6 +425,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

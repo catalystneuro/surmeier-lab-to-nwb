@@ -214,7 +214,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
     # Create session ID following new pattern
-    base_session_id = f"figure7_SomaticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    clean_condition = condition.replace(" ", "_").replace("-", "_")
+    base_session_id = f"figure7_SomaticExcitability_{clean_condition}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
     script_specific_id = f"Animal{session_info['animal_letter']}_Cell{session_info['cell_number']}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
@@ -230,7 +231,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata using precise session start time from XML
 
@@ -269,8 +270,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         },
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata
     nwbfile = NWBFile(
@@ -282,6 +283,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

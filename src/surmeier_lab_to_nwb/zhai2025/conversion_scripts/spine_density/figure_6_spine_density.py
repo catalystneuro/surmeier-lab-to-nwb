@@ -564,11 +564,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     if verbose:
-        print(f"Loaded paper metadata from: {metadata_file_path}")
-        print(f"Experiment description: {paper_metadata['NWBFile']['experiment_description'][:100]}...")
+        print(f"Loaded general metadata from: {metadata_file_path}")
+        print(f"Experiment description: {general_metadata['NWBFile']['experiment_description'][:100]}...")
 
     # Create BIDS-style base session ID with detailed timestamp when available
     session_start_time = session_info["session_start_time"]
@@ -580,6 +580,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     base_session_id = f"figure6_SpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
     script_specific_id = f"Sub{session_info['animal_id']}"
     session_id = f"{base_session_id}_{script_specific_id}"
+
+    # Create pharmacology addition based on condition
+    pharmacology_addition = ""
+    if "antagonist" in condition:
+        pharmacology_addition = " M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced spine density changes."
 
     # Create session-specific metadata for Figure 6
     session_specific_metadata = {
@@ -597,6 +602,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
             "session_id": session_id,
+            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
             "keywords": [
                 "spine density",
                 "dendritic spines",
@@ -618,8 +624,8 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         },
     }
 
-    # Merge paper metadata with session-specific metadata
-    merged_metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Merge general metadata with session-specific metadata
+    merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with explicit arguments
     nwbfile = NWBFile(
@@ -631,6 +637,8 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         institution=merged_metadata["NWBFile"]["institution"],
         experiment_description=merged_metadata["NWBFile"]["experiment_description"],
         session_id=merged_metadata["NWBFile"]["session_id"],
+        surgery=merged_metadata["NWBFile"]["surgery"],
+        pharmacology=merged_metadata["NWBFile"]["pharmacology"],
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
 

@@ -253,7 +253,7 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Create session-specific metadata
     session_specific_metadata = {
@@ -270,6 +270,8 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_id,
+            "surgery": general_metadata["NWBFile"]["surgery"]
+            + " Sparse iSPN labeling achieved via stereotaxic injection of AAV-Cre into dorsolateral striatum of WT mice followed by AAV-FLEX-tdTomato for reporter expression.",
             "keywords": [
                 "confocal microscopy",
                 "spine density",
@@ -281,8 +283,8 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
         }
     }
 
-    # Merge paper metadata with session-specific metadata
-    merged_metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Merge general metadata with session-specific metadata
+    merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file
     nwbfile = NWBFile(
@@ -294,6 +296,8 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
         institution=merged_metadata["NWBFile"]["institution"],
         experiment_description=merged_metadata["NWBFile"]["experiment_description"],
         session_id=merged_metadata["NWBFile"]["session_id"],
+        surgery=merged_metadata["NWBFile"]["surgery"],
+        pharmacology=merged_metadata["NWBFile"]["pharmacology"],
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
 

@@ -225,7 +225,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Load metadata from YAML file
     metadata_file_path = Path(__file__).parent.parent.parent / "metadata.yaml"
-    paper_metadata = load_dict_from_file(metadata_file_path)
+    general_metadata = load_dict_from_file(metadata_file_path)
 
     # Determine cell type and description based on condition
     if condition == "M1R CRISPR":
@@ -263,6 +263,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 f"F-I protocol with {len(recording_folders)} current steps."
             ),
             "session_id": session_info["session_id"],
+            "surgery": general_metadata["NWBFile"]["surgery"]
+            + " M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs.",
             "keywords": [
                 "somatic excitability",
                 "F-I relationship",
@@ -279,8 +281,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         },
     }
 
-    # Deep merge with paper metadata
-    metadata = dict_deep_update(paper_metadata, session_specific_metadata)
+    # Deep merge with general metadata
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWB file with merged metadata
     nwbfile = NWBFile(
@@ -292,6 +294,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
+        surgery=metadata["NWBFile"]["surgery"],
+        pharmacology=metadata["NWBFile"]["pharmacology"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 
