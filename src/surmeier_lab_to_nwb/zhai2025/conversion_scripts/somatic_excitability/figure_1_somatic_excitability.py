@@ -241,32 +241,32 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
-    script_template = session_metadata_template["figure_1_somatic_excitability"]
+    session_metadata = session_metadata_template["figure_1_somatic_excitability"]
 
     # Handle conditional pharmacology based on condition
     pharmacology_addition = ""
-    if "SCH" in condition and "pharmacology_conditions" in script_template["NWBFile"]:
-        if "SCH" in script_template["NWBFile"]["pharmacology_conditions"]:
-            pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["SCH"]
+    if "SCH" in condition and "pharmacology_conditions" in session_metadata["NWBFile"]:
+        if "SCH" in session_metadata["NWBFile"]["pharmacology_conditions"]:
+            pharmacology_addition = " " + session_metadata["NWBFile"]["pharmacology_conditions"]["SCH"]
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": script_template["NWBFile"]["session_description"].format(
+            "session_description": session_metadata["NWBFile"]["session_description"].format(
                 condition=condition, cell_number=session_info["cell_number"], date_str=session_info["date_str"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_info["session_id"],
             "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
-            "keywords": script_template["NWBFile"]["keywords"],
+            "keywords": session_metadata["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"dSPN_mouse_{session_info['cell_number']}",
-            "description": script_template["Subject"]["description"].format(
+            "description": session_metadata["Subject"]["description"].format(
                 cell_number=session_info["cell_number"], date_str=session_info["date_str"]
             ),
-            "genotype": script_template["Subject"]["genotype"],
+            "genotype": session_metadata["Subject"]["genotype"],
         },
     }
 
