@@ -71,6 +71,12 @@ Some experiments include ROI1 and ROI2 designations, representing different fiel
 - **Burst stimulation**: Simulates high-frequency firing patterns of cholinergic interneurons
 - Both protocols reveal different aspects of ACh release dynamics and pharmacological modulation
 
+**Important Note on Metadata Discrepancies**:
+XML metadata in the raw data files shows different stimulation parameters than those reported in the paper:
+- **XML metadata**: LED stimulator with 5V pulses, 0.1ms pulse width, ~204Hz burst frequency
+- **Paper specifications**: Concentric bipolar electrode, 0.3mA amplitude, 1ms pulse width, 20Hz burst frequency
+- **Conversion decision**: Paper specifications are used in NWB conversion as they represent the actual experimental parameters used
+
 ### Pharmacological Treatments
 
 > The slices were imaged for (in this sequence) control, 50 nM DA (only for lesioned mice), 10 μM quinpirole and 10 μM sulpiride treatment conditions, with at least 5 min of perfusion for each treatment.
