@@ -273,17 +273,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_folder = next(iter(recording_id_to_folder.values()))
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
-    # Create BIDS-style base session ID with detailed timestamp in camelCase
-    condition_to_camel_case = {
+    # Create session ID with ++ separators (no dashes or underscores)
+    condition_to_clean = {
         "LID off-state": "LIDOffState",
         "LID on-state": "LIDOnState",
         "LID on-state with SCH": "LIDOnStateWithSchD1Antagonist",
     }
 
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    clean_condition = condition_to_clean.get(condition, condition.replace(" ", "").replace("-", ""))
 
-    base_session_id = f"Figure1DendriticExcitability{clean_condition}{timestamp}Sub{session_folder_path.name}"
+    base_session_id = f"Figure1++DendriticExcitability++{clean_condition}++{timestamp}++Sub++{session_folder_path.name}"
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

@@ -186,10 +186,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_date_str = session_start_time.strftime("%Y-%m-%d")
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
 
-    # Create session ID following new pattern
-    base_session_id = f"figure2_OpticalStimuli_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
-    script_specific_id = f"Session{session_info['session_letter']}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    # Create session ID with ++ separators (no dashes or underscores)
+    clean_condition = condition.replace(" ", "").replace("-", "")
+    base_session_id = f"Figure2++OpticalStimuli++{clean_condition}++Timestamp++{timestamp}"
+    script_specific_id = f"Session++{session_info['session_letter']}"
+    session_id = f"{base_session_id}++{script_specific_id}"
 
     session_info.update(
         {

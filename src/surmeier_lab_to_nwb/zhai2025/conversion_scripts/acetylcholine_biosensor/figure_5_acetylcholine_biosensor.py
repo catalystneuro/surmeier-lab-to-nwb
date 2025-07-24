@@ -338,6 +338,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     trials_table.add_column(name="amplitude", description="Stimulation amplitude if applicable")
     trials_table.add_column(name="electrode", description="Electrode model and type")
     trials_table.add_column(name="is_calibration", description="Whether this is a calibration trial")
+    trials_table.add_column(name="original_trial_number", description="Original trial number from BOT filename")
 
     # Process each BOT trial and add fluorescence data
     cumulative_time = 0.0
@@ -386,11 +387,12 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
             trial_info["stimulation"], trial_info["stimulation"].replace("_", "")
         )
 
-        # Create base name with condition and stimulus info (without TwoPhoton prefix to avoid duplication)
-        base_name = f"{clean_condition}{clean_treatment}{clean_stimulation}"
-
-        # Use actual trial number from filename instead of sequential index
-        actual_trial_number = int(trial_info["trial_number"])
+        # Create base name with condition and stimulus info, avoiding duplications
+        # For calibration trials, the treatment already contains "Calibration", so don't add stimulation
+        if trial_info["is_calibration"]:
+            base_name = f"{clean_condition}{clean_treatment}"
+        else:
+            base_name = f"{clean_condition}{clean_treatment}{clean_stimulation}"
 
         # Create acetylcholine fluorescence interface for this trial
         acetylcholine_interface = PrairieViewFluorescenceInterface(
@@ -402,9 +404,10 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         time_shift = (trial_start_time - session_start_time.replace(tzinfo=None)).total_seconds()
         trial_start_shifted = cumulative_time + time_shift
 
-        # Add trial to trials table
+        # Add trial to trials table (include actual trial number from filename in metadata)
         stimulus_desc = "None" if trial_info["is_calibration"] else "0.3 mA"
         electrode_desc = "None" if trial_info["is_calibration"] else "CBAPD75 concentric bipolar"
+        actual_trial_number = int(trial_info["trial_number"])
 
         trials_table.add_interval(
             start_time=trial_start_shifted,
@@ -416,11 +419,12 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
             amplitude=stimulus_desc,
             electrode=electrode_desc,
             is_calibration=trial_info["is_calibration"],
+            original_trial_number=actual_trial_number,  # Store actual trial number from filename
         )
 
         # Add fluorescence data for this trial with trial-specific naming
-        # Use the same base name structure for consistency between raw and processed data
-        fluorescence_suffix = f"{base_name}Trial{actual_trial_number:03d}"
+        # Use sequential trial_index for unique naming within session, actual trial number stored in trials table
+        fluorescence_suffix = f"{base_name}Trial{trial_index:03d}"
         acetylcholine_interface.add_to_nwbfile(nwbfile=nwbfile, trial_id=fluorescence_suffix)
 
         # Add raw imaging data for this trial
@@ -442,7 +446,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
                     channel_name = channel_suffix.replace("Ch", "Channel")
 
                 # Create series name: TwoPhotonSeries + condition + treatment + stimulation + channel + trial
-                series_metadata["name"] = f"TwoPhotonSeries{base_name}{channel_name}Trial{actual_trial_number:03d}"
+                series_metadata["name"] = f"TwoPhotonSeries{base_name}{channel_name}Trial{trial_index:03d}"
 
         bruker_converter.add_to_nwbfile(nwbfile=nwbfile, metadata=bruker_metadata)
 
@@ -514,7 +518,7 @@ if __name__ == "__main__":
 
         # Use tqdm for progress bar
         session_iterator = tqdm(
-            slice_session_folders, desc=f"Converting Figure5 AcetylcholineBiosensor {condition}", unit=" slice_session"
+            slice_session_folders, desc=f"Converting Figure5 AcetylcholineBiosensor {condition}", unit=" session"
         )
 
         for slice_folder in session_iterator:

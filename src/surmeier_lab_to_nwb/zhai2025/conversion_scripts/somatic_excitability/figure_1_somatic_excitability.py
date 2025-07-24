@@ -194,18 +194,18 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
-    # Create BIDS-style base session ID with detailed timestamp in camelCase
-    condition_to_camel_case = {
+    # Create session ID with ++ separators (no dashes or underscores)
+    condition_to_clean = {
         "LID off-state": "LIDOffState",
         "LID on-state": "LIDOnState",
         "LID on-state with SCH": "LIDOnStateWithSchD1Antagonist",
     }
 
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure1SomaticExcitability{clean_condition}Timestamp{timestamp}"
-    script_specific_id = f"Cell{session_info['cell_number']}"
-    session_id = f"{base_session_id}{script_specific_id}"
+    clean_condition = condition_to_clean.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure1++SomaticExcitability++{clean_condition}++Timestamp++{timestamp}"
+    script_specific_id = f"Cell++{session_info['cell_number']}"
+    session_id = f"{base_session_id}++{script_specific_id}"
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
