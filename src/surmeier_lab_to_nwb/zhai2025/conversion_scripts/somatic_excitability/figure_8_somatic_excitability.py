@@ -188,10 +188,18 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
-    # Create session ID following new pattern
-    base_session_id = f"figure8_SomaticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
-    script_specific_id = f"Cell{session_info['cell_number']}_Animal{session_info['animal_id']}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    # Create session ID following pattern from figure_1_somatic_excitability.py
+    condition_to_camel_case = {
+        "LID off-state": "LIDOffState",
+        "LID on-state": "LIDOnState",
+        "LID on-state with SCH": "LIDOnStateWithSchD1Antagonist",
+    }
+
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure8SomaticExcitability{clean_condition}Timestamps{timestamp}"
+    script_specific_id = f"Cell{session_info['cell_number']}Animal{session_info['animal_id']}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     session_info.update(
         {

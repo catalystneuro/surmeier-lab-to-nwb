@@ -26,12 +26,15 @@ from pynwb.device import Device
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.utils import (
+    create_image_metadata,
+    create_microscope_device,
+    extract_z_slice_info,
     find_xml_metadata_file,
     parse_xml_metadata,
 )
 
 
-def extract_z_slice_info(tiff_file: Path) -> Dict[str, Any]:
+def extract_date_from_tiff_filename(tiff_file: Path) -> datetime:
     """
     Extract Z-slice information from TIFF filename.
 

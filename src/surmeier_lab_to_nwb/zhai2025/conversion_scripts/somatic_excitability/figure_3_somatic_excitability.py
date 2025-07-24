@@ -187,17 +187,21 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
-    # Extract date from actual session start time and update session info
-    session_date_str = session_start_time.strftime("%Y-%m-%d")
+    # Create session ID following pattern from figure_1_somatic_excitability.py
+    condition_to_camel_case = {
+        "LID off-state": "LIDOffState",
+        "LID on-state": "LIDOnState",
+        "LID on-state with sul (iSPN)": "LIDOnStateWithSulpiride",
+    }
 
-    # Create session ID following new pattern
-    base_session_id = f"figure3_SomaticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure3SomaticExcitability{clean_condition}Timestamps{timestamp}"
     script_specific_id = f"Cell{session_info['cell_number']}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     session_info.update(
         {
-            "date_str": session_date_str,
             "session_id": session_id,
         }
     )
@@ -220,7 +224,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, cell_number=session_info["cell_number"], date_str=session_info["date_str"]
+                condition=condition, cell_number=session_info["cell_number"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
@@ -233,9 +237,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         },
         "Subject": {
             "subject_id": f"iSPN_mouse_{session_info['session_id']}",
-            "description": script_template["Subject"]["description"].format(
-                cell_number=session_info["cell_number"], date_str=session_info["date_str"]
-            ),
+            "description": script_template["Subject"]["description"].format(cell_number=session_info["cell_number"]),
             "genotype": script_template["Subject"]["genotype"],
         },
     }
