@@ -354,9 +354,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         institution=metadata["NWBFile"]["institution"],
         experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
-        keywords=metadata["NWBFile"]["keywords"],
         surgery=metadata["NWBFile"]["surgery"],
         pharmacology=metadata["NWBFile"]["pharmacology"],
+        slices=metadata["NWBFile"]["slices"],
+        keywords=metadata["NWBFile"]["keywords"],
     )
 
     # Create subject using merged metadata

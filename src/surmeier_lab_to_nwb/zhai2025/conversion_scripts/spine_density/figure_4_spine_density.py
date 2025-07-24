@@ -18,17 +18,13 @@ from pathlib import Path
 from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
-from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.utils import (
-    create_image_metadata,
-    create_microscope_device,
-    find_xml_metadata_file,
-    parse_xml_metadata,
+    TiffImageStackInterface,
 )
 
 
@@ -262,6 +258,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         session_id=merged_metadata["NWBFile"]["session_id"],
         surgery=merged_metadata["NWBFile"]["surgery"],
         pharmacology=merged_metadata["NWBFile"]["pharmacology"],
+        slices=merged_metadata["NWBFile"]["slices"],
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
 
@@ -277,65 +274,18 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     )
     nwbfile.subject = subject
 
-    # Create microscope device using metadata from first available XML file
-    microscope_device = None
+    # Process each image stack using TiffImageStackInterface
     subfolders = [f for f in session_folder_path.iterdir() if f.is_dir()]
 
-    # Process each image stack
     for subfolder in subfolders:
-
         # Parse container information
         container_info = parse_container_info(subfolder.name, session_info["session_id"])
 
-        # Get all TIFF files in the folder, excluding projection images
-        all_tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
-        # Filter out projection images (_xy.tif, _xz.tif, _zy.tif, project_xy.tif, *_xy.tif, etc.) and keep only Z-stack images
-        tiff_files = sorted(
-            [
-                f
-                for f in all_tiff_files
-                if not (
-                    f.name.startswith("_")
-                    or "project" in f.name.lower()
-                    or f.name.endswith("_xy.tif")
-                    or f.name.endswith("_xz.tif")
-                    or f.name.endswith("_zy.tif")
-                )
-            ]
-        )
-        assert len(tiff_files) > 0, f"No Z-stack TIFF files found in {subfolder.name}"
+        # Create TiffImageStackInterface (handles file filtering, XML parsing, and device creation)
+        interface = TiffImageStackInterface(subfolder=subfolder, container_info=container_info, verbose=verbose)
 
-        # Find and parse XML metadata file
-        xml_file = find_xml_metadata_file(subfolder)
-        if not xml_file:
-            raise FileNotFoundError(f"No XML metadata file found in {subfolder.name}")
-
-        xml_metadata = parse_xml_metadata(xml_file, verbose=verbose)
-        if not xml_metadata:
-            raise ValueError(f"Failed to parse XML metadata from {xml_file.name}")
-
-        # Create microscope device (only once, using first available metadata)
-        if microscope_device is None:
-            microscope_device = create_microscope_device(nwbfile, xml_metadata)
-
-        # Create ImageInterface with sorted TIFF files
-        interface = ImageInterface(
-            file_paths=tiff_files, images_container_metadata_key=container_info["container_name"]
-        )
-
-        # Get base metadata from interface
-        metadata = interface.get_metadata()
-
-        # Create custom metadata for individual images using interface's resolved file paths
-        images_metadata = create_image_metadata(
-            tiff_files=interface.file_paths, container_info=container_info, xml_metadata=xml_metadata, verbose=verbose
-        )
-
-        # Update the metadata with custom image information
-        metadata["Images"][container_info["container_name"]].update(images_metadata)
-
-        # Add to NWB file using the interface
-        interface.add_to_nwbfile(nwbfile=nwbfile, metadata=metadata)
+        # Add to NWB file (automatically creates microscope device and metadata)
+        interface.add_to_nwbfile(nwbfile=nwbfile)
 
     return nwbfile
 

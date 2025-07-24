@@ -249,6 +249,7 @@ def convert_session_to_nwbfile(
         session_id=metadata["NWBFile"]["session_id"],
         surgery=metadata["NWBFile"]["surgery"],
         pharmacology=metadata["NWBFile"]["pharmacology"],
+        slices=metadata["NWBFile"]["slices"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

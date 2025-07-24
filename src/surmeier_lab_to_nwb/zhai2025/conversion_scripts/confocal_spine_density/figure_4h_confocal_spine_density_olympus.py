@@ -283,6 +283,7 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
         session_id=merged_metadata["NWBFile"]["session_id"],
         surgery=merged_metadata["NWBFile"]["surgery"],
         pharmacology=merged_metadata["NWBFile"]["pharmacology"],
+        slices=merged_metadata["NWBFile"]["slices"],
         keywords=merged_metadata["NWBFile"]["keywords"],
     )
 
