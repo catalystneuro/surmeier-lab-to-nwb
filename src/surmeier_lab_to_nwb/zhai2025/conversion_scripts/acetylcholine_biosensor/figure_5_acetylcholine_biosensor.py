@@ -31,6 +31,7 @@ from pynwb.epoch import TimeIntervals
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
@@ -243,20 +244,32 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         )
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    # Map Figure 5 specific conditions to centralized format_condition dictionary
+    # Map Figure 5 specific conditions to explicit parameters
     condition_mapping = {"UL control": "control", "PD": "6-OHDA", "LID off": "off-state"}
-
-    # Get the standardized condition name
     standardized_condition = condition_mapping.get(condition, condition)
-
-    # Use centralized format_condition dictionary
-    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
     condition_human_readable = format_condition[standardized_condition]["human_readable"]
 
-    # Create session ID with ++ separators (no dashes or underscores)
-    base_session_id = f"Figure5++AcetylcholineGRAB++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"Sub++{session_info['slice_folder_name']}"
-    session_id = f"{base_session_id}++{script_specific_id}"
+    # Map condition to explicit state
+    if standardized_condition == "control":
+        state = "CTRL"
+    elif standardized_condition == "6-OHDA":
+        state = "PD"
+    elif standardized_condition == "off-state":
+        state = "OFF"
+    else:
+        raise ValueError(f"Unknown condition: {standardized_condition}")
+
+    # Create canonical session ID with explicit parameters
+    session_id = generate_canonical_session_id(
+        fig="F5",
+        compartment="stri",  # In-vivo striatal signal
+        measurement="AChFP",  # GRAB-ACh fiber-photometry
+        spn_type="pan",  # Non cell-specific bulk signal
+        state=state,
+        pharmacology="none",  # No acute pharmacology
+        genotype="WT",  # Wild-type
+        timestamp=timestamp,
+    )
 
     # Handle surgery and pharmacology from template
     surgery_text = general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"]

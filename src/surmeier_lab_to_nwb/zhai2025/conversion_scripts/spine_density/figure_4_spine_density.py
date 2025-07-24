@@ -25,6 +25,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
@@ -201,13 +202,32 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     # Parse session information
     session_info = parse_session_info(session_folder_path)
 
-    # Create session ID using centralized format_condition dictionary
+    # Create canonical session ID with explicit parameters
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]
     condition_human_readable = format_condition[condition]["human_readable"]
-    base_session_id = f"Figure4SpineDensity{condition_camel_case}Timestamp{timestamp}"
-    script_specific_id = f"Animal{session_info['animal_id']}"
-    session_id = f"{base_session_id}{script_specific_id}"
+
+    # Map condition to explicit state
+    if condition == "LID off-state iSPN":
+        state = "OFF"
+    elif condition == "LID on-state iSPN":
+        state = "ON"
+    elif condition == "control iSPN":
+        state = "CTRL"
+    elif condition == "PD iSPN":
+        state = "PD"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F4",
+        compartment="dend",  # dendritic imaging
+        measurement="spine",  # spine density measurement
+        spn_type="ispn",  # Indirect pathway SPN for Figure 4
+        state=state,
+        pharmacology="none",  # No pharmacology for Figure 4
+        genotype="WT",  # Wild-type for all Figure 4
+        timestamp=timestamp,
+    )
 
     # Add session_id to session_info
     session_info["session_id"] = session_id

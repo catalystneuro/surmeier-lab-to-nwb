@@ -25,6 +25,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
@@ -262,13 +263,35 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Get first recording info for session description
 
-    # Create session ID with ++ separators (no dashes or underscores)
+    # Define cell type for metadata and session ID
     cell_type = "dSPN"  # Direct pathway SPN for dendritic excitability experiments
+
+    # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure1++DendriticExcitability++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"{cell_type}"
-    session_id = f"{base_session_id}++{script_specific_id}"
+
+    # Map condition to explicit state and pharmacology
+    if condition == "LID off-state":
+        state = "OFF"
+        pharmacology = "none"
+    elif condition == "LID on-state":
+        state = "ON"
+        pharmacology = "none"
+    elif condition == "LID on-state with SCH":
+        state = "ON"
+        pharmacology = "D1RA"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F1",
+        compartment="dend",  # dendritic recording
+        measurement="None",  # intrinsic excitability
+        spn_type="dspn",  # Direct pathway SPN
+        state=state,
+        pharmacology=pharmacology,
+        genotype="WT",  # Wild-type for all Figure 1
+        timestamp=timestamp,
+    )
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

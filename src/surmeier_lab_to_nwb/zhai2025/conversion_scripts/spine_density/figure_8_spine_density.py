@@ -24,6 +24,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
@@ -223,13 +224,33 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    # Create session ID using centralized format_condition dictionary
+    # Create canonical session ID with explicit parameters
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]
     condition_human_readable = format_condition[condition]["human_readable"]
-    base_session_id = f"Figure8SpineDensity{condition_camel_case}Timestamp{timestamp}"
-    script_specific_id = f"Sub{session_info['animal_id']}"
-    session_id = f"{base_session_id}{script_specific_id}"
+
+    # Map condition to explicit state (Figure 8 tests M1R CRISPR)
+    # The conditions in the data are "M1R CRISPR" and "control"
+    # Both are tested in OFF and ON states, but we need to determine state from context
+    # For now, assume these are OFF state recordings (can be updated based on actual data)
+    if condition == "M1R CRISPR":
+        state = "OFF"  # Default to OFF state
+        genotype = "M1RCRISPR"
+    elif condition == "control":
+        state = "OFF"  # Default to OFF state
+        genotype = "WT"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F8",
+        compartment="dend",  # dendritic imaging
+        measurement="2Pspine",  # 2-photon spine density
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology="none",  # No pharmacology
+        genotype=genotype,  # M1R CRISPR
+        timestamp=timestamp,
+    )
 
     # Handle conditional surgery based on condition
     surgery_addition = ""

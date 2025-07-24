@@ -86,7 +86,18 @@ def build_dendritic_icephys_table_structure(
         recording_info = recording_metadata["recording_info"]
 
         # Create location identifier from location and number
-        location_id = f"{recording_info['location']}_{recording_info['location_number']}"
+        # Handle different field naming conventions
+        if "location" in recording_info and "location_number" in recording_info:
+            # Standard format (e.g., figure_1_dendritic_excitability.py)
+            location_id = f"{recording_info['location']}_{recording_info['location_number']}"
+        elif "location_type" in recording_info and "location_number" in recording_info:
+            # OxoM format (e.g., figure_7_oxoM_dendritic_excitability.py)
+            location_id = f"{recording_info['location_type']}_{recording_info['location_number']}"
+        elif "location_id" in recording_info:
+            # Already has location_id
+            location_id = recording_info["location_id"]
+        else:
+            raise ValueError(f"Cannot determine location_id from recording_info: {recording_info.keys()}")
 
         if location_id not in location_to_recording_indices:
             location_to_recording_indices[location_id] = []
@@ -116,13 +127,35 @@ def build_dendritic_icephys_table_structure(
             seq_index = recording_indices.index(recording_index)
             location_sequential_indices.append(sequential_recording_indices[seq_index])
 
-        dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40
+        # Handle different field naming conventions for distance calculation
+        if "location" in recording_info:
+            # Standard format
+            dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40
+            dendrite_type = recording_info.get(
+                "location_full", "Distal" if recording_info["location"] == "dist" else "Proximal"
+            )
+        elif "location_type" in recording_info:
+            # OxoM format
+            dendrite_distance_um = 90 if recording_info["location_type"] == "dist" else 40
+            dendrite_type = "Distal" if recording_info["location_type"] == "dist" else "Proximal"
+        elif "approximate_distance_um" in recording_info:
+            # Direct distance specification
+            dendrite_distance_um = recording_info["approximate_distance_um"]
+            # Infer type from distance
+            dendrite_type = "Distal" if dendrite_distance_um > 60 else "Proximal"
+        else:
+            # Default values
+            dendrite_distance_um = 40  # Default to proximal
+            dendrite_type = "Proximal"
+
+        # Get dendrite number
+        dendrite_number = int(recording_info.get("location_number", 1))
 
         repetition_index = nwbfile.add_icephys_repetition(
             sequential_recordings=location_sequential_indices,
             dendrite_distance_um=dendrite_distance_um,
-            dendrite_type=recording_info["location_full"],  # "Distal" or "Proximal"
-            dendrite_number=int(recording_info["location_number"]),
+            dendrite_type=dendrite_type,
+            dendrite_number=dendrite_number,
         )
         repetition_indices.append(repetition_index)
 

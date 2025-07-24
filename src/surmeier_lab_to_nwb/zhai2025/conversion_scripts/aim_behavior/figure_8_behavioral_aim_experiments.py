@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
@@ -117,12 +118,26 @@ def convert_session_to_nwbfile(
     condition_camel_case = format_condition[standardized_condition]["CamelCase"]
     condition_human_readable = format_condition[standardized_condition]["human_readable"]
 
-    # Create BIDS-style session ID following general pattern
-    timestamp = session_info["session_start_time"].strftime("%Y%m%d_%H%M%S")
-    base_session_id = (
-        f"Figure8++BehavioralAIM++{condition_camel_case}++{timestamp}++Animal{animal_id}++Session{session_number}"
+    # Create canonical session ID with explicit parameters
+    timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
+
+    # Map genotype to canonical format
+    if "CRISPR" in genotype:
+        genotype_canonical = "M1RCRISPR"
+    else:
+        genotype_canonical = "WT"
+
+    # All AIM behavioral experiments are performed after L-DOPA administration (ON state)
+    session_id = generate_canonical_session_id(
+        fig="F8",
+        compartment="behav",  # Whole-animal behaviour
+        measurement="AIMs",  # AIM scoring
+        spn_type="pan",  # Non cell-specific
+        state="ON",  # AIM scoring is during L-DOPA treatment (ON state)
+        pharmacology="none",  # No pharmacology
+        genotype=genotype_canonical,
+        timestamp=timestamp,
     )
-    session_id = base_session_id
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {

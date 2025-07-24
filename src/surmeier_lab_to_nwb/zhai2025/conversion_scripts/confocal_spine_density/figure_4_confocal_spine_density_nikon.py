@@ -12,7 +12,6 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_4_conversi
 """
 
 import re
-import uuid
 from pathlib import Path
 from typing import Any, Dict
 
@@ -23,6 +22,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
     NikonImageStackInterface,
@@ -126,17 +126,39 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     # Get session start time from ND2 metadata
     session_start_time = interface.get_session_start_time()
 
-    # Create session ID using centralized format_condition dictionary
-    condition_camel_case = format_condition[condition]["CamelCase"]
+    # Create canonical session ID with explicit parameters
     condition_human_readable = format_condition[condition]["human_readable"]
 
-    # Create BIDS-style base session ID with detailed timestamp when available
+    # Create timestamp with detailed format when available
     if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+        timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    base_session_id = f"Figure4++ConfocalSpineDensity++{condition_camel_case}++{timestamp}++Sub{file_info['animal_id']}"
+    # Map condition to explicit state
+    if condition == "LID off-state iSPN":
+        state = "OFF"
+    elif condition == "LID on-state iSPN":
+        state = "ON"
+    elif condition == "control iSPN":
+        state = "CTRL"
+    elif condition == "PD iSPN":
+        state = "PD"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F4",
+        compartment="dend",  # dendritic imaging
+        measurement="confSpine",  # confocal spine density
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology="none",  # No pharmacology
+        genotype="WT",  # Wild-type
+        timestamp=timestamp,
+    )
+
+    base_session_id = session_id  # Keep for compatibility
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -154,7 +176,6 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
                 animal_id=file_info["animal_id"],
                 cell_number=file_info["cell_number"],
             ),
-            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": f"{base_session_id}_Cell{file_info['cell_number']}_Slide{file_info['slide_number']}_Slice{file_info['slice_number']}",
             "keywords": script_template["NWBFile"]["keywords"],

@@ -22,7 +22,7 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
@@ -287,19 +287,32 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
             "line_scan_calcium_channel": ophys_t_start,  # Ch2/Fluo4 line scan uses ophys timing
         }
 
-    # Create session ID following pattern from somatic excitability scripts
-    # Map genotype to condition format for consistency
-    genotype_to_condition = {
-        "WT": "WT oxoM treatment",
-        "KO": "CDGI KO oxoM treatment",
-    }
-
-    condition = genotype_to_condition.get(genotype, f"{genotype} oxoM treatment")
+    # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure7++DendriticExcitability++OxoM++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"Animal++{session_info['animal_id']}++Cell++{session_info['cell_number']}"
-    session_id = f"{base_session_id}++{script_specific_id}"
+
+    # Map genotype to canonical format
+    if genotype == "KO":
+        genotype_canonical = "CDGIKO"
+    else:
+        genotype_canonical = "WT"
+
+    # All oxoM experiments are considered pharmacological treatment
+    # State is ON for CDGI KO (dyskinetic) and CTRL for WT
+    if genotype == "KO":
+        state = "ON"  # CDGI KO shows dyskinetic state
+    else:
+        state = "CTRL"  # WT is control state
+
+    session_id = generate_canonical_session_id(
+        fig="F7",
+        compartment="dend",  # dendritic recording
+        measurement="None",  # intrinsic excitability
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology="M1RA",  # Oxotremorine-M is M1R agonist
+        genotype=genotype_canonical,
+        timestamp=timestamp,
+    )
 
     session_info.update(
         {
@@ -324,8 +337,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     # Create session-specific metadata from template with runtime substitutions
     cell_type = "CDGI KO iSPN" if genotype == "KO" else "WT iSPN"  # Cell type based on genotype
     genotype_description = "CDGI knockout" if genotype == "KO" else "wildtype"
-    condition_underscore = format_condition[condition]["underscore"]
-    condition_human_readable = format_condition[condition]["human_readable"]
+
+    # Map genotype to condition for human-readable description
+    if genotype == "KO":
+        condition_human_readable = "CDGI KO oxoM treatment"
+        condition_underscore = "CDGI_KO_oxoM_treatment"
+    else:
+        condition_human_readable = "WT oxoM treatment"
+        condition_underscore = "WT_oxoM_treatment"
 
     session_specific_metadata = {
         "NWBFile": {

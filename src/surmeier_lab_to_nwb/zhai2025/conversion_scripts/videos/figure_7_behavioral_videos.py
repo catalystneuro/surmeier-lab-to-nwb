@@ -27,6 +27,7 @@ from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
 )
 
 
@@ -209,13 +210,25 @@ def convert_session_to_nwbfile(
     standardized_condition = genotype_to_condition.get(genotype, "knockout")
 
     # Use centralized format_condition dictionary
-    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
     condition_human_readable = format_condition[standardized_condition]["human_readable"]
 
-    # Create BIDS-style session ID following general pattern
+    # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d")
-    base_session_id = f"Figure7++BehavioralVideos++{condition_camel_case}++{timestamp}++Animal{animal_id}"
-    session_id = base_session_id
+
+    # Map condition to state - CDGI KO videos capture behavior during ON state
+    # All Figure 7 videos are from L-DOPA treated animals (ON state)
+    state = "ON"  # All videos are during L-DOPA treatment
+
+    session_id = generate_canonical_session_id(
+        fig="F7",
+        compartment="behav",  # Whole-animal behaviour
+        measurement="video",  # Raw video
+        spn_type="pan",  # Non cell-specific
+        state=state,
+        pharmacology="none",  # No pharmacology
+        genotype="CDGIKO",  # CDGI knock-out
+        timestamp=timestamp,
+    )
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

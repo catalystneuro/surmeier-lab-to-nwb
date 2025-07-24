@@ -12,7 +12,6 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_4_conversi
 """
 
 import re
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
@@ -23,6 +22,10 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.device import Device
+
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    generate_canonical_session_id,
+)
 
 
 def parse_pty_file(pty_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -232,20 +235,27 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     # Use current date as session start time (OIF files don't contain reliable timestamps)
     session_start_time = datetime.now().astimezone()
 
-    # Create session ID using centralized format_condition dictionary
+    # Create canonical session ID with explicit parameters
     # This script processes methodological validation data (no experimental conditions)
-    condition = "methodological validation"
-    condition_camel_case = "MethodologicalValidation"  # Manual since not in format_condition dict
     condition_human_readable = "methodological validation"
 
-    # Create BIDS-style base session ID with detailed timestamp when available
+    # Create timestamp with detailed format when available
     if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+        timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    base_session_id = f"Figure4H++ConfocalSpineDensityOlympus++{condition_camel_case}++{timestamp}++Sub{animal_id}"
-    session_id = base_session_id
+    # For methodological validation, we use control state
+    session_id = generate_canonical_session_id(
+        fig="F4",
+        compartment="dend",  # dendritic imaging
+        measurement="confSpine",  # confocal spine density
+        spn_type="ispn",  # Indirect pathway SPN
+        state="CTRL",  # Control for methodological validation
+        pharmacology="none",  # No pharmacology
+        genotype="WT",  # Wild-type
+        timestamp=timestamp,
+    )
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -261,7 +271,6 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
             "session_description": script_template["NWBFile"]["session_description"].format(
                 num_stacks=len(oif_files), animal_id=animal_id
             ),
-            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_id,
             "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],

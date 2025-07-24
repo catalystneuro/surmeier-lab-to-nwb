@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
 )
 
 
@@ -230,10 +231,20 @@ def convert_session_to_nwbfile(
     condition_camel_case = format_condition[standardized_condition]["CamelCase"]
     condition_human_readable = format_condition[standardized_condition]["human_readable"]
 
-    # Create session ID using centralized format
+    # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d")
-    base_session_id = f"SupplementaryFigure3++BehavioralVideos++{condition_camel_case}++{timestamp}++Animal{animal_id}"
-    session_id = base_session_id
+
+    # All supplementary figure 3 videos are M1R CRISPR animals during L-DOPA treatment (ON state)
+    session_id = generate_canonical_session_id(
+        fig="SF3",  # Supplementary Figure 3
+        compartment="behav",  # Whole-animal behaviour
+        measurement="video",  # Raw video
+        spn_type="pan",  # Non cell-specific
+        state="ON",  # All videos are during L-DOPA treatment
+        pharmacology="none",  # No pharmacology
+        genotype="M1RCRISPR",  # M1R CRISPR
+        timestamp=timestamp,
+    )
 
     # Create session-specific metadata from template with runtime substitutions
     conversion_specific_metadata = {

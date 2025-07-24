@@ -38,6 +38,7 @@ from pynwb import NWBFile
 # Import interfaces from the codebase
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.optical_stimulation.optical_stimulation_utils import (
@@ -204,12 +205,27 @@ def convert_session_to_nwbfile(
     session_date_str = session_start_time.strftime("%Y-%m-%d")
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
 
-    # Create session ID using centralized format_condition dictionary
-    condition_camel_case = format_condition[condition]["CamelCase"]
+    # Create canonical session ID with explicit parameters
     condition_human_readable = format_condition[condition]["human_readable"]
-    base_session_id = f"Figure4OpticalStimuli{condition_camel_case}Timestamp{timestamp}"
-    script_specific_id = f"Session{session_info['session_letter']}"
-    session_id = f"{base_session_id}{script_specific_id}"
+
+    # Map condition to explicit state
+    if condition == "LID off-state":
+        state = "OFF"
+    elif condition == "LID on-state":
+        state = "ON"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F4",
+        compartment="dend",  # dendritic stimulation
+        measurement="oEPSC",  # Sr²⁺ oEPSC amplitude
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology="none",  # No pharmacology for Figure 4
+        genotype="WT",  # Wild-type for all Figure 4
+        timestamp=timestamp,
+    )
 
     session_info.update(
         {

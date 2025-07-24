@@ -22,6 +22,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
@@ -189,13 +190,28 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
-    # Create session ID following pattern from figure_1_somatic_excitability.py
-    cell_type = "iSPN"  # Direct pathway SPN, consistent with Figure 7 context
+    # Create canonical session ID with explicit parameters
+    cell_type = "iSPN"  # Indirect pathway SPN
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure7++SomaticExcitability++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"{cell_type}"  # Specific to this script, can be adjusted if needed
-    session_id = f"{base_session_id}++{script_specific_id}"
+
+    # Map condition to explicit state (Figure 7 tests CDGI KO)
+    if condition == "KO off-state":
+        state = "OFF"
+    elif condition == "KO on-state":
+        state = "ON"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F7",
+        compartment="som",  # somatic recording
+        measurement="None",  # intrinsic excitability
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology="none",  # No pharmacology
+        genotype="CDGIKO",  # CDGI knock-out
+        timestamp=timestamp,
+    )
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

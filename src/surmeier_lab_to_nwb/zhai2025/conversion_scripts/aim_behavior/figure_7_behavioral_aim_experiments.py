@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
@@ -124,8 +125,26 @@ def convert_session_to_nwbfile(
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    base_session_id = f"Figure7++BehavioralAIM++{condition_camel_case}++{timestamp}++Sub{session_info['animal_id']}++Session{session_number}"
-    session_id = base_session_id
+    # Use centralized format_condition dictionary
+    condition_human_readable = format_condition[standardized_condition]["human_readable"]
+
+    # Map genotype to state - AIM scoring is done during ON state (L-DOPA treated)
+    # All AIM behavioral experiments are performed after L-DOPA administration
+    if genotype == "KO" or genotype == "CDGI KO":
+        genotype_canonical = "CDGIKO"
+    else:
+        genotype_canonical = "WT"
+
+    session_id = generate_canonical_session_id(
+        fig="F7",
+        compartment="behav",  # Whole-animal behaviour
+        measurement="AIMs",  # AIM scoring
+        spn_type="pan",  # Non cell-specific
+        state="ON",  # AIM scoring is during L-DOPA treatment (ON state)
+        pharmacology="none",  # No pharmacology
+        genotype=genotype_canonical,
+        timestamp=timestamp,
+    )
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {

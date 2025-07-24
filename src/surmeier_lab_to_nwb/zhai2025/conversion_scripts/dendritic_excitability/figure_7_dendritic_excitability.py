@@ -24,6 +24,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
@@ -273,13 +274,28 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_7_dendritic_excitability"]
 
-    # Create session ID following pattern from somatic excitability scripts
+    # Create canonical session ID with explicit parameters
     cell_type = "CDGI KO iSPN"  # CDGI knockout indirect pathway SPN
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure7++DendriticExcitability++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"{cell_type.replace(' ', '')}++Sub++{session_folder_path.name}"
-    session_id = f"{base_session_id}++{script_specific_id}"
+
+    # Map condition to explicit state (Figure 7 tests CDGI KO)
+    if condition == "KO off-state":
+        state = "OFF"
+    elif condition == "KO on-state":
+        state = "ON"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F7",
+        compartment="dend",  # dendritic recording
+        measurement="None",  # intrinsic excitability
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology="none",  # No pharmacology
+        genotype="CDGIKO",  # CDGI knock-out
+        timestamp=timestamp,
+    )
 
     # Create session-specific metadata from template with runtime substitutions
     condition_underscore = format_condition[condition]["underscore"]

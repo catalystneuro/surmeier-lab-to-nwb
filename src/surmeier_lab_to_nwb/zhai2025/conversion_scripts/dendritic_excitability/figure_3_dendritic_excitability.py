@@ -26,6 +26,7 @@ from pynwb import NWBFile
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     FOLDER_TO_PAPER_CONDITION,
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
@@ -273,13 +274,35 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_folder = next(iter(recording_id_to_folder.values()))
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
-    # Create session ID following pattern from somatic excitability scripts
+    # Define cell type for metadata and session ID
     cell_type = "iSPN"  # Indirect pathway SPN for dendritic excitability experiments
+
+    # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure3++DendriticExcitability++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"{cell_type}++Cell++{first_recording_info['cell_number']}"
-    session_id = f"{base_session_id}++{script_specific_id}"
+
+    # Map condition to explicit state and pharmacology
+    if condition == "LID off-state":
+        state = "OFF"
+        pharmacology = "none"
+    elif condition == "LID on-state":
+        state = "ON"
+        pharmacology = "none"
+    elif condition == "LID on-state with sul (iSPN)":
+        state = "ON"
+        pharmacology = "D2RA"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F3",
+        compartment="dend",  # dendritic recording
+        measurement="None",  # intrinsic excitability
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology=pharmacology,
+        genotype="WT",  # Wild-type for all Figure 3
+        timestamp=timestamp,
+    )
 
     # Handle pharmacology conditions dynamically
     pharmacology_text = general_metadata["NWBFile"]["pharmacology"]

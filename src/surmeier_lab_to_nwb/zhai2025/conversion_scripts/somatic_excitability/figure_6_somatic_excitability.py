@@ -22,6 +22,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
@@ -193,12 +194,30 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
-    # Create session ID following pattern from figure_1_somatic_excitability.py
+    # Define cell type for metadata and session ID
+    cell_type = "iSPN"  # Indirect pathway SPN
+
+    # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure6++SomaticExcitability++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"iSPN"  # Specific to this script, can be adjusted if needed
-    session_id = f"{base_session_id}++{script_specific_id}"
+
+    # Map condition to pharmacology (Figure 6 tests M1R antagonist in OFF state)
+    if condition == "control":
+        pharmacology = "none"
+    elif condition == "M1R antagonist":
+        pharmacology = "M1RA"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F6",
+        compartment="som",
+        measurement="None",  # intrinsic excitability
+        spn_type="ispn",  # Indirect pathway SPN
+        state="OFF",  # Always OFF state for Figure 6
+        pharmacology=pharmacology,
+        genotype="WT",  # Wild-type for all Figure 6
+        timestamp=timestamp,
+    )
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

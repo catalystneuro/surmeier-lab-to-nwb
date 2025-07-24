@@ -22,6 +22,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
@@ -188,13 +189,33 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
-    # Create session ID following pattern from figure_1_somatic_excitability.py
+    # Create canonical session ID with explicit parameters
     cell_type = "iSPN"
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure8++SomaticExcitability++{condition_camel_case}++{timestamp}"
-    script_specific_id = f"{cell_type}"  # Specific to this script, can be adjusted if needed
-    session_id = f"{base_session_id}++{script_specific_id}"
+
+    # Map condition to explicit state (Figure 8 tests M1R CRISPR)
+    # The conditions in the data are "M1R CRISPR" and "interleaved control"
+    # Both are tested in OFF and ON states, but we need to determine state from context
+    # For now, assume these are OFF state recordings (can be updated based on actual data)
+    if condition == "M1R CRISPR":
+        state = "OFF"  # Default to OFF state
+        genotype = "M1RCRISPR"
+    elif condition == "interleaved control":
+        state = "OFF"  # Default to OFF state
+        genotype = "WT"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F8",
+        compartment="som",  # somatic recording
+        measurement="None",  # intrinsic excitability
+        spn_type="ispn",  # Indirect pathway SPN
+        state=state,
+        pharmacology="none",  # No pharmacology
+        genotype=genotype,  # M1R CRISPR
+        timestamp=timestamp,
+    )
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

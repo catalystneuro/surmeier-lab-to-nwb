@@ -24,6 +24,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
@@ -215,13 +216,28 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    # Create session ID using centralized format_condition dictionary
+    # Create canonical session ID with explicit parameters
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
-    condition_camel_case = format_condition[condition]["CamelCase"]
     condition_human_readable = format_condition[condition]["human_readable"]
-    base_session_id = f"Figure6SpineDensity{condition_camel_case}Timestamp{timestamp}"
-    script_specific_id = f"Sub{session_info['animal_id']}"
-    session_id = f"{base_session_id}{script_specific_id}"
+
+    # Map condition to pharmacology (Figure 6 tests M1R antagonist in OFF state)
+    if condition == "control":
+        pharmacology = "none"
+    elif condition == "M1R antagonist":
+        pharmacology = "M1RA"
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    session_id = generate_canonical_session_id(
+        fig="F6",
+        compartment="dend",  # dendritic imaging
+        measurement="spine",  # spine density measurement
+        spn_type="ispn",  # Indirect pathway SPN for Figure 6
+        state="OFF",  # Always OFF state for Figure 6
+        pharmacology=pharmacology,
+        genotype="WT",  # Wild-type for all Figure 6
+        timestamp=timestamp,
+    )
 
     # Handle conditional pharmacology based on condition
     pharmacology_addition = ""
