@@ -291,13 +291,24 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
 
 if __name__ == "__main__":
+    import argparse
     import logging
 
     from tqdm import tqdm
 
-    # Control verbose output
-    verbose = False  # Set to True for detailed output
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Convert Figure 4 spine density data to NWB format")
+    parser.add_argument(
+        "--stub-test",
+        type=bool,
+        default=True,
+        help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
+    )
+
+    args = parser.parse_args()
+    stub_test = args.stub_test
+
+    verbose = False
 
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 

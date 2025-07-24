@@ -582,14 +582,25 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
 
 if __name__ == "__main__":
+    import argparse
     import logging
 
     from tqdm import tqdm
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Convert Figure 3 dendritic excitability data to NWB format")
+    parser.add_argument(
+        "--stub-test",
+        type=bool,
+        default=True,
+        help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
+    )
+
+    args = parser.parse_args()
+    stub_test = args.stub_test
+
     # Set to True to enable verbose output
     verbose = False
-    # Set to True to process only two sessions per condition (for testing)
-    stub_test = True
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)

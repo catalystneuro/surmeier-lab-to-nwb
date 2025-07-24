@@ -1,5 +1,4 @@
 from .interfaces import (
-    PrairieViewBrightnessOverTimeInterface,  # noqa: F401
     PrairieViewLineScanInterface,  # noqa: F401
 )
 from .interfaces.behavior_interfaces import (

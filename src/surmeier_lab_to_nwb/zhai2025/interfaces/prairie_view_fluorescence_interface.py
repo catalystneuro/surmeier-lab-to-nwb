@@ -1,3 +1,5 @@
+import re
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -48,6 +50,59 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
         # Load XML metadata to get region information
         self._load_roi_region_data()
 
+        # Find background reference files
+        self._find_reference_files()
+
+    def _find_reference_files(self):
+        """Find background reference TIFF files in the References directory."""
+        self.reference_files = {}
+
+        # Look for References directory in the same folder as the BOT CSV file
+        references_dir = self.bot_csv_data_file_path.parent / "References"
+
+        if references_dir.exists():
+            # Find all reference TIFF files, prioritizing uncompressed 16-bit files
+            reference_tiffs = list(references_dir.glob("*Reference.tif"))
+
+            for ref_file in reference_tiffs:
+                # Parse filename to extract channel/window information
+                filename = ref_file.stem
+
+                # Include all reference files, handling both compressed and uncompressed
+                if "Ch2" in filename:
+                    if "16bit" in filename:
+                        self.reference_files["Ch2_16bit"] = ref_file
+                    elif "8bit" in filename and "Window1" in filename:
+                        self.reference_files["Ch2_8bit_Window1"] = ref_file
+                elif "Ch3" in filename and "16bit" in filename:
+                    self.reference_files["Ch3_16bit"] = ref_file
+                elif "Dodt" in filename and "Window2" in filename:
+                    self.reference_files["Dodt_Window2"] = ref_file
+        else:
+            # No references directory found
+            self.reference_files = {}
+
+    def get_session_start_time(self):
+        """Get session start time from XML metadata.
+
+        Returns
+        -------
+        datetime
+            Session start time extracted from XML metadata
+        """
+        with open(self.xml_metadata_file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            match = re.search(r'<PVScan.*?date="(.*?)"', content)
+            if match:
+                date_str = match.group(1)
+                try:
+                    dt_object = datetime.strptime(date_str, "%m/%d/%Y %I:%M:%S %p")
+                    return dt_object
+                except ValueError:
+                    raise ValueError(f"Could not parse date string: {date_str} in file: {self.xml_metadata_file_path}")
+            else:
+                raise ValueError(f"No date found in XML metadata file: {self.xml_metadata_file_path}")
+
     def _load_roi_region_data(self):
         """Load region information from XML metadata."""
         with open(self.xml_metadata_file_path, "r") as f:
@@ -74,7 +129,7 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
                 "region": f"Region {index + 1}",
             }
 
-    def add_to_nwbfile(self, nwbfile, metadata=None):
+    def add_to_nwbfile(self, nwbfile, metadata=None, trial_id=None):
         """Add brightness over time data to the NWB file.
 
         Parameters
@@ -83,6 +138,8 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             The NWB file to add data to
         metadata : dict, optional
             Additional metadata (not used by this interface)
+        trial_id : str, optional
+            Unique trial identifier for multi-trial sessions
         """
         # Load brightness over time data
         bot_df = pd.read_csv(self.bot_csv_data_file_path)
@@ -115,9 +172,15 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
         else:
             ophys_module = nwbfile.processing["ophys"]
 
-        # Create image segmentation
-        image_segmentation = ImageSegmentation()
-        ophys_module.add(image_segmentation)
+        # Create or get image segmentation
+        if "ImageSegmentation" in ophys_module.data_interfaces:
+            image_segmentation = ophys_module["ImageSegmentation"]
+        else:
+            image_segmentation = ImageSegmentation()
+            ophys_module.add(image_segmentation)
+
+        # Create unique naming suffix if trial_id provided
+        name_suffix = f"_{trial_id}" if trial_id else ""
 
         # Process each channel/region
         for channel_name, region_metadata in self.regions_info.items():
@@ -125,10 +188,34 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             # Since we don't have raw imaging data in this interface,
             # we'll create a placeholder imaging plane
             if f"ImagingPlane{channel_name}" not in nwbfile.imaging_planes:
-                # Create a minimal imaging plane for fluorescence data
+                # Get device from NWB file
+                if "default" in nwbfile.devices:
+                    device = nwbfile.devices["default"]
+                else:
+                    # Create default device if not exists
+                    from pynwb.device import Device
+
+                    device = Device(
+                        name="default",
+                        description="Bruker two-photon microscope for acetylcholine GRAB biosensor imaging",
+                    )
+                    nwbfile.add_device(device)
+
+                # Create optical channel
+                from pynwb.ophys import OpticalChannel
+
+                optical_channel = OpticalChannel(
+                    name=f"OpticalChannel{channel_name}",
+                    description=f"Optical channel for {channel_name} fluorescence detection",
+                    emission_lambda=520.0,  # GRABACh3.0 emission wavelength
+                )
+
+                # Create imaging plane for fluorescence data
                 imaging_plane = nwbfile.create_imaging_plane(
                     name=f"ImagingPlane{channel_name}",
                     description=f"Imaging plane for acetylcholine fluorescence measurements in {channel_name}",
+                    optical_channel=[optical_channel],
+                    device=device,
                     excitation_lambda=920.0,  # Two-photon excitation wavelength
                     imaging_rate=21.26,  # From protocol specifications
                     indicator="GRABACh3.0",
@@ -137,9 +224,10 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             else:
                 imaging_plane = nwbfile.imaging_planes[f"ImagingPlane{channel_name}"]
 
-            # Create plane segmentation
+            # Create plane segmentation with unique naming
+            plane_seg_name = f"PlaneSegmentation{channel_name}{name_suffix}"
             plane_segmentation = image_segmentation.create_plane_segmentation(
-                name=f"PlaneSegmentation{channel_name}",
+                name=plane_seg_name,
                 description="Segmentation of regions for acetylcholine brightness over time analysis.",
                 imaging_plane=imaging_plane,
             )
@@ -177,10 +265,13 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             rate = calculate_regular_series_rate(series=timestamps)
             recording_t_start = timestamps[0]
 
+            # Create ROI response series with unique naming
+            series_name = f"AcetylcholineFluorescence{channel_name}{name_suffix}"
+
             if rate is not None:
                 # Regular timestamps - use starting_time + rate
                 roi_response_series = RoiResponseSeries(
-                    name=f"AcetylcholineFluorescence{channel_name}",
+                    name=series_name,
                     description=f"Acetylcholine fluorescence brightness over time measurements for {region_metadata['region']}",
                     data=region_data,
                     rois=roi_table_region,
@@ -191,7 +282,7 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             else:
                 # Irregular timestamps - use explicit timestamps
                 roi_response_series = RoiResponseSeries(
-                    name=f"AcetylcholineFluorescence{channel_name}",
+                    name=series_name,
                     description=f"Acetylcholine fluorescence brightness over time measurements for {region_metadata['region']}",
                     data=region_data,
                     rois=roi_table_region,
@@ -200,3 +291,59 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
                 )
 
             fluorescence.add_roi_response_series(roi_response_series)
+
+        # Add background reference images if available
+        self._add_reference_images_to_nwbfile(nwbfile, name_suffix)
+
+    def _add_reference_images_to_nwbfile(self, nwbfile, name_suffix=""):
+        """Add background reference images to the NWB file."""
+        if not self.reference_files:
+            return
+
+        # Load and add each reference image using Images container in acquisition
+        import tifffile
+        from pynwb.image import GrayscaleImage, Images
+
+        # Create or get Images container for background references in acquisition
+        images_name = f"BackgroundReferences{name_suffix}"
+        if hasattr(nwbfile, "acquisition") and images_name in nwbfile.acquisition:
+            background_images = nwbfile.acquisition[images_name]
+        else:
+            background_images = Images(
+                name=images_name,
+                description="Background reference images - PMT background measured with zero laser power for background subtraction as described in methods.",
+            )
+            nwbfile.add_acquisition(background_images)
+
+        for ref_type, ref_file_path in self.reference_files.items():
+            # Load TIFF image with error handling for compression
+            ref_image_data = tifffile.imread(ref_file_path)
+
+            # Handle multi-channel images (e.g., RGBA) by converting to grayscale
+            if len(ref_image_data.shape) == 3:
+                if ref_image_data.shape[2] == 4:  # RGBA
+                    # Use RGB channels and ignore alpha, convert to grayscale
+                    import numpy as np
+
+                    ref_image_data = np.dot(ref_image_data[:, :, :3], [0.2989, 0.5870, 0.1140]).astype(
+                        ref_image_data.dtype
+                    )
+                elif ref_image_data.shape[2] == 3:  # RGB
+                    # Convert RGB to grayscale
+                    import numpy as np
+
+                    ref_image_data = np.dot(ref_image_data, [0.2989, 0.5870, 0.1140]).astype(ref_image_data.dtype)
+                else:
+                    # Use first channel
+                    ref_image_data = ref_image_data[:, :, 0]
+
+            # Create grayscale image
+            ref_image_name = f"{ref_type}_reference"
+            description = f"Background reference image for {ref_type}. PMT background measured with zero laser power."
+            if "8bit" in ref_type:
+                description += " (Converted from RGBA to grayscale)"
+
+            background_image = GrayscaleImage(name=ref_image_name, data=ref_image_data, description=description)
+
+            # Add to images container
+            background_images.add_image(background_image)

@@ -34,11 +34,60 @@ from surmeier_lab_to_nwb.zhai2025.interfaces import (
 )
 
 
-def parse_session_info_from_folder_name(session_folder: Path) -> dict[str, Any]:
+def parse_slice_session_info(slice_folder: Path) -> dict[str, Any]:
     """
-    Parse session information from BOT session folder names.
+    Parse session information from slice folder names (e.g., 04022024slice1ROI1).
 
-    Expected format: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[session_num]
+    Parameters
+    ----------
+    slice_folder : Path
+        Path to the slice folder containing BOT recordings
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing slice session information
+    """
+    folder_name = slice_folder.name
+
+    # Parse slice folder name: [date][slice][ROI] (e.g., 04022024slice1ROI1)
+    pattern = r"(\d{8})(slice\d+)(ROI\d+)?"
+    match = re.match(pattern, folder_name)
+
+    if not match:
+        # Try alternative pattern without ROI
+        pattern = r"(\d{8})(slice\d+[A-Z]?)"
+        match = re.match(pattern, folder_name)
+
+    if not match:
+        raise ValueError(f"Could not parse slice folder name: {folder_name}")
+
+    date_str = match.group(1)
+    slice_info = match.group(2)
+    roi_info = match.group(3) if match.lastindex >= 3 else None
+
+    # Parse date (MMDDYYYY format)
+    month = int(date_str[0:2])
+    day = int(date_str[2:4])
+    year = int(date_str[4:8])
+    session_date = datetime(year, month, day)
+
+    full_slice_info = slice_info + (roi_info or "")
+
+    return {
+        "slice_folder_name": folder_name,
+        "session_date": session_date,
+        "date_str": session_date.strftime("%Y-%m-%d"),
+        "slice_info": full_slice_info,
+        "subject_id": f"mouse_{date_str}",  # Use date as animal proxy
+    }
+
+
+def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
+    """
+    Parse trial information from individual BOT recording folder names.
+
+    Expected format: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[trial_num]
     Examples:
     - BOT_04162024_slice2ROI1_50nMDA_burst-001
     - BOT_05242024_slice1A_ctr_single-001
@@ -46,51 +95,45 @@ def parse_session_info_from_folder_name(session_folder: Path) -> dict[str, Any]:
 
     Parameters
     ----------
-    session_folder : Path
-        Path to the session folder
+    bot_folder : Path
+        Path to the BOT recording folder
 
     Returns
     -------
     Dict[str, Any]
-        Dictionary containing session information
+        Dictionary containing trial information
     """
-    session_name = session_folder.name
+    trial_name = bot_folder.name
 
-    # Parse session name: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[session_num]
+    # Parse trial name: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[trial_num]
     pattern = r"BOT_(\d{8})_(.+?)_([^_]+)_([^-]+)-(\d+)"
-    match = re.match(pattern, session_name)
+    match = re.match(pattern, trial_name)
 
     if not match:
         # Handle calibration sessions (ACh, TTX) - no stimulation protocol
         calibration_pattern = r"BOT_(\d{8})_(.+?)_([^-]+)-(\d+)"
-        calibration_match = re.match(calibration_pattern, session_name)
+        calibration_match = re.match(calibration_pattern, trial_name)
 
         if calibration_match:
-            date_str, slice_info, treatment, session_num = calibration_match.groups()
+            date_str, slice_info, treatment, trial_num = calibration_match.groups()
 
             # Check if this is a real calibration session (ACh, TTX) or missing stimulation type
             if treatment in ["ACh", "TTX"] or "ACh" in treatment or "TTX" in treatment:
                 stimulation = "calibration"
             else:
-                # Experimental session missing stimulation type - assume single pulse
+                # Experimental trial missing stimulation type - assume single pulse
                 stimulation = "single"
-                print(f"Warning: Session {session_name} missing stimulation type, assuming single pulse")
+                print(f"Warning: Trial {trial_name} missing stimulation type, assuming single pulse")
         else:
-            raise ValueError(f"Could not parse session folder name: {session_name}")
+            raise ValueError(f"Could not parse BOT folder name: {trial_name}")
     else:
-        date_str, slice_info, treatment, stimulation, session_num = match.groups()
+        date_str, slice_info, treatment, stimulation, trial_num = match.groups()
 
         # Check if stimulation field contains calibration markers
         if stimulation in ["ACh", "TTX"] or "ACh" in stimulation or "TTX" in stimulation:
-            # This is actually a calibration session, adjust treatment and stimulation
+            # This is actually a calibration trial, adjust treatment and stimulation
             treatment = f"{treatment}_{stimulation}_calibration"
             stimulation = "calibration"
-
-    # Parse date (MMDDYYYY format)
-    month = int(date_str[0:2])
-    day = int(date_str[2:4])
-    year = int(date_str[4:8])
-    session_date = datetime(year, month, day)
 
     # Map treatment abbreviations to full names
     treatment_mapping = {
@@ -117,53 +160,61 @@ def parse_session_info_from_folder_name(session_folder: Path) -> dict[str, Any]:
     stimulation_full = stimulation_mapping.get(stimulation, stimulation)
 
     return {
-        "session_name": session_name,
-        "session_date": session_date,
-        "date_str": session_date.strftime("%Y-%m-%d"),
-        "slice_info": slice_info,
+        "trial_name": trial_name,
         "treatment": treatment_full,
         "stimulation": stimulation_full,
-        "session_number": session_num,
+        "trial_number": trial_num,
         "is_calibration": treatment in ["ACh", "TTX"] or "ACh" in treatment or "TTX" in treatment,
     }
 
 
-def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bool = False) -> NWBFile:
+def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session_times_json: dict = None) -> NWBFile:
     """
-    Convert a single session of Figure 5 GRABACh3.0 data to NWB format.
+    Convert a single slice session (containing multiple BOT trials) to NWB format.
 
     Parameters
     ----------
-    session_folder : Path
-        Path to the session folder
+    slice_folder : Path
+        Path to the slice folder (e.g., 04022024slice1ROI1)
     condition : str
         Experimental condition ("UL control", "PD", "LID off")
-    verbose : bool, default=False
-        Enable verbose output
+    session_times_json : dict, optional
+        Session timing data from JSON analysis
 
     Returns
     -------
     NWBFile
         NWB file with the converted data
     """
-    # Parse session information
-    session_info = parse_session_info_from_folder_name(session_folder)
+    # Parse slice session information
+    session_info = parse_slice_session_info(slice_folder)
 
-    # Find required files for BOT interface
-    bot_csv_file = None
-    xml_metadata_file = None
+    # Get all BOT trial folders in this slice session
+    bot_trial_folders = [f for f in slice_folder.iterdir() if f.is_dir() and f.name.startswith("BOT_")]
 
-    for file in session_folder.iterdir():
-        if file.name.endswith("-botData.csv"):
-            bot_csv_file = file
-        elif file.name.endswith(".xml") and "VoltageRecording" not in file.name and "VoltageOutput" not in file.name:
-            xml_metadata_file = file
+    if not bot_trial_folders:
+        raise FileNotFoundError(f"No BOT trial folders found in {slice_folder}")
 
-    if not bot_csv_file:
-        raise FileNotFoundError(f"No botData.csv file found in {session_folder}")
+    # Sort trials for consistent ordering
+    bot_trial_folders.sort()
 
-    if not xml_metadata_file:
-        raise FileNotFoundError(f"No XML metadata file found in {session_folder}")
+    # Get session start time from the first trial's XML if available
+    first_trial_folder = bot_trial_folders[0]
+    xml_files = [
+        f
+        for f in first_trial_folder.iterdir()
+        if f.name.endswith(".xml") and "VoltageRecording" not in f.name and "VoltageOutput" not in f.name
+    ]
+
+    if xml_files:
+        # Use interface to get session start time
+        temp_csv = [f for f in first_trial_folder.iterdir() if f.name.endswith("-botData.csv")][0]
+        temp_interface = PrairieViewFluorescenceInterface(
+            bot_csv_data_file_path=temp_csv, xml_metadata_file_path=xml_files[0]
+        )
+        actual_session_start_time = temp_interface.get_session_start_time()
+    else:
+        actual_session_start_time = None
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -175,40 +226,31 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
 
     # Create session-specific metadata with Chicago timezone
     central_tz = ZoneInfo("America/Chicago")
-    session_start_time = datetime.combine(session_info["session_date"], datetime.min.time()).replace(tzinfo=central_tz)
 
-    # Create BIDS-style base session ID with detailed timestamp when available
-    if hasattr(session_start_time, "hour"):
+    if actual_session_start_time:
+        session_start_time = actual_session_start_time.replace(tzinfo=central_tz)
         timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
     else:
+        session_start_time = datetime.combine(session_info["session_date"], datetime.min.time()).replace(
+            tzinfo=central_tz
+        )
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    base_session_id = f"figure5_AcetylcholineGRAB_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{session_info['slice_info']}"
-    session_id = f"{base_session_id}_Session{session_info['session_number']}"
+    # Create session ID using slice folder name
+    condition_safe = condition.replace(" ", "_").replace("-", "_")
+    session_id = f"figure5_AcetylcholineGRAB_{condition_safe}_{session_info['slice_folder_name']}"
 
-    # Handle surgery addition from template
-    surgery_text = general_metadata["NWBFile"]["surgery"] + " " + script_template["surgery_addition"]
-
-    # Handle pharmacology conditions dynamically
-    pharmacology_text = general_metadata["NWBFile"]["pharmacology"]
-    treatment = session_info["treatment"]
-    if treatment == "sulpiride" or "sul" in treatment:
-        pharmacology_text += " " + script_template["pharmacology_conditions"]["sulpiride"]
-    elif treatment == "quinpirole" or "quin" in treatment:
-        pharmacology_text += " " + script_template["pharmacology_conditions"]["quinpirole"]
-    elif treatment == "50nM_dopamine" or "50nMDA" in treatment:
-        pharmacology_text += " " + script_template["pharmacology_conditions"]["dopamine"]
+    # Handle surgery and pharmacology from template
+    surgery_text = general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"]
+    pharmacology_text = (
+        general_metadata["NWBFile"]["pharmacology"]
+        + " All treatments applied during this session as described in trials table."
+    )
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition,
-                treatment=session_info["treatment"],
-                stimulation=session_info["stimulation"],
-                session_number=session_info["session_number"],
-                slice_info=session_info["slice_info"],
-            ),
+            "session_description": f"Acetylcholine GRAB biosensor session for {condition} condition in slice {session_info['slice_info']}. Contains multiple trials with different treatments and stimulation protocols.",
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": script_template["NWBFile"]["experiment_description"],
@@ -218,7 +260,7 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"grabatch_mouse_{session_info['slice_info']}",
+            "subject_id": session_info["subject_id"],
             "description": script_template["Subject"]["description"].format(
                 session_id=session_id, date_str=session_info["date_str"]
             ),
@@ -278,92 +320,110 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     )
     nwbfile.add_device(imaging_device)
 
-    # Add stimulation protocol information
-    general_stimulation_description = (
-        f"Electrical stimulation using concentric bipolar electrode (CBAPD75, FHC) "
-        f"placed 200 μm ventral to imaging region. {session_info['stimulation']} protocol "
-        f"as described in methods. Stimulation delivered at t=3s after baseline start. "
-        f"XML metadata shows LED stimulator with different parameters but paper "
-        f"specifications take precedence."
+    # Create trials table for all BOT recordings in this session
+    trials_table = TimeIntervals(
+        name="trials", description="Individual BOT recording trials with different treatments and stimulation protocols"
     )
 
-    if session_info["stimulation"] == "single_pulse":
-        session_stimulation_description = "Single electrical pulse: 1 ms duration, 0.3 mA amplitude"
-    elif session_info["stimulation"] == "burst_stimulation":
-        session_stimulation_description = "Burst stimulation: 20 pulses at 20 Hz, 1 ms duration, 0.3 mA amplitude each"
-    else:
-        session_stimulation_description = "Calibration protocol - no electrical stimulation"
+    # Add custom columns for trial metadata
+    trials_table.add_column(name="trial_name", description="Name of the BOT recording trial")
+    trials_table.add_column(name="treatment", description="Pharmacological treatment applied")
+    trials_table.add_column(name="stimulation", description="Stimulation protocol used")
+    trials_table.add_column(name="stimulus_type", description="Type of stimulation (single/burst/calibration)")
+    trials_table.add_column(name="amplitude", description="Stimulation amplitude if applicable")
+    trials_table.add_column(name="electrode", description="Electrode model and type")
+    trials_table.add_column(name="is_calibration", description="Whether this is a calibration trial")
 
-    # Add stimulus information as session notes
-    description = f"{general_stimulation_description} {session_stimulation_description}"
+    # Process each BOT trial and add fluorescence data
+    cumulative_time = 0.0
+    trial_duration = 8.0  # Typical trial length in seconds
 
-    # Add stimulation epochs if not calibration session
-    if not session_info["is_calibration"]:
-        # Create stimulus table with custom columns
-        stimulus_table = TimeIntervals(
-            name="stimulus_table",
-            description=description,
+    for trial_index, bot_trial_folder in enumerate(bot_trial_folders):
+        # Parse trial information
+        trial_info = parse_trial_info_from_bot_folder(bot_trial_folder)
+
+        # Find BOT CSV and XML files for this trial
+        bot_csv_file = None
+        xml_metadata_file = None
+
+        for file in bot_trial_folder.iterdir():
+            if file.name.endswith("-botData.csv"):
+                bot_csv_file = file
+            elif (
+                file.name.endswith(".xml") and "VoltageRecording" not in file.name and "VoltageOutput" not in file.name
+            ):
+                xml_metadata_file = file
+
+        if not bot_csv_file or not xml_metadata_file:
+            print(f"Warning: Missing files in {bot_trial_folder}, skipping trial")
+            continue
+
+        # Create acetylcholine fluorescence interface for this trial
+        acetylcholine_interface = PrairieViewFluorescenceInterface(
+            bot_csv_data_file_path=bot_csv_file, xml_metadata_file_path=xml_metadata_file
         )
 
-        # Add custom columns for stimulation parameters
-        stimulus_table.add_column(name="stimulus_type", description="Type of stimulation protocol")
-        stimulus_table.add_column(name="amplitude", description="Stimulation amplitude")
-        stimulus_table.add_column(name="pulse_width", description="Pulse width duration")
-        stimulus_table.add_column(name="frequency", description="Stimulation frequency")
-        stimulus_table.add_column(name="electrode", description="Electrode model and type")
-        stimulus_table.add_column(name="notes", description="Additional stimulation details")
+        # Get precise trial start time and shift timestamps
+        trial_start_time = acetylcholine_interface.get_session_start_time()
+        time_shift = (trial_start_time - session_start_time.replace(tzinfo=None)).total_seconds()
+        trial_start_shifted = cumulative_time + time_shift
 
-        # Add stimulus timing (typically at 3s after baseline, lasting brief duration)
-        stimulation_start_time = 3.0  # seconds after session start
+        # Add trial to trials table
+        stimulus_desc = "None" if trial_info["is_calibration"] else "0.3 mA"
+        electrode_desc = "None" if trial_info["is_calibration"] else "CBAPD75 concentric bipolar"
 
-        if session_info["stimulation"] == "single_pulse":
-            stimulation_duration = 0.001  # 1 ms
-        elif session_info["stimulation"] == "burst_stimulation":
-            stimulation_duration = 1.0  # 20 pulses at 20 Hz = ~1 second
-        else:
-            raise ValueError(f"Unknown stimulation type for experimental session: {session_info['stimulation']}")
-
-        stimulus_table.add_interval(
-            start_time=stimulation_start_time,
-            stop_time=stimulation_start_time + stimulation_duration,
-            stimulus_type=session_info["stimulation"],
-            amplitude="0.3 mA",
-            pulse_width="1 ms" if "pulse" in session_info["stimulation"] else "1 ms per pulse",
-            frequency="single" if session_info["stimulation"] == "single_pulse" else "20 Hz",
-            electrode="CBAPD75 concentric bipolar",
-            notes=session_stimulation_description,
+        trials_table.add_interval(
+            start_time=trial_start_shifted,
+            stop_time=trial_start_shifted + trial_duration,
+            trial_name=trial_info["trial_name"],
+            treatment=trial_info["treatment"],
+            stimulation=trial_info["stimulation"],
+            stimulus_type=trial_info["stimulation"],
+            amplitude=stimulus_desc,
+            electrode=electrode_desc,
+            is_calibration=trial_info["is_calibration"],
         )
 
-        # Add to stimulus namespace
-        nwbfile.add_stimulus(stimulus_table)
+        # Add fluorescence data for this trial with trial-specific naming
+        acetylcholine_interface.add_to_nwbfile(nwbfile=nwbfile, trial_id=f"trial_{trial_index:03d}")
 
-    # Create Bruker TIFF converter for raw imaging data
-    bruker_converter = BrukerTiffSinglePlaneConverter(folder_path=session_folder)
+        # Update cumulative time for next trial
+        cumulative_time = trial_start_shifted + trial_duration + 1.0  # 1s gap between trials
 
-    # Get metadata for Bruker converter and add raw imaging data to NWB file
-    bruker_metadata = bruker_converter.get_metadata()
-    bruker_converter.add_to_nwbfile(nwbfile=nwbfile, metadata=bruker_metadata)
+    # Add trials table to NWB file
+    nwbfile.trials = trials_table
 
-    # Create acetylcholine fluorescence interface for BOT data
-    acetylcholine_fluorescence_interface = PrairieViewFluorescenceInterface(
-        bot_csv_data_file_path=bot_csv_file, xml_metadata_file_path=xml_metadata_file
-    )
-
-    # Add fluorescence data to NWB file
-    acetylcholine_fluorescence_interface.add_to_nwbfile(nwbfile=nwbfile)
+    # Add raw imaging data from first trial for reference
+    # (Each BOT folder contains individual TIFF frames)
+    if bot_trial_folders:
+        bruker_converter = BrukerTiffSinglePlaneConverter(folder_path=bot_trial_folders[0])
+        bruker_metadata = bruker_converter.get_metadata()
+        bruker_converter.add_to_nwbfile(nwbfile=nwbfile, metadata=bruker_metadata)
 
     return nwbfile
 
 
 if __name__ == "__main__":
+    import argparse
     import logging
     import warnings
 
     from tqdm import tqdm
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Convert Figure 5 acetylcholine biosensor data to NWB format")
+    parser.add_argument(
+        "--stub-test",
+        type=bool,
+        default=True,
+        help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
+    )
+
+    args = parser.parse_args()
+    stub_test = args.stub_test
+
     # Control verbose output
     verbose = False  # Set to True for detailed output
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Suppress warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -391,48 +451,28 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Condition path does not exist: {condition_path}")
 
-        # Get all session folders for this condition
-        # Structure: condition/parent_folder/BOT_session_folders
-        all_sessions = []
-        for parent_folder in condition_path.iterdir():
-            if parent_folder.is_dir():
-                # Get all BOT session folders in this parent folder
-                bot_session_folders = [f for f in parent_folder.iterdir() if f.is_dir() and f.name.startswith("BOT_")]
-                bot_session_folders.sort()
-
-                for session_folder_path in bot_session_folders:
-                    all_sessions.append(
-                        {
-                            "session_folder_path": session_folder_path,
-                            "parent_folder": parent_folder,
-                        }
-                    )
+        # Get all slice session folders for this condition
+        # Structure: condition/slice_folder (e.g., 04022024slice1ROI1)
+        slice_session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
+        slice_session_folders.sort()
 
         # Apply stub_test filtering if enabled
         if stub_test:
-            all_sessions = all_sessions[:2]
+            slice_session_folders = slice_session_folders[:2]
 
-        # Use tqdm for progress bar when verbose is disabled
+        # Use tqdm for progress bar
         session_iterator = tqdm(
-            all_sessions, desc=f"Converting Figure5 AcetylcholineBiosensor {condition}", unit=" session"
+            slice_session_folders, desc=f"Converting Figure5 AcetylcholineBiosensor {condition}", unit=" slice_session"
         )
 
-        for session_info in session_iterator:
-            session_folder_path = session_info["session_folder_path"]
-            parent_folder = session_info["parent_folder"]
-
-            # Convert session to NWB format
-            nwbfile = convert_session_to_nwbfile(
-                session_folder=session_folder_path,
+        for slice_folder in session_iterator:
+            # Convert slice session to NWB format
+            nwbfile = convert_slice_session_to_nwbfile(
+                slice_folder=slice_folder,
                 condition=condition,
-                verbose=verbose,
             )
 
-            # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("-", "_")
-            nwbfile_path = (
-                nwb_files_dir
-                / f"figure5_biosensor_{condition_safe}_{parent_folder.name}_{session_folder_path.name}.nwb"
-            )
+            # Create output filename using session_id
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

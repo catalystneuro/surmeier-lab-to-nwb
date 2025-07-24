@@ -443,14 +443,26 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
 
 if __name__ == "__main__":
+    import argparse
     import logging
     import warnings
 
     from tqdm import tqdm
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Convert Figure 2 optical stimuli data to NWB format")
+    parser.add_argument(
+        "--stub-test",
+        type=bool,
+        default=True,
+        help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
+    )
+
+    args = parser.parse_args()
+    stub_test = args.stub_test
+
     # Control verbose output from here
     verbose = False  # Set to True for detailed output
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
 
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
@@ -485,12 +497,8 @@ if __name__ == "__main__":
             session_folders = session_folders[:2]
 
         # Use tqdm for progress bar when verbose is disabled
-        session_iterator = (
-            tqdm(
-                session_folders, desc=f"Converting Figure2 OpticalStimuli {condition}", disable=verbose, unit=" session"
-            )
-            if not verbose
-            else session_folders
+        session_iterator = tqdm(
+            session_folders, desc=f"Converting Figure2 OpticalStimuli {condition}", disable=verbose, unit=" session"
         )
 
         for session_folder in session_iterator:

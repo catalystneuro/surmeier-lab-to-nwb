@@ -215,6 +215,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose output (show detailed processing for each file)"
     )
+    parser.add_argument(
+        "--stub-test",
+        type=bool,
+        default=True,
+        help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
+    )
     args = parser.parse_args()
 
     # Suppress warnings
@@ -226,7 +232,7 @@ if __name__ == "__main__":
     # Set verbose flag
     verbose = args.verbose
     verbose = False
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
+    stub_test = args.stub_test
 
     # Set the base path to your data
     base_dir = Path(__file__).parent.parent.parent  # Go up to zhai2025 level

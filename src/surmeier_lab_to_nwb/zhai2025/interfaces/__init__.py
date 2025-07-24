@@ -1,6 +1,5 @@
 """Interfaces for Surmeier Lab NWB conversion."""
 
-from .bot_interface import PrairieViewBrightnessOverTimeInterface
 from .intracellular_interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
     PrairieViewCurrentClampInterface,
@@ -18,6 +17,5 @@ __all__ = [
     "PROTOCOL_STEP_TO_CURRENT",
     "PrairieViewLineScanInterface",
     "PrairieViewOptogeneticsInterface",
-    "PrairieViewBrightnessOverTimeInterface",
     "DendriticTrialsInterface",
 ]

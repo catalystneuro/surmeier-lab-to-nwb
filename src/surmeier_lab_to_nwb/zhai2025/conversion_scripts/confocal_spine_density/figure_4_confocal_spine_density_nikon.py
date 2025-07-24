@@ -261,7 +261,6 @@ if __name__ == "__main__":
             file_iterator = tqdm(
                 nd2_files,
                 desc=f"Converting Figure4 ConfocalSpineDensity {dataset['name']} {condition}",
-                disable=verbose,
                 unit=" session",
             )
 
