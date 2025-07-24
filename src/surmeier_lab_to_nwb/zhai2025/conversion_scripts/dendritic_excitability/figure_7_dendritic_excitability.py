@@ -289,7 +289,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, date_str=session_date_str, num_recordings=len(all_recording_folders)
+                condition=condition, cell_number=first_recording_info["cell_number"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
@@ -299,7 +299,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "Subject": {
             "subject_id": f"CDGI_dendritic_mouse_{session_folder_path.name}",
             "description": script_template["Subject"]["description"].format(
-                animal_id=session_folder_path.name, date_str=session_date_str, condition=condition
+                cell_number=first_recording_info["cell_number"]
             ),
             "genotype": script_template["Subject"]["genotype"],
         },

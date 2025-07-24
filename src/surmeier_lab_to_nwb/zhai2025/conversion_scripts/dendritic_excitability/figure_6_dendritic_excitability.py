@@ -355,6 +355,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "Subject": {
             "subject_id": f"iSPN_dendritic_mouse_{session_folder_path.name}",
             "description": script_template["Subject"]["description"].format(
+                session_id=session_id,
                 animal_id=session_folder_path.name,
                 date_str=session_date_str,
                 treatment="THP (3 mg/kg, i.p.) + VU 0255035 (5 μM)" if "antagonist" in condition else "Saline control",

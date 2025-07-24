@@ -18,13 +18,17 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
-import xmltodict
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.device import Device
 from pynwb.file import Subject
+
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.utils import (
+    find_xml_metadata_file,
+    parse_xml_metadata,
+)
 
 
 def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:

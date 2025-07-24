@@ -317,14 +317,13 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
 
     # Create session-specific metadata from template with runtime substitutions
     genotype_description = "CDGI knockout" if genotype == "KO" else "wildtype"
+    condition = f"{genotype_description} oxoM treatment"
 
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                genotype_description=genotype_description,
-                animal_id=session_info["animal_id"],
+                condition=condition,
                 cell_number=session_info["cell_number"],
-                date_str=session_info["date_str"],
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
@@ -334,12 +333,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         },
         "Subject": {
             "subject_id": f"CDGI_{genotype}_oxoM_mouse_{session_info['animal_id']}",
-            "description": script_template["Subject"]["description"].format(
-                genotype_full=genotype_full,
-                animal_id=session_info["animal_id"],
-                cell_number=session_info["cell_number"],
-                date_str=session_info["date_str"],
-            ),
+            "description": script_template["Subject"]["description"].format(cell_number=session_info["cell_number"]),
             "genotype": script_template["Subject"]["genotype"] if genotype == "KO" else "Wild-type CDGI",
         },
     }
@@ -455,13 +449,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
                     f"(~{recording_info['approximate_distance_um']}μm from soma) - oxotremorine-M protocol"
                 ),
                 "cell_id": session_info["cell_number"],
-                "animal_id": session_info["animal_id"],
                 "location": f"dendrite (~{recording_info['approximate_distance_um']}μm from soma)",
                 "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
-                "seal": "Gigaohm seal (whole-cell configuration) (Paper Methods: patch clamp methodology, whole-cell configuration implied)",
-                "resistance": "3-5 MΩ (borosilicate glass pipette) (Protocol: Ex_vivo_mouse_brain_patch_clamp_recordings: 'Pipette resistance must be of 3 to 5 megaohms')",
-                "filtering": "2 kHz low-pass filter (Paper Methods: 'signals were filtered at 2 kHz and digitized at 10 kHz')",
-                "initial_access_resistance": "<20 MΩ (typical for whole-cell recordings) (Standard electrophysiology practice for healthy whole-cell recordings)",
             }
         )
 

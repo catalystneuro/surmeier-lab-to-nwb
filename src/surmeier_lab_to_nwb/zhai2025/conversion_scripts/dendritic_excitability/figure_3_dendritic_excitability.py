@@ -286,8 +286,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Handle pharmacology conditions dynamically
     pharmacology_text = general_metadata["NWBFile"]["pharmacology"]
-    if "sul" in condition.lower():
-        pharmacology_text += " " + script_template["pharmacology_conditions"]["sulpiride"]
+    if "sul" in condition.lower() and "pharmacology_conditions" in script_template:
+        if "sulpiride" in script_template["pharmacology_conditions"]:
+            pharmacology_text += " " + script_template["pharmacology_conditions"]["sulpiride"]
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
