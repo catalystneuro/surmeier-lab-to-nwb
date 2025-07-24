@@ -24,6 +24,9 @@ from pynwb import NWBFile
 from pynwb.epoch import TimeIntervals
 from tqdm import tqdm
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
     AIMBehavioralDynamicTableInterface,
     AIMBehavioralTimeSeriesInterface,
@@ -103,11 +106,22 @@ def convert_session_to_nwbfile(
     # Parse session information
     session_info = parse_session_info_from_animal_data(session_date, animal_id, genotype)
 
+    # Map genotype to standardized condition for centralized format_condition dictionary
+    genotype_to_condition = {"M1R CRISPR": "knockout", "Control": "control", "CRISPR": "knockout"}
+
+    # Get standardized condition from genotype
+    standardized_condition = genotype_to_condition.get(genotype, "control")
+
+    # Use centralized format_condition dictionary
+    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
+    condition_human_readable = format_condition[standardized_condition]["human_readable"]
+
     # Create BIDS-style session ID following general pattern
     timestamp = session_info["session_start_time"].strftime("%Y%m%d_%H%M%S")
-    base_session_id = f"figure8_BehavioralAim_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
-    script_specific_id = f"Animal{animal_id}_Session{session_number}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    base_session_id = (
+        f"Figure8++BehavioralAIM++{condition_camel_case}++{timestamp}++Animal{animal_id}++Session{session_number}"
+    )
+    session_id = base_session_id
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {

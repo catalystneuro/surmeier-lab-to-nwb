@@ -25,6 +25,10 @@ from pynwb import NWBFile
 from pynwb.epoch import TimeIntervals
 from tqdm import tqdm
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
+
 
 def find_video_sessions(video_base_path: Path) -> Dict[str, Path]:
     """
@@ -197,12 +201,21 @@ def convert_session_to_nwbfile(
     session_start_time = datetime.strptime(session_date, "%Y-%m-%d")
     session_start_time = session_start_time.replace(tzinfo=ZoneInfo("US/Central"))
 
-    # Create BIDS-style session ID following general pattern
+    # Map genotype to standardized condition for centralized format_condition dictionary
     genotype = "CDGI KO"  # All Figure 7 videos are CDGI knockout
+    genotype_to_condition = {"CDGI KO": "knockout", "KO": "knockout", "WT": "control"}
+
+    # Get standardized condition from genotype
+    standardized_condition = genotype_to_condition.get(genotype, "knockout")
+
+    # Use centralized format_condition dictionary
+    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
+    condition_human_readable = format_condition[standardized_condition]["human_readable"]
+
+    # Create BIDS-style session ID following general pattern
     timestamp = session_start_time.strftime("%Y%m%d")
-    base_session_id = f"figure7_BehavioralVideos_{genotype.replace(' ', '_').replace('-', '_')}_{timestamp}"
-    script_specific_id = f"Animal{animal_id}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    base_session_id = f"Figure7++BehavioralVideos++{condition_camel_case}++{timestamp}++Animal{animal_id}"
+    session_id = base_session_id
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

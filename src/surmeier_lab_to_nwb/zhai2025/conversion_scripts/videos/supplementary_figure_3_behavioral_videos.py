@@ -24,6 +24,10 @@ from pynwb import NWBFile
 from pynwb.epoch import TimeIntervals
 from tqdm import tqdm
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
+
 
 def find_video_sessions_supfig3(video_base_path: Path) -> Dict[str, Path]:
     """
@@ -216,13 +220,28 @@ def convert_session_to_nwbfile(
     first_video_metadata = extract_video_metadata_supfig3(video_files[0])
     genotype = first_video_metadata["genotype"]
 
+    # Map genotype to standardized condition for centralized format_condition dictionary
+    genotype_to_condition = {"M1R CRISPR": "knockout", "Control": "control", "CRISPR": "knockout"}
+
+    # Get standardized condition from genotype
+    standardized_condition = genotype_to_condition.get(genotype, "knockout")
+
+    # Use centralized format_condition dictionary
+    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
+    condition_human_readable = format_condition[standardized_condition]["human_readable"]
+
+    # Create session ID using centralized format
+    timestamp = session_start_time.strftime("%Y%m%d")
+    base_session_id = f"SupplementaryFigure3++BehavioralVideos++{condition_camel_case}++{timestamp}++Animal{animal_id}"
+    session_id = base_session_id
+
     # Create session-specific metadata from template with runtime substitutions
     conversion_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(animal_id=animal_id),
             "identifier": f"zhai2025_supfig3_videos_{animal_id}_{session_date.replace('-', '')}",
             "session_start_time": session_start_time,
-            "session_id": f"supfig3_videos_{animal_id}_{session_date.replace('-', '')}",
+            "session_id": session_id,
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
