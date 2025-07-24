@@ -185,9 +185,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
-    # Extract date from actual session start time and update session info
-    session_date_str = session_start_time.strftime("%Y-%m-%d")
-
     # Create session ID following pattern from figure_1_somatic_excitability.py
     condition_to_camel_case = {
         "LID off-state": "LIDOffState",
@@ -203,7 +200,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
     session_info.update(
         {
-            "date_str": session_date_str,
             "session_id": session_id,
         }
     )
@@ -226,7 +222,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, cell_number=session_info["cell_number"], date_str=session_info["date_str"]
+                condition=condition, cell_number=session_info["cell_number"]
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
@@ -239,9 +235,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         },
         "Subject": {
             "subject_id": f"{cell_type}_M1R_CRISPR_mouse_{session_info['session_id']}",
-            "description": script_template["Subject"]["description"].format(
-                cell_number=session_info["cell_number"], date_str=session_info["date_str"]
-            ),
+            "description": script_template["Subject"]["description"].format(cell_number=session_info["cell_number"]),
             "genotype": script_template["Subject"]["genotype"],
         },
     }
