@@ -212,7 +212,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "session_start_time": session_start_time,
             "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_info["session_id"],
-            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["surgery_addition"],
+            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
