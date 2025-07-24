@@ -164,9 +164,6 @@ def convert_session_to_nwbfile(
         description=metadata["Subject"]["description"],
     )
 
-    if verbose:
-        print(f"  Processing behavioral data for {session_info['original_animal_id']} ({session_info['genotype']})")
-
     # Create and use AIM Behavioral DynamicTable Interface
     aim_interface = AIMBehavioralDynamicTableInterface(
         processed_data_csv_path=processed_data_csv_path,
@@ -204,9 +201,6 @@ def convert_session_to_nwbfile(
         )
 
     nwbfile.add_time_intervals(epochs)
-
-    if verbose:
-        print(f"  Successfully processed behavioral data for {session_info['original_animal_id']}")
 
     return nwbfile
 
@@ -247,24 +241,12 @@ if __name__ == "__main__":
     nwb_files_dir = root_dir / "nwb_files" / "aim_behavior" / "figure_7"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    if verbose:
-        print("Processing Figure 7 Behavioral Assessment data with optimized DynamicTable")
-
-    if verbose:
-        print("Verbose mode: ON - Detailed processing information will be shown")
-        print("Parsing AIM Excel data...")
-
     # Parse AIM data using unified pipeline
     pivot_df = build_source_data_from_aim_excel_table(aim_excel_data_file_path, genotype_path, verbose=verbose)
 
     # Create processed data directory and save processed data for interface use
     processed_data_csv_path.parent.mkdir(parents=True, exist_ok=True)
     pivot_df.to_csv(processed_data_csv_path, index=False)
-    if verbose:
-        print(f"Saved processed data to {processed_data_csv_path}")
-
-    if verbose:
-        print(f"Built source data with {len(pivot_df)} rows ready for NWB")
 
     # Group by session and animal for NWB file creation
     grouped = pivot_df.groupby(["session_date", "session_number", "animal_id", "genotype"])
@@ -273,13 +255,6 @@ if __name__ == "__main__":
     # Apply stub_test filtering if enabled
     if stub_test:
         sessions_list = sessions_list[:2]
-        if verbose:
-            print(f"stub_test enabled: processing only first {len(sessions_list)} sessions")
-
-    if verbose:
-        print(f"Found {len(sessions_list)} unique sessions to process")
-        print("\nDetailed processing log:")
-        print("=" * 60)
 
     # Process each session - use tqdm for non-verbose mode
     iterator = tqdm(
@@ -292,12 +267,6 @@ if __name__ == "__main__":
         # Use genotype as condition for behavioral experiments
         condition = genotype
         condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
-
-        if verbose:
-            print(f"\nProcessing: Animal {animal_id} ({genotype}) on {session_date} session {session_number}")
-            print(f"  Session data shape: {session_data.shape}")
-            print(f"  Time points: {sorted(session_data['time_minutes'].unique())}")
-            print(f"  Score columns: {[col for col in session_data.columns if 'score' in col.lower()]}")
 
         # Convert session data to NWB format
         nwbfile = convert_session_to_nwbfile(
@@ -317,7 +286,3 @@ if __name__ == "__main__":
 
         # Write NWB file
         configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=nwbfile_path)
-
-        if verbose:
-            print(f"  Successfully saved: {nwbfile_path.name}")
-            print(f"  File size: {nwbfile_path.stat().st_size / 1024:.1f} KB")

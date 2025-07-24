@@ -40,8 +40,6 @@ def parse_pty_file(pty_file: Path, verbose: bool = False) -> Dict[str, Any]:
     Dict[str, Any]
         Dictionary containing extracted parameters
     """
-    if verbose:
-        print(f"    Parsing PTY file: {pty_file.name}")
 
     metadata = {}
 
@@ -89,9 +87,6 @@ def parse_pty_file(pty_file: Path, verbose: bool = False) -> Dict[str, Any]:
                 metadata[key] = int(value)
             else:
                 metadata[key] = value
-
-    if verbose:
-        print(f"      Extracted {len(metadata)} parameters")
 
     return metadata
 
@@ -221,17 +216,12 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     NWBFile
         The populated NWB file object
     """
-    if verbose:
-        print(f"Processing session: {session_folder.name}")
 
     # Get all OIF files in session
     oif_files = sorted(session_folder.glob("*.oif"))
 
     if not oif_files:
         raise ValueError(f"No OIF files found in {session_folder}")
-
-    if verbose:
-        print(f"Found {len(oif_files)} OIF files")
 
     # Parse session info from folder name
     session_name = session_folder.name
@@ -300,8 +290,6 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     device_created = False
 
     for oif_file in oif_files:
-        if verbose:
-            print(f"  Processing OIF: {oif_file.name}")
 
         # Get corresponding .oif.files folder
         oif_files_folder = session_folder / f"{oif_file.stem}.oif.files"
@@ -314,9 +302,6 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
 
         if not tiff_files:
             raise FileNotFoundError(f"No TIFF files found in {oif_files_folder}")
-
-        if verbose:
-            print(f"    Found {len(tiff_files)} TIFF files")
 
         # Parse stack information
         stack_info = parse_oif_stack_info(oif_files_folder)
@@ -332,8 +317,6 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
         if not device_created:
             device = create_olympus_confocal_device(nwbfile, pty_metadata)
             device_created = True
-            if verbose:
-                print(f"    Created device: {device.name}")
 
         # Create ImageInterface for this stack
         interface = ImageInterface(file_paths=tiff_files, images_container_metadata_key=stack_info["container_name"])
@@ -369,12 +352,6 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
         # Add to NWB file
         interface.add_to_nwbfile(nwbfile, metadata=interface_metadata)
 
-        if verbose:
-            print(f"    Added stack: {stack_info['container_name']} with {len(tiff_files)} images")
-
-    if verbose:
-        print(f"Conversion completed for session: {session_name}")
-
     return nwbfile
 
 
@@ -406,11 +383,6 @@ if __name__ == "__main__":
     # Apply stub_test filtering if enabled
     if stub_test:
         session_folders = session_folders[:2]
-        if verbose:
-            print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
-
-    if verbose:
-        print(f"Found {len(session_folders)} session folders")
 
     # Process each session folder
     session_iterator = (
@@ -425,9 +397,7 @@ if __name__ == "__main__":
     )
 
     for session_folder in session_iterator:
-        if verbose:
-            print(f"\nProcessing session: {session_folder.name}")
-        elif not verbose:
+        if not verbose:
             session_iterator.set_description(f"Processing {session_folder.name}")
 
         # Convert session to NWB format
@@ -439,10 +409,3 @@ if __name__ == "__main__":
 
         # Write NWB file
         configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-
-        if verbose:
-            print(f"Successfully saved: {nwbfile_path.name}")
-
-    if verbose:
-        print(f"\nFigure 4H Olympus confocal conversion completed!")
-        print(f"Output directory: {nwb_files_dir}")

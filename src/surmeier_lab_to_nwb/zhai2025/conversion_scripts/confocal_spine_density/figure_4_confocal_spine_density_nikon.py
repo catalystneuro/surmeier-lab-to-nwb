@@ -116,10 +116,6 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     """
     # Parse filename metadata
     file_info = parse_nd2_filename(nd2_file)
-    if verbose:
-        print(f"  File: {nd2_file.name}")
-        print(f"  Session ID: {file_info['session_id']}")
-        print(f"  Container: {file_info['container_name']}")
 
     # Create NikonImageStackInterface
     interface = NikonImageStackInterface(nd2_file)
@@ -209,10 +205,6 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     # Add to NWB file using interface with custom metadata
     interface.add_to_nwbfile(nwbfile, metadata=interface_metadata)
 
-    if verbose:
-        print(f"  Added Z-stack with {interface.number_of_z_planes} images")
-        print(f"  Image dimensions: {interface.width_pixels}x{interface.height_pixels}")
-
     return nwbfile
 
 
@@ -251,15 +243,10 @@ if __name__ == "__main__":
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     for dataset in datasets:
-        if verbose:
-            print(f"\nProcessing {dataset['name']} confocal spine density data...")
 
         for condition in dataset["conditions"]:
             condition_path = dataset["path"] / condition
             assert condition_path.exists(), f"Condition path {condition_path} does not exist"
-
-            if verbose:
-                print(f"Processing {dataset['name']} {condition}...")
 
             # Get all ND2 files in condition folder
             nd2_files = list(condition_path.glob("*.nd2"))
@@ -268,11 +255,6 @@ if __name__ == "__main__":
             # Apply stub_test filtering if enabled
             if stub_test:
                 nd2_files = nd2_files[:2]
-                if verbose:
-                    print(f"stub_test enabled: processing only first {len(nd2_files)} ND2 files")
-
-            if verbose:
-                print(f"Found {len(nd2_files)} ND2 files in {condition}")
 
             # Process each ND2 file with progress bar
             file_iterator = tqdm(
@@ -283,8 +265,6 @@ if __name__ == "__main__":
             )
 
             for nd2_file in file_iterator:
-                if verbose:
-                    print(f"  File: {nd2_file.name}")
 
                 # Convert ND2 file to NWB format
                 nwbfile = convert_session_to_nwbfile(nd2_file, condition, verbose=verbose)
@@ -298,9 +278,3 @@ if __name__ == "__main__":
 
                 # Write NWB file
                 configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-                if verbose:
-                    print(f"Successfully saved: {nwbfile_path.name}")
-
-    if verbose:
-        print(f"\nConfocal spine density conversion completed!")
-        print(f"Output directory: {nwb_files_dir}")

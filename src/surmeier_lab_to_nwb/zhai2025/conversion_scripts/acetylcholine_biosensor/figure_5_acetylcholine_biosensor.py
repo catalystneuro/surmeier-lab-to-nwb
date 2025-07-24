@@ -149,11 +149,6 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     # Parse session information
     session_info = parse_session_info_from_folder_name(session_folder)
 
-    if verbose:
-        print(f"Processing session: {session_info['session_name']}")
-        print(f"  Treatment: {session_info['treatment']}")
-        print(f"  Stimulation: {session_info['stimulation']}")
-
     # Find required files for BOT interface
     bot_csv_file = None
     xml_metadata_file = None
@@ -356,9 +351,6 @@ def convert_session_to_nwbfile(session_folder: Path, condition: str, verbose: bo
     # Add fluorescence data to NWB file
     acetylcholine_fluorescence_interface.add_to_nwbfile(nwbfile=nwbfile)
 
-    if verbose:
-        print(f"  Successfully processed session")
-
     return nwbfile
 
 
@@ -398,9 +390,6 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Condition path does not exist: {condition_path}")
 
-        if verbose:
-            print(f"Processing acetylcholine GRABACh data for: {condition}")
-
         # Get all session folders for this condition
         # Structure: condition/parent_folder/BOT_session_folders
         all_sessions = []
@@ -418,14 +407,9 @@ if __name__ == "__main__":
                         }
                     )
 
-        if verbose:
-            print(f"Found {len(all_sessions)} session folders")
-
         # Apply stub_test filtering if enabled
         if stub_test:
             all_sessions = all_sessions[:2]
-            if verbose:
-                print(f"stub_test enabled: processing only first {len(all_sessions)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
@@ -435,9 +419,6 @@ if __name__ == "__main__":
         for session_info in session_iterator:
             session_folder_path = session_info["session_folder_path"]
             parent_folder = session_info["parent_folder"]
-
-            if verbose:
-                print(f"\nProcessing session: {session_folder_path.name}")
 
             # Convert session to NWB format
             nwbfile = convert_session_to_nwbfile(
@@ -454,6 +435,3 @@ if __name__ == "__main__":
             )
 
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-
-            if verbose:
-                print(f"Successfully saved: {nwbfile_path.name}")
