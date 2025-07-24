@@ -229,16 +229,21 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
     if actual_session_start_time:
         session_start_time = actual_session_start_time.replace(tzinfo=central_tz)
-        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
+        timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     else:
         session_start_time = datetime.combine(session_info["session_date"], datetime.min.time()).replace(
             tzinfo=central_tz
         )
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    # Create session ID using slice folder name
-    condition_safe = condition.replace(" ", "_").replace("-", "_")
-    session_id = f"figure5_AcetylcholineGRAB_{condition_safe}_{session_info['slice_folder_name']}"
+    # Create session ID following standard pattern used in other conversion scripts
+    condition_to_camel_case = {"UL control": "ULControl", "PD": "PD", "LID off": "LIDOff"}
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+
+    # Follow standard pattern: Figure{N}{DataType}{Condition}Timestamp{timestamp}{Identifier}
+    base_session_id = f"Figure5AcetylcholineGRAB{clean_condition}Timestamp{timestamp}"
+    script_specific_id = f"Sub{session_info['slice_folder_name']}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     # Handle surgery and pharmacology from template
     surgery_text = general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"]
@@ -358,6 +363,35 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
             print(f"Warning: Missing files in {bot_trial_folder}, skipping trial")
             continue
 
+        # Create naming mappings for this trial (used for both fluorescence and raw data)
+        treatment_to_camel_case = {
+            "control": "Control",
+            "50nM_dopamine": "50nMDopamine",
+            "quinpirole": "Quinpirole",
+            "sulpiride": "Sulpiride",
+            "acetylcholine_calibration": "AcetylcholineCalibration",
+            "TTX_calibration": "TTXCalibration",
+        }
+
+        stimulation_to_camel_case = {
+            "single_pulse": "SinglePulse",
+            "burst_stimulation": "BurstStimulation",
+            "calibration": "Calibration",
+        }
+
+        # Get camelCase versions
+        clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+        clean_treatment = treatment_to_camel_case.get(trial_info["treatment"], trial_info["treatment"].replace("_", ""))
+        clean_stimulation = stimulation_to_camel_case.get(
+            trial_info["stimulation"], trial_info["stimulation"].replace("_", "")
+        )
+
+        # Create base name with condition and stimulus info (without TwoPhoton prefix to avoid duplication)
+        base_name = f"{clean_condition}{clean_treatment}{clean_stimulation}"
+
+        # Use actual trial number from filename instead of sequential index
+        actual_trial_number = int(trial_info["trial_number"])
+
         # Create acetylcholine fluorescence interface for this trial
         acetylcholine_interface = PrairieViewFluorescenceInterface(
             bot_csv_data_file_path=bot_csv_file, xml_metadata_file_path=xml_metadata_file
@@ -385,20 +419,38 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         )
 
         # Add fluorescence data for this trial with trial-specific naming
-        acetylcholine_interface.add_to_nwbfile(nwbfile=nwbfile, trial_id=f"trial_{trial_index:03d}")
+        # Use the same base name structure for consistency between raw and processed data
+        fluorescence_suffix = f"{base_name}Trial{actual_trial_number:03d}"
+        acetylcholine_interface.add_to_nwbfile(nwbfile=nwbfile, trial_id=fluorescence_suffix)
+
+        # Add raw imaging data for this trial
+        # Add raw imaging data with custom naming
+        bruker_converter = BrukerTiffSinglePlaneConverter(folder_path=bot_trial_folder)
+        bruker_metadata = bruker_converter.get_metadata()
+
+        # Customize series name in metadata before adding to NWB
+        if "Ophys" in bruker_metadata and "TwoPhotonSeries" in bruker_metadata["Ophys"]:
+            # Update the series names in metadata (it's a list of series metadata)
+            for series_metadata in bruker_metadata["Ophys"]["TwoPhotonSeries"]:
+                # Extract channel info and create better channel names
+                channel_suffix = series_metadata["name"].replace("TwoPhotonSeries", "")
+                if channel_suffix == "Ch2":
+                    channel_name = "GRABCh"  # GRAB acetylcholine channel
+                elif channel_suffix == "Dodt":
+                    channel_name = "DoDT"  # Differential optical detection transmission
+                else:
+                    channel_name = channel_suffix.replace("Ch", "Channel")
+
+                # Create series name: TwoPhotonSeries + condition + treatment + stimulation + channel + trial
+                series_metadata["name"] = f"TwoPhotonSeries{base_name}{channel_name}Trial{actual_trial_number:03d}"
+
+        bruker_converter.add_to_nwbfile(nwbfile=nwbfile, metadata=bruker_metadata)
 
         # Update cumulative time for next trial
         cumulative_time = trial_start_shifted + trial_duration + 1.0  # 1s gap between trials
 
     # Add trials table to NWB file
     nwbfile.trials = trials_table
-
-    # Add raw imaging data from first trial for reference
-    # (Each BOT folder contains individual TIFF frames)
-    if bot_trial_folders:
-        bruker_converter = BrukerTiffSinglePlaneConverter(folder_path=bot_trial_folders[0])
-        bruker_metadata = bruker_converter.get_metadata()
-        bruker_converter.add_to_nwbfile(nwbfile=nwbfile, metadata=bruker_metadata)
 
     return nwbfile
 

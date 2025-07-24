@@ -180,7 +180,7 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             ophys_module.add(image_segmentation)
 
         # Create unique naming suffix if trial_id provided
-        name_suffix = f"_{trial_id}" if trial_id else ""
+        name_suffix = trial_id if trial_id else ""
 
         # Process each channel/region
         for channel_name, region_metadata in self.regions_info.items():
@@ -224,8 +224,21 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             else:
                 imaging_plane = nwbfile.imaging_planes[f"ImagingPlane{channel_name}"]
 
+            # Better channel names for consistency
+            if channel_name == "Ch2":
+                channel_display = "GRABCh"
+            elif channel_name == "Dodt":
+                channel_display = "DoDT"
+            else:
+                channel_display = channel_name
+
             # Create plane segmentation with unique naming
-            plane_seg_name = f"PlaneSegmentation{channel_name}{name_suffix}"
+            # Follow same pattern as TwoPhotonSeries: PlaneSegmentation + name_suffix + channel + Trial
+            if "Trial" in name_suffix:
+                base_part, trial_part = name_suffix.rsplit("Trial", 1)
+                plane_seg_name = f"PlaneSegmentation{base_part}{channel_display}Trial{trial_part}"
+            else:
+                plane_seg_name = f"PlaneSegmentation{name_suffix}{channel_display}"
             plane_segmentation = image_segmentation.create_plane_segmentation(
                 name=plane_seg_name,
                 description="Segmentation of regions for acetylcholine brightness over time analysis.",
@@ -266,7 +279,14 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
             recording_t_start = timestamps[0]
 
             # Create ROI response series with unique naming
-            series_name = f"AcetylcholineFluorescence{channel_name}{name_suffix}"
+            # Follow same pattern as TwoPhotonSeries: Fluorescence + name_suffix + channel + Trial
+            # name_suffix already contains the base pattern like "ULControlControlSinglePulseTrial004"
+            # We need to insert the channel before "Trial"
+            if "Trial" in name_suffix:
+                base_part, trial_part = name_suffix.rsplit("Trial", 1)
+                series_name = f"AcetylcholineFluorescence{base_part}{channel_display}Trial{trial_part}"
+            else:
+                series_name = f"AcetylcholineFluorescence{name_suffix}{channel_display}"
 
             if rate is not None:
                 # Regular timestamps - use starting_time + rate
