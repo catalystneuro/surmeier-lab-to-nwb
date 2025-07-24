@@ -338,9 +338,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure6DendriticExcitability{clean_condition}Timestamp{timestamp}"
-    script_specific_id = f"Sub{session_folder_path.name}"
-    session_id = f"{base_session_id}{script_specific_id}"
+    base_session_id = f"Figure6++DendriticExcitability++{clean_condition}++Timestamp++{timestamp}"
+    script_specific_id = f"Sub++{session_folder_path.name}"
+    session_id = f"{base_session_id}++{script_specific_id}"
 
     # Handle conditional pharmacology based on condition
     pharmacology_addition = ""

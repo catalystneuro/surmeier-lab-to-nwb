@@ -203,7 +203,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     clean_condition = condition_to_clean.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure1++SomaticExcitability++{clean_condition}++Timestamp++{timestamp}"
+    base_session_id = f"Figure1++SomaticExcitability++{clean_condition}++{timestamp}"
     script_specific_id = f"Cell++{session_info['cell_number']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 

@@ -240,10 +240,10 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     condition_to_camel_case = {"UL control": "ULControl", "PD": "PD", "LID off": "LIDOff"}
     clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
 
-    # Follow standard pattern: Figure{N}{DataType}{Condition}Timestamp{timestamp}{Identifier}
-    base_session_id = f"Figure5AcetylcholineGRAB{clean_condition}Timestamp{timestamp}"
-    script_specific_id = f"Sub{session_info['slice_folder_name']}"
-    session_id = f"{base_session_id}{script_specific_id}"
+    # Create session ID with ++ separators (no dashes or underscores)
+    base_session_id = f"Figure5++AcetylcholineGRAB++{clean_condition}++Timestamp++{timestamp}"
+    script_specific_id = f"Sub++{session_info['slice_folder_name']}"
+    session_id = f"{base_session_id}++{script_specific_id}"
 
     # Handle surgery and pharmacology from template
     surgery_text = general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"]
