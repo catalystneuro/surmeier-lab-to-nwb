@@ -265,10 +265,8 @@ if __name__ == "__main__":
             verbose=verbose,
         )
 
-        # Create output filename
-        nwbfile_path = (
-            nwb_files_dir / f"figure8_behavioral_{animal_id}_{session_date.replace('-', '')}_s{session_number}.nwb"
-        )
+        # Create output filename using session_id from nwbfile
+        nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
         # Write NWB file
         configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=nwbfile_path)
