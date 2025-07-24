@@ -3,10 +3,10 @@
 
 # Figure 1 Scripts
 figure_1_somatic_excitability:
-  session_description:
-    "Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'.
-    Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each).
-    "
+  NWBFile:
+    session_description: >
+      "Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'.
+      Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
   keywords:
     - "somatic excitability"
     - "F-I relationship"
@@ -17,7 +17,10 @@ figure_1_somatic_excitability:
 
 figure_1_dendritic_excitability:
   NWBFile:
-    session_description: "Dendritic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
+    session_description: >
+      "Dendritic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'.
+      Combined patch clamp electrophysiology and two-photon laser scanning microscopy.
+      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
     keywords:
       - "calcium imaging"
       - "dendritic excitability"
@@ -30,7 +33,10 @@ figure_1_dendritic_excitability:
 # Figure 2 Scripts
 figure_2_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
+    session_description: >
+      "Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) for condition {condition}.
+      Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+      proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     keywords:
       - "spine density"
       - "dendritic spines"
@@ -43,7 +49,11 @@ figure_2_spine_density:
 
 figure_2_optical_stimuli:
   NWBFile:
-    session_description: "Sr²⁺-oEPSC recordings from dSPNs in dorsolateral striatum under {condition} condition. Voltage clamp at -70 mV in Ca²⁺-free ACSF containing 3 mM SrCl₂ and 10 μM gabazine. Optogenetic stimulation of ChR2-expressing corticostriatal terminals with 0.3 ms blue LED pulses every 30 seconds. Session {session_letter}, {num_sweeps} sweeps."
+    session_description: >
+      "Sr²⁺-oEPSC recordings from dSPNs in dorsolateral striatum under {condition} condition.
+      Voltage clamp at -70 mV in Ca²⁺-free ACSF containing 3 mM SrCl₂ and 10 μM gabazine.
+      Optogenetic stimulation of ChR2-expressing corticostriatal terminals with 0.3 ms blue LED pulses every 30 seconds.
+      Session {session_letter}, {num_sweeps} sweeps."
     surgery_addition: "AAV5-hSyn-hChR2(H134R)-EYFP injection into M1 motor cortex: 0.15 µL at coordinates AP +1.15mm, ML -1.60mm, DV -1.55mm relative to Bregma, 4 weeks expression time."
     keywords:
       - "Sr2+-oEPSC"
@@ -62,7 +72,9 @@ figure_2_optical_stimuli:
 # Figure 3 Scripts
 figure_3_somatic_excitability:
   NWBFile:
-    session_description: "Somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
+    session_description: >
+      "Somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'.
+      Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
     pharmacology_conditions:
       sulpiride: "Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced somatic excitability changes in iSPNs."
     keywords:
@@ -75,7 +87,10 @@ figure_3_somatic_excitability:
 
 figure_3_dendritic_excitability:
   NWBFile:
-    session_description: "Dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
+    session_description: >
+      "Dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'.
+      Combined patch clamp electrophysiology and two-photon laser scanning microscopy.
+      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
     pharmacology_conditions:
       sulpiride: "Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced dendritic excitability changes in iSPNs."
     keywords:
@@ -90,7 +105,10 @@ figure_3_dendritic_excitability:
 # Figure 4 Scripts
 figure_4_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
+    session_description: >
+      "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}.
+      Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+      proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     keywords:
       - "spine density"
       - "dendritic spines"
@@ -103,7 +121,11 @@ figure_4_spine_density:
 
 figure_4_optical_stimuli:
   NWBFile:
-    session_description: "Sr²⁺-oEPSC recordings from iSPNs in dorsolateral striatum under {condition} condition. Voltage clamp at -70 mV in Ca²⁺-free ACSF containing 3 mM SrCl₂ and 10 μM gabazine. Optogenetic stimulation of ChR2-expressing corticostriatal terminals with 0.3 ms blue LED pulses every 30 seconds. Session {session_letter}, {num_sweeps} sweeps."
+    session_description: >
+      "Sr²⁺-oEPSC recordings from iSPNs in dorsolateral striatum under {condition} condition.
+      Voltage clamp at -70 mV in Ca²⁺-free ACSF containing 3 mM SrCl₂ and 10 μM gabazine.
+      Optogenetic stimulation of ChR2-expressing corticostriatal terminals with 0.3 ms blue LED pulses every 30 seconds.
+      Session {session_letter}, {num_sweeps} sweeps."
     keywords:
       - "Sr2+-oEPSC"
       - "voltage clamp"
@@ -120,7 +142,11 @@ figure_4_optical_stimuli:
 
 figure_4_confocal_spine_density_nikon:
   NWBFile:
-    session_description: "High-resolution confocal spine density imaging for methodological validation study. Nikon A1R confocal microscopy with 100x oil immersion objective (NA=1.4) and 405/488/561 nm laser excitation. Z-stack acquisition with 0.05 μm step size for superior spine detection compared to two-photon microscopy. Animal {animal_id} processed for Figure 4 comparison analysis."
+    session_description: >
+      "High-resolution confocal spine density imaging for methodological validation study.
+      Nikon A1R confocal microscopy with 100x oil immersion objective (NA=1.4) and 405/488/561 nm laser excitation.
+      Z-stack acquisition with 0.05 μm step size for superior spine detection compared to two-photon microscopy.
+      Animal {animal_id} processed for Figure 4 comparison analysis."
     slices: "Brains were dissected out and post-fixed in 4% PFA-PBS overnight at 4°C. Coronal slices (100 μm-thick) were cut using a vibratome (Leica VT1200), permeabilized and blocked at 4°C in PBS including 5% normal goat serum and 0.2% Triton-X100 (NGS/PBST), incubated with rabbit phospho-ERK antibody (Cell Signaling, #9101; 1:100 dilution) and mouse tyrosine hydroxylase antibody (Immunostar, #22941; 1:200 dilution) diluted in NGS-PBST overnight at 4°C. After four washes in NGS/PBST, the slices were incubated with 1:1000 goat anti-rabbit Alexa Fluor 488 or goat anti-mouse Alexa Fluor 555 (Invitrogen A-11001 and A-21428) for 2 hours at room temperature. Slices were washed with NGS-PBST four times and PBS once, mounted with VECTASHIELD Antifade Mounting Medium (Vector Laboratories, H-1000-10), and viewed under an automated laser scanning confocal microscope (FV10i-DUC; Olympus). Images were adjusted for brightness, contrast, and pseudo-coloring in ImageJ (US National Institutes of Health)."
     keywords:
       - "confocal microscopy"
@@ -135,7 +161,11 @@ figure_4_confocal_spine_density_nikon:
 
 figure_4h_confocal_spine_density_olympus:
   NWBFile:
-    session_description: "High-resolution confocal spine density imaging using Olympus FV10i microscopy for methodological validation study. 100x oil immersion objective (NA=1.4) with multi-laser excitation for superior spine detection. Z-stack acquisition optimized for spine morphology analysis. Animal {animal_id} processed for Figure 4H comparison analysis."
+    session_description: >
+      "High-resolution confocal spine density imaging using Olympus FV10i microscopy for methodological validation study.
+      100x oil immersion objective (NA=1.4) with multi-laser excitation for superior spine detection.
+      Z-stack acquisition optimized for spine morphology analysis.
+      Animal {animal_id} processed for Figure 4H comparison analysis."
     surgery_addition: "Sparse iSPN labeling achieved via stereotaxic injection of AAV-Cre into dorsolateral striatum of WT mice followed by AAV-FLEX-tdTomato for reporter expression."
     slices: "Brains were dissected out and post-fixed in 4% PFA-PBS overnight at 4°C. Coronal slices (100 μm-thick) were cut using a vibratome (Leica VT1200), permeabilized and blocked at 4°C in PBS including 5% normal goat serum and 0.2% Triton-X100 (NGS/PBST), incubated with rabbit phospho-ERK antibody (Cell Signaling, #9101; 1:100 dilution) and mouse tyrosine hydroxylase antibody (Immunostar, #22941; 1:200 dilution) diluted in NGS-PBST overnight at 4°C. After four washes in NGS/PBST, the slices were incubated with 1:1000 goat anti-rabbit Alexa Fluor 488 or goat anti-mouse Alexa Fluor 555 (Invitrogen A-11001 and A-21428) for 2 hours at room temperature. Slices were washed with NGS-PBST four times and PBS once, mounted with VECTASHIELD Antifade Mounting Medium (Vector Laboratories, H-1000-10), and viewed under an automated laser scanning confocal microscope (FV10i-DUC; Olympus). Images were adjusted for brightness, contrast, and pseudo-coloring in ImageJ (US National Institutes of Health)."
     keywords:
@@ -152,7 +182,10 @@ figure_4h_confocal_spine_density_olympus:
 # Figure 5 Scripts
 figure_5_acetylcholine_biosensor:
   NWBFile:
-    session_description: "GRABACh3.0 acetylcholine sensor imaging session from striatal slice - {condition} condition. Treatment: {treatment}, Stimulation: {stimulation}, Session {session_number} from {slice_info}. Two-photon microscopy acquisition of fluorescent acetylcholine dynamics in cholinergic interneurons during various pharmacological treatments."
+    session_description: >
+      "GRABACh3.0 acetylcholine sensor imaging session from striatal slice - {condition} condition.
+      Treatment: {treatment}, Stimulation: {stimulation}, Session {session_number} from {slice_info}.
+      Two-photon microscopy acquisition of fluorescent acetylcholine dynamics in cholinergic interneurons during various pharmacological treatments."
     surgery_addition: "AAV-GRABACh3.0 injection into dorsolateral striatum for acetylcholine biosensor expression in cholinergic interneurons."
     pharmacology_conditions:
       sulpiride: "Sulpiride: D2 receptor antagonist (10 μM bath application) to block dopamine D2 receptors and investigate cholinergic modulation."
@@ -171,7 +204,11 @@ figure_5_acetylcholine_biosensor:
 # Figure 6 Scripts
 figure_6_dendritic_excitability:
   NWBFile:
-    session_description: "Figure 6 dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM). Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous Ca2+ imaging to assess back-propagating action potential invasion. Testing M1R contribution to LID-induced dendritic adaptations."
+    session_description: >
+      "Figure 6 dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'.
+      Combined patch clamp electrophysiology and two-photon laser scanning microscopy (2PLSM).
+      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous Ca2+ imaging to assess back-propagating action potential invasion.
+      Testing M1R contribution to LID-induced dendritic adaptations."
     pharmacology_conditions:
       antagonist: "M1 muscarinic receptor antagonists: Trihexyphenidyl (THP, 3 mg/kg i.p.) for systemic M1R blockade, plus VU 0255035 (5 μM bath application) for selective M1R antagonism in brain slices."
     keywords:
@@ -187,7 +224,10 @@ figure_6_dendritic_excitability:
 
 figure_6_somatic_excitability:
   NWBFile:
-    session_description: "Figure 6 somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Testing M1R contribution to LID-induced somatic excitability changes."
+    session_description: >
+      "Figure 6 somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'.
+      Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each).
+      Testing M1R contribution to LID-induced somatic excitability changes."
     pharmacology_conditions:
       antagonist: "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced somatic excitability changes."
     keywords:
@@ -202,7 +242,11 @@ figure_6_somatic_excitability:
 
 figure_6_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Testing M1R contribution to LID-induced spine density changes. Animal {animal_id}."
+    session_description: >
+      "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}.
+      Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+      proximal (~40 μm from soma) and distal (>80 μm from soma).
+      Testing M1R contribution to LID-induced spine density changes. Animal {animal_id}."
     pharmacology_conditions:
       antagonist: "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced spine density changes."
     keywords:
