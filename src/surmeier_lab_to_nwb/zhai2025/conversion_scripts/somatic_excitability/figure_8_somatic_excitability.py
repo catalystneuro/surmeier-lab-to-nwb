@@ -195,7 +195,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
     base_session_id = f"Figure8++SomaticExcitability++{clean_condition}++{timestamp}"
-    script_specific_id = f"Cell++{session_info['cell_number']}++Animal++{session_info['animal_id']}"
+    script_specific_id = f"Cell{session_info['cell_number']}Animal++{session_info['animal_id']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
     # Load general and session-specific metadata from YAML files
@@ -207,10 +207,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     script_template = session_metadata_template["figure_8_somatic_excitability"]
 
     # Determine cell type based on condition
-    if condition == "M1R CRISPR":
-        cell_type = "iSPN"
-    else:  # interleaved control
-        cell_type = "iSPN"
+    cell_type = "iSPN"
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {

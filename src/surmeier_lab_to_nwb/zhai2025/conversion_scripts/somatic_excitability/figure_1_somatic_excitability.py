@@ -208,10 +208,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     session_id = f"{base_session_id}++{script_specific_id}"
 
     # Load general and session-specific metadata from YAML files
-    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    conversion_folder_path = Path(__file__).parent.parent.parent
+    general_metadata_path = conversion_folder_path / "general_metadata.yaml"
     general_metadata = load_dict_from_file(general_metadata_path)
 
-    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_path = conversion_folder_path / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     session_metadata = session_metadata_template["figure_1_somatic_excitability"]
 
@@ -251,7 +252,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         experimenter=metadata["NWBFile"]["experimenter"],
         lab=metadata["NWBFile"]["lab"],
         institution=metadata["NWBFile"]["institution"],
-        experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
         surgery=metadata["NWBFile"]["surgery"],
         pharmacology=metadata["NWBFile"]["pharmacology"],
@@ -323,7 +323,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             {
                 "name": series_name,
                 "description": (
-                    f"Current clamp recording from dSPN - {condition} - "
+                    f"Current clamp recording from dSPN cell in condition {condition} - "
                     f"Cell {session_info['cell_number']} - {recording_info['current_formatted']} current injection - "
                     f"F-I protocol step {recording_info['protocol_step']}"
                 ),

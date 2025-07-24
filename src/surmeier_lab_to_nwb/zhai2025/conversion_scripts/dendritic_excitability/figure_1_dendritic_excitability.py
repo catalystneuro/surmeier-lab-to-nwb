@@ -214,9 +214,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         if intracellular_session_start_time is None:
             raise ValueError(f"Could not extract intracellular session start time from {electrophysiology_xml_file}")
 
-        # Compare session start times
-        time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
         repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"

@@ -196,7 +196,7 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
     clean_condition = condition_to_clean.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure2++SpineDensity++{clean_condition}++Timestamp++{timestamp}"
+    base_session_id = f"Figure2++SpineDensity++{clean_condition}++{timestamp}"
     script_specific_id = f"Animal++{session_info['animal_id']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 

@@ -188,7 +188,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Create session ID with ++ separators (no dashes or underscores)
     clean_condition = condition.replace(" ", "").replace("-", "")
-    base_session_id = f"Figure2++OpticalStimuli++{clean_condition}++Timestamp++{timestamp}"
+    base_session_id = f"Figure2++OpticalStimuli++{clean_condition}++{timestamp}"
     script_specific_id = f"Session++{session_info['session_letter']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
@@ -215,7 +215,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_info["session_id"],
             "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
             "keywords": script_template["NWBFile"]["keywords"],
@@ -240,7 +239,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         experimenter=metadata["NWBFile"]["experimenter"],
         lab=metadata["NWBFile"]["lab"],
         institution=metadata["NWBFile"]["institution"],
-        experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
         surgery=metadata["NWBFile"]["surgery"],
         pharmacology=metadata["NWBFile"]["pharmacology"],

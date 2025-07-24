@@ -241,7 +241,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
 
     # Create session ID with ++ separators (no dashes or underscores)
-    base_session_id = f"Figure5++AcetylcholineGRAB++{clean_condition}++Timestamp++{timestamp}"
+    base_session_id = f"Figure5++AcetylcholineGRAB++{clean_condition}++{timestamp}"
     script_specific_id = f"Sub++{session_info['slice_folder_name']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
@@ -258,7 +258,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
             "session_description": f"Acetylcholine GRAB biosensor session for {condition} condition in slice {session_info['slice_info']}. Contains multiple trials with different treatments and stimulation protocols.",
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
-            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_id,
             "surgery": surgery_text,
             "pharmacology": pharmacology_text,
@@ -284,7 +283,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         experimenter=metadata["NWBFile"]["experimenter"],
         lab=metadata["NWBFile"]["lab"],
         institution=metadata["NWBFile"]["institution"],
-        experiment_description=metadata["NWBFile"]["experiment_description"],
         session_id=metadata["NWBFile"]["session_id"],
         surgery=metadata["NWBFile"]["surgery"],
         pharmacology=metadata["NWBFile"]["pharmacology"],

@@ -288,7 +288,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure7++DendriticExcitability++{clean_condition}++Timestamp++{timestamp}"
+    base_session_id = f"Figure7++DendriticExcitability++{clean_condition}++{timestamp}"
     script_specific_id = f"Sub++{session_folder_path.name}"
     session_id = f"{base_session_id}++{script_specific_id}"
 

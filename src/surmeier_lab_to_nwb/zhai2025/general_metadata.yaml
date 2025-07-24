@@ -25,8 +25,6 @@ NWBFile:
     - Crittenden, Jill R.
     - Graybiel, Ann M.
     - Surmeier, D. James
-  experiment_description: |
-    Generic description of the experiment.
   surgery: |
     Unilateral stereotaxic lesion: 1 µl of 6-hydroxydopamine
     (≈3 µg in 0.02 % ascorbate-saline) injected into the right
