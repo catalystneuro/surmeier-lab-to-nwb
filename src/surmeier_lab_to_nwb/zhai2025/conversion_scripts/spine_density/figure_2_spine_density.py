@@ -25,6 +25,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
     TiffImageStackInterface,
@@ -260,16 +261,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
-
     parser = argparse.ArgumentParser(description="Convert Figure 2 spine density data to NWB format")
     parser.add_argument(
         "--stub-test",

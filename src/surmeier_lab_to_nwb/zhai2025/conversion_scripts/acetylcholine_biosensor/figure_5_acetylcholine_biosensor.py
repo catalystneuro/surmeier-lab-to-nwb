@@ -31,6 +31,7 @@ from pynwb.epoch import TimeIntervals
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewFluorescenceInterface,
@@ -351,6 +352,12 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
             continue
 
         # Create naming mappings for this trial (used for both fluorescence and raw data)
+        condition_to_camel_case = {
+            "UL control": "ULControl",
+            "PD": "PD",
+            "LID off": "LIDOff",
+        }
+
         treatment_to_camel_case = {
             "control": "Control",
             "50nM_dopamine": "50nMDopamine",
@@ -463,15 +470,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
 
     parser = argparse.ArgumentParser(description="Convert Figure 5 acetylcholine biosensor data to NWB format")
     parser.add_argument(

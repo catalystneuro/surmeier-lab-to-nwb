@@ -24,6 +24,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
@@ -32,6 +33,9 @@ from surmeier_lab_to_nwb.zhai2025.interfaces import (
     DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
     PrairieViewLineScanInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
+    BrukerReferenceImagesInterface,
 )
 
 
@@ -221,7 +225,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
         repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"
-        location_id = f"Cell{recording_info['cell_number']}{recording_info['location_full']}Dendrite{recording_info['location_number']}"
+        location_id = f"{recording_info['location_full']}Dendrite{recording_info['location_number']}"
         recording_id = f"{location_id}{repetition_id}"
 
         # Store mappings
@@ -284,17 +288,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition_human_readable, cell_number=first_recording_info["cell_number"]
+                condition=condition_human_readable
             ),
             "session_start_time": session_start_time,
             "session_id": session_id,
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"CDGI_dendritic_mouse_{session_folder_path.name}",
-            "description": script_template["Subject"]["description"].format(
-                cell_number=first_recording_info["cell_number"]
-            ),
+            "subject_id": f"SubjectRecordedAt{timestamp}",
+            "description": script_template["Subject"]["description"],
             "genotype": script_template["Subject"]["genotype"],
         },
     }
@@ -388,12 +390,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "name": electrode_name,
                 "description": (
                     f"Recording from CDGI knockout mouse {recording_info['location_description']} - {condition} - "
-                    f"Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']} - "
+                    f"Trial {recording_info['trial_number']} - "
                     f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous "
                     f"two-photon line scan imaging of calcium transients. "
                     f"CDGI genotype: Conditional knockout (Camk2g-flox/flox; Dlx5/6-Cre)"
                 ),
-                "cell_id": f"Cell{recording_info['cell_number']}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
             }
@@ -406,7 +407,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                 "name": series_name,
                 "description": (
                     f"Current clamp recording from CDGI knockout mouse {recording_info['location_description']} - "
-                    f"{condition} - Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']} - "
+                    f"{condition} - Trial {recording_info['trial_number']} - "
                     f"Three 2 nA current injections, 2 ms each, at 50 Hz. Stimulus protocol: "
                     f"PulseCount=3, PulseWidth=2ms, PulseSpacing=18ms (50Hz), FirstPulseDelay=900ms. "
                     f"CDGI knockout disrupts M1R-mediated adenylyl cyclase inhibition pathway."
@@ -524,13 +525,21 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
+        # Add reference images for this recording
+        references_folder = recording_folder / "References"
+        ref_container_name = f"ImagesBackground{recording_id}"
+        reference_interface = BrukerReferenceImagesInterface(
+            references_folder_path=references_folder, container_name=ref_container_name
+        )
+        reference_interface.add_to_nwbfile(nwbfile=nwbfile)
+
     # Build icephys table hierarchical structure using shared utility function
     cdgi_genotype = "CDGI KO (Camk2g-flox/flox; Dlx5/6-Cre)"
     build_dendritic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
-        session_info={"cell_number": first_recording_info["cell_number"]},
+        session_info={},
         condition=condition_underscore,
         stimulus_type="dendritic_excitability_current_injection",
         verbose=verbose,
@@ -553,16 +562,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
-
     parser = argparse.ArgumentParser(description="Convert Figure 7 dendritic excitability data to NWB format")
     parser.add_argument(
         "--stub-test",
@@ -574,6 +573,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     stub_test = args.stub_test
 
+    verbose = False
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 

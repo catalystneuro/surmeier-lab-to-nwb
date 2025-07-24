@@ -24,6 +24,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
@@ -32,6 +33,9 @@ from surmeier_lab_to_nwb.zhai2025.interfaces import (
     DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
     PrairieViewLineScanInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
+    BrukerReferenceImagesInterface,
 )
 
 
@@ -344,16 +348,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_dendritic_mouse_{session_folder_path.name}",
-            "description": script_template["Subject"]["description"].format(
-                session_id=session_id,
-                animal_id=session_folder_path.name,
-                treatment=(
-                    "THP (3 mg/kg, i.p.) + VU 0255035 (5 μM)"
-                    if "antagonist" in condition_underscore
-                    else "Saline control"
-                ),
-            ),
+            "subject_id": f"SubjectRecordedAt{timestamp}",
+            "description": script_template["Subject"]["description"].format(session_id=session_id),
             "genotype": script_template["Subject"]["genotype"],
         },
     }
@@ -583,6 +579,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
+        # Add reference images for this recording
+        references_folder = recording_folder / "References"
+        ref_container_name = f"ImagesBackground{recording_id}"
+        reference_interface = BrukerReferenceImagesInterface(
+            references_folder_path=references_folder, container_name=ref_container_name
+        )
+        reference_interface.add_to_nwbfile(nwbfile=nwbfile)
+
     # Build icephys table hierarchical structure using shared utility function
     m1r_treatment = "THP + VU 0255035" if "antagonist" in condition else "Control"
     build_dendritic_icephys_table_structure(
@@ -612,16 +616,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
-
     parser = argparse.ArgumentParser(description="Convert Figure 6 dendritic excitability data to NWB format")
     parser.add_argument(
         "--stub-test",

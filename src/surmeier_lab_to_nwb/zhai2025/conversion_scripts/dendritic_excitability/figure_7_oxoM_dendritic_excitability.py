@@ -23,6 +23,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
@@ -31,6 +32,9 @@ from surmeier_lab_to_nwb.zhai2025.interfaces import (
     DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
     PrairieViewLineScanInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
+    BrukerReferenceImagesInterface,
 )
 
 
@@ -166,14 +170,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     - Drug application: Add oxotremorine-M to test M1 receptor responsiveness
     - Post-drug recordings (trio-004 to -006/009): Measure dendritic excitability after oxo-M
     """
-
-    # Define genotype-specific variables for metadata
-    genotype_full = "CalDAG-GEFI knockout" if genotype == "KO" else "wildtype control"
-    genotype_bg = (
-        "CalDAG-GEFI knockout on Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic background"
-        if genotype == "KO"
-        else "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    )
 
     # Find all recording folders for this session
     recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
@@ -343,8 +339,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"CDGI_{genotype}_oxoM_mouse_{session_info['animal_id']}",
-            "description": script_template["Subject"]["description"].format(cell_number=session_info["cell_number"]),
+            "subject_id": f"SubjectRecordedAt{timestamp}",
+            "description": script_template["Subject"]["description"],
             "genotype": script_template["Subject"]["genotype"] if genotype == "KO" else "Wild-type CDGI",
         },
     }
@@ -560,6 +556,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
+        # Add reference images for this recording
+        references_folder = recording_folder / "References"
+        ref_container_name = f"ImagesBackground{recording_id}"
+        reference_interface = BrukerReferenceImagesInterface(
+            references_folder_path=references_folder, container_name=ref_container_name
+        )
+        reference_interface.add_to_nwbfile(nwbfile=nwbfile)
+
     # Build icephys table hierarchical structure using shared utility function
     build_dendritic_icephys_table_structure(
         nwbfile=nwbfile,
@@ -587,16 +591,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
-
     parser = argparse.ArgumentParser(description="Convert Figure 7 oxoM dendritic excitability data to NWB format")
     parser.add_argument(
         "--stub-test",
@@ -632,31 +626,24 @@ if __name__ == "__main__":
         genotype_path = base_path / genotype
 
         if not genotype_path.exists():
-            continue
+            raise FileNotFoundError(f"Genotype path does not exist: {genotype_path}")
 
         # Get all session folders (each session = one animal/cell)
         session_folders = [f for f in genotype_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        # Apply stub_test filtering if enabled
-        if stub_test:
-            session_folders = session_folders[:2]
+        # # Apply stub_test filtering if enabled
+        # if stub_test:
+        #     session_folders = session_folders[:2]
 
         if not session_folders:
-            continue
+            raise ValueError(f"No session folders found for genotype: {genotype}")
 
         # Process each session folder with progress bar
-        session_iterator = (
-            tqdm(
-                session_folders,
-                desc=f"Converting Figure7 OxoMDendriticExcitability {genotype}",
-                unit=" session",
-                position=0,
-                leave=True,
-                disable=not verbose,
-            )
-            if not verbose
-            else session_folders
+        session_iterator = tqdm(
+            session_folders,
+            desc=f"Converting Figure7 OxoMDendriticExcitability {genotype}",
+            unit=" session",
         )
 
         for session_folder in session_iterator:

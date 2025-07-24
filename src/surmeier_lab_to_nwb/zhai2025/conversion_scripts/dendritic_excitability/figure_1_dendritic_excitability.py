@@ -25,6 +25,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
@@ -547,16 +548,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
-
     parser = argparse.ArgumentParser(description="Convert Figure 1 dendritic excitability data to NWB format")
     parser.add_argument(
         "--stub-test",
@@ -617,11 +608,11 @@ if __name__ == "__main__":
                 # This folder's children are session_folders (like 0706a with 0706a1, 0706a2)
                 session_folders.extend(subdirs)
 
-        # session_folders.sort()
+        session_folders.sort()
 
-        # # Apply stub_test filtering if enabled
-        # if stub_test:
-        #     session_folders = session_folders[:2]
+        # Apply stub_test filtering if enabled
+        if stub_test:
+            session_folders = session_folders[:2]
 
         # Process each session folder with progress bar
         session_iterator = tqdm(

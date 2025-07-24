@@ -2,9 +2,10 @@
 Utility functions for extracting conditions from NWB session IDs.
 
 This module provides hardcoded dictionaries for experimental condition mappings
-used in the Zhai 2025 paper conversion scripts.
+and shared utility functions used in the Zhai 2025 paper conversion scripts.
 """
 
+import argparse
 import re
 from typing import Optional
 
@@ -15,6 +16,7 @@ FOLDER_TO_PAPER_CONDITION = {
     "LID on-state": "LID on-state",
     "LID on-state with SCH": "LID on-state with SCH",
     # Figure 3 conditions
+    "LID on-state with sul": "LID on-state with sul (iSPN)",
     "LID on-state with sul (iSPN)": "LID on-state with sul (iSPN)",
     # Figure 6 conditions
     "control": "control",
@@ -54,6 +56,19 @@ format_condition = {
         "underscore": "lid_on_state_with_sul",
         "human_readable": "LID on-state with sulpiride",
         "description_and_purpose": "LID on-state with sulpiride D2 receptor antagonist to block indirect pathway",
+    },
+    # Figure 5 conditions
+    "6-OHDA": {
+        "CamelCase": "SixOHDA",
+        "underscore": "6_ohda",
+        "human_readable": "6-OHDA",
+        "description_and_purpose": "6-hydroxydopamine lesioned animals (Parkinson's disease model)",
+    },
+    "off-state": {
+        "CamelCase": "OffState",
+        "underscore": "off_state",
+        "human_readable": "off-state",
+        "description_and_purpose": "Animals in off-state (without L-DOPA treatment)",
     },
     # Figure 6 conditions
     "control": {
@@ -203,3 +218,35 @@ def extract_condition_from_session_id(session_id: str) -> Optional[str]:
             return CAMELCASE_TO_PAPER_CONDITION[camel_case_condition]
 
     return None
+
+
+def str_to_bool(v):
+    """
+    Convert string or boolean input to boolean value for argparse.
+
+    This function is used consistently across all conversion scripts for handling
+    boolean command line arguments like --stub-test.
+
+    Parameters
+    ----------
+    v : str or bool
+        Input value to convert to boolean
+
+    Returns
+    -------
+    bool
+        Converted boolean value
+
+    Raises
+    ------
+    argparse.ArgumentTypeError
+        If input cannot be converted to boolean
+    """
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")

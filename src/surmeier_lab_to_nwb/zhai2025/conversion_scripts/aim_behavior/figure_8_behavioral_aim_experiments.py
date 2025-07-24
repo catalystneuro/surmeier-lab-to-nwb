@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
     AIMBehavioralDynamicTableInterface,
@@ -189,16 +190,6 @@ if __name__ == "__main__":
     import argparse
 
     # Set up argument parser
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
-
     parser = argparse.ArgumentParser(
         description="Convert Figure 8 M1R CRISPR AIM behavioral data to NWB format with optimized DynamicTable structure"
     )

@@ -24,7 +24,9 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    FOLDER_TO_PAPER_CONDITION,
     format_condition,
+    str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
@@ -33,6 +35,9 @@ from surmeier_lab_to_nwb.zhai2025.interfaces import (
     DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
     PrairieViewLineScanInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
+    BrukerReferenceImagesInterface,
 )
 
 
@@ -312,10 +317,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_mouse_{session_folder_path.name}",
-            "description": script_template["Subject"]["description"].format(
-                cell_number=first_recording_info["cell_number"]
-            ),
+            "subject_id": f"SubjectRecordedAt{timestamp}",
+            "description": script_template["Subject"]["description"],
             "genotype": script_template["Subject"]["genotype"],
         },
     }
@@ -533,6 +536,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
+        # Add reference images for this recording
+        references_folder = recording_folder / "References"
+        ref_container_name = f"ImagesBackground{recording_id}"
+        reference_interface = BrukerReferenceImagesInterface(
+            references_folder_path=references_folder, container_name=ref_container_name
+        )
+        reference_interface.add_to_nwbfile(nwbfile=nwbfile)
+
     # Build icephys table hierarchical structure using shared utility function
     build_dendritic_icephys_table_structure(
         nwbfile=nwbfile,
@@ -560,16 +571,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
-    def str_to_bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Boolean value expected.")
-
     parser = argparse.ArgumentParser(description="Convert Figure 3 dendritic excitability data to NWB format")
     parser.add_argument(
         "--stub-test",
@@ -608,6 +609,9 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
+        # Normalize folder name to paper condition name
+        paper_condition = FOLDER_TO_PAPER_CONDITION.get(condition, condition)
+
         # Get all session folders (e.g., 0523a, 0523b, etc.)
         # Note: Each session folder corresponds to a single subject
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
@@ -619,7 +623,7 @@ if __name__ == "__main__":
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
             session_folders,
-            desc=f"Converting Figure3 DendriticExcitability {format_condition[condition]['human_readable']}",
+            desc=f"Converting Figure3 DendriticExcitability {format_condition[paper_condition]['human_readable']}",
             unit=" session",
         )
 
@@ -629,7 +633,7 @@ if __name__ == "__main__":
             # All recordings from the session are combined into a single NWBFile
             nwbfile = convert_session_to_nwbfile(
                 session_folder_path=session_folder,
-                condition=condition,
+                condition=paper_condition,
                 verbose=verbose,
             )
 
