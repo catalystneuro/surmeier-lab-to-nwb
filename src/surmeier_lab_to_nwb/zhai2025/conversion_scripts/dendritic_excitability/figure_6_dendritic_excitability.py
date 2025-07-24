@@ -269,7 +269,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
         repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"
-        location_id = f"Cell{recording_info['cell_number']}{recording_info['location_full']}Dendrite{recording_info['location_number']}"
+        location_id = f"{recording_info['location_full']}Dendrite{recording_info['location_number']}"
         recording_id = f"{location_id}{repetition_id}"
 
         # Store mappings
@@ -289,7 +289,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Overall session start time is the earliest across all interfaces
     session_start_time = min(earliest_ophys_time, earliest_intracellular_time)
-
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
         intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
@@ -448,7 +447,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"two-photon line scan imaging of calcium transients. "
                     f"M1R treatment: {'THP + VU 0255035' if 'antagonist' in condition else 'Control'}"
                 ),
-                "cell_id": f"Cell{recording_info['cell_number']}",
+                "cell_id": f"CellRecordedAt{timestamp}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
             }

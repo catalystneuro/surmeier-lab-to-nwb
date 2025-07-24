@@ -411,7 +411,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"Recording from {cell_type} {recording_info['location_description']} - {condition_human_readable} - "
                     f"Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']}"
                 ),
-                "cell_id": f"Cell{recording_info['cell_number']}",
+                "cell_id": f"CellRecordedAt{timestamp}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
             }

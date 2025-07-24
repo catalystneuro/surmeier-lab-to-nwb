@@ -387,7 +387,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous "
                     f"two-photon line scan imaging of calcium transients"
                 ),
-                "cell_id": "",
+                "cell_id": f"CellRecordedAt{timestamp}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
             }

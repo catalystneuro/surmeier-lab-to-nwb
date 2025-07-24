@@ -245,7 +245,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Overall session start time is the earliest across all interfaces
     session_start_time = min(earliest_ophys_time, earliest_intracellular_time)
-
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
         intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
@@ -276,7 +275,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Create session ID following pattern from somatic excitability scripts
     cell_type = "CDGI KO iSPN"  # CDGI knockout indirect pathway SPN
-    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
     base_session_id = f"Figure7++DendriticExcitability++{condition_camel_case}++{timestamp}"
     script_specific_id = f"{cell_type.replace(' ', '')}++Sub++{session_folder_path.name}"
