@@ -275,6 +275,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Create session ID following pattern from somatic excitability scripts
     cell_type = "CDGI KO iSPN"  # CDGI knockout indirect pathway SPN
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
     base_session_id = f"Figure7++DendriticExcitability++{condition_camel_case}++{timestamp}"
     script_specific_id = f"{cell_type.replace(' ', '')}++Sub++{session_folder_path.name}"
@@ -393,6 +394,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"two-photon line scan imaging of calcium transients. "
                     f"CDGI genotype: Conditional knockout (Camk2g-flox/flox; Dlx5/6-Cre)"
                 ),
+                "cell_id": f"CellRecordedAt{timestamp}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
             }
