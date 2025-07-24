@@ -218,9 +218,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     where recording_folder represents different recordings from the same animal.
     """
 
-    if verbose:
-        print(f"Processing session folder: {session_folder_path.name} (corresponds to one animal)")
-
     # Get all recording folders within the session folder
     all_recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
     all_recording_folders.sort()
@@ -228,18 +225,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     if not all_recording_folders:
         raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
 
-    if verbose:
-        print(f"  Total recordings found: {len(all_recording_folders)}")
-
     # Calculate recording IDs, session start times, and create interface mappings
     ophys_session_start_times = []  # (ophys_time, recording_folder, recording_id)
     intracellular_session_start_times = []  # (intracellular_time, recording_folder, recording_id)
     recording_id_to_location_id = {}
     recording_id_to_folder = {}
     t_starts = {}  # t_starts[recording_id][interface] = t_start_offset
-
-    if verbose:
-        print(f"  Validating session start times and calculating recording IDs...")
 
     for recording_folder in all_recording_folders:
         # Find main experiment XML file (ophys)
@@ -265,11 +256,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
         # Compare session start times
         time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-        if verbose:
-            print(f"    Times for {recording_folder.name}:")
-            print(f"      Ophys time: {ophys_session_start_time}")
-            print(f"      Intracellular time: {intracellular_session_start_time}")
-            print(f"      Difference: {time_diff:.1f} seconds")
 
         # Get unique identifiers for recording to name objects
         recording_info = parse_session_info_from_folder_name(recording_folder)
@@ -307,12 +293,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         )
         earliest_interface = "intracellular_electrophysiology"
 
-    if verbose:
-        print(f"  Overall session start time: {session_start_time}")
-        print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
-        print(f"    Earliest line scan ophys time: {earliest_ophys_time}")
-        print(f"    Earliest intracellular electrophysiology time: {earliest_intracellular_time}")
-
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
         intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
@@ -328,11 +308,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "line_scan_structural_channel": ophys_t_start,  # Ch1/Alexa568 line scan uses ophys timing
             "line_scan_calcium_channel": ophys_t_start,  # Ch2/Fluo4 line scan uses ophys timing
         }
-
-        if verbose:
-            print(f"    Recording {folder.name} ({recording_id}) temporal alignment:")
-            print(f"      Line scan interfaces (structural Ch1 + calcium Ch2) t_start = {ophys_t_start:.3f} seconds")
-            print(f"      Intracellular electrophysiology interface t_start = {intracellular_t_start:.3f} seconds")
 
     # Get first recording info for session description
     first_recording_folder = next(iter(recording_id_to_folder.values()))
@@ -473,20 +448,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Apply temporal alignment offsets using precise mapping with descriptive interface names
         structural_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_structural_channel"])
         calcium_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_calcium_channel"])
-
-        if verbose:
-            print(f"  Processing recording for folder: {recording_folder.name}")
-            print(f"    Recording ID: {recording_id}")
-            print(f"    Location ID: {location_id}")
-            print(
-                f"    Line scan structural channel (Ch1/Alexa568) temporal alignment offset: {t_starts[recording_id]['line_scan_structural_channel']:.3f} seconds"
-            )
-            print(
-                f"    Line scan calcium channel (Ch2/Fluo4) temporal alignment offset: {t_starts[recording_id]['line_scan_calcium_channel']:.3f} seconds"
-            )
-            print(
-                f"    Intracellular electrophysiology temporal alignment offset: {t_starts[recording_id]['intracellular']:.3f} seconds"
-            )
 
         # Find electrophysiology XML file (exact name from Figure 6 notes)
         electrophysiology_xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
@@ -655,16 +616,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-        if verbose:
-            print(f"    Added line scan imaging data")
-            print(f"    Successfully processed recording: {recording_folder.name}")
-
-    if verbose:
-        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
-
     # Build icephys table hierarchical structure following PyNWB best practices
-    if verbose:
-        print(f"  Building icephys table structure for {len(recording_indices)} recordings...")
 
     # Step 1: Build simultaneous recordings (each trial is its own simultaneous group)
     simultaneous_recording_indices = []
@@ -735,15 +687,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         repetitions=repetition_indices, condition=condition, m1r_treatment=m1r_treatment
     )
 
-    if verbose:
-        print(f"    Added experimental condition '{condition}' with {len(repetition_indices)} repetitions")
-        print(f"  Successfully built icephys table hierarchy:")
-        print(f"    - {len(recording_indices)} intracellular recordings")
-        print(f"    - {len(simultaneous_recording_indices)} simultaneous recordings")
-        print(f"    - {len(sequential_recording_indices)} sequential recordings")
-        print(f"    - {len(repetition_indices)} repetitions (grouped by location)")
-        print(f"    - 1 experimental condition ('{condition}')")
-
     # Use utility function to add trials table with proper chronological ordering
     # Add trials table using interface
     trials_interface = DendriticTrialsInterface(
@@ -786,8 +729,6 @@ if __name__ == "__main__":
 
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
-        if verbose:
-            print(f"Processing Figure 6 dendritic excitability data for: {condition}")
 
         # Get all session folders (e.g., 0217a, 0218b, etc.)
         # Note: Each session folder corresponds to a single animal
@@ -797,11 +738,6 @@ if __name__ == "__main__":
         # Apply stub_test filtering if enabled
         if stub_test:
             session_folders = session_folders[:2]
-            if verbose:
-                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
-
-        if verbose:
-            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(

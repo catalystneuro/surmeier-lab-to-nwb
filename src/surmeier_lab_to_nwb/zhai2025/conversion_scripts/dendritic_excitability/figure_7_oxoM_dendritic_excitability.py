@@ -184,12 +184,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         "animal_id": first_recording_info["animal_id"],
     }
 
-    if verbose:
-        print(
-            f"Processing session folder: {session_folder_path.name} (Animal {session_info['animal_id']}, Cell {session_info['cell_number']})"
-        )
-        print(f"  Found {len(recording_folders)} dendritic recording locations/trials")
-
     # Group recordings by location and phase for analysis
     recordings_by_location = {}
     baseline_recordings = []
@@ -202,9 +196,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     recording_id_to_folder = {}
     recording_id_to_location_id = {}
     t_starts = {}  # t_starts[recording_id][interface] = t_start_offset
-
-    if verbose:
-        print(f"  Validating session start times and calculating recording IDs...")
 
     for recording_folder in recording_folders:
         # Parse recording information using unified function
@@ -258,13 +249,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         else:
             post_oxoM_recordings.append(recording_id)
 
-        if verbose:
-            print(
-                f"    Recording {recording_folder.name}: ophys = {ophys_session_start_time}, intracellular = {intracellular_session_start_time}"
-            )
-            print(f"      Location: {recording_info['location_id']} (~{recording_info['approximate_distance_um']}μm)")
-            print(f"      Phase: {recording_info['phase_description']}")
-
     if not ophys_session_start_times or not intracellular_session_start_times:
         raise ValueError(f"No valid recordings found in session folder: {session_folder_path}")
 
@@ -287,14 +271,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         )
         earliest_interface = "intracellular_electrophysiology"
 
-    if verbose:
-        print(f"  Overall session start time: {session_start_time}")
-        print(f"    Earliest time source: {earliest_interface} interface from recording {earliest_folder.name}")
-        print(f"  Recording organization:")
-        print(f"    Baseline recordings: {len(baseline_recordings)}")
-        print(f"    Post-oxoM recordings: {len(post_oxoM_recordings)}")
-        print(f"    Locations tested: {list(recordings_by_location.keys())}")
-
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
         intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
@@ -310,11 +286,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
             "line_scan_calcium_channel": ophys_t_start,  # Ch2/Fluo4 line scan uses ophys timing
         }
 
-        if verbose:
-            print(f"    Recording {folder.name} ({recording_id}) temporal alignment:")
-            print(f"      Line scan interfaces (structural Ch1 + calcium Ch2) t_start = {ophys_t_start:.3f} seconds")
-            print(f"      Intracellular electrophysiology interface t_start = {intracellular_t_start:.3f} seconds")
-
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
 
@@ -329,9 +300,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
             "session_id": session_id,
         }
     )
-
-    if verbose:
-        print(f"Session date: {session_info['date_str']}")
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -511,13 +479,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
             }
         )
 
-        if verbose:
-            print(f"  Processing recording for folder: {recording_folder.name}")
-            print(f"    Recording ID: {recording_id}")
-            print(f"    Location: {recording_info['location_id']} (~{recording_info['approximate_distance_um']}μm)")
-            print(f"    Phase: {recording_info['phase_description']}")
-            print(f"    Temporal alignment offset: {t_starts[recording_id]['intracellular']:.3f} seconds")
-
         # Add intracellular data to NWB file
         intracellular_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=intracellular_metadata)
 
@@ -624,16 +585,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-        if verbose:
-            print(f"    Added line scan imaging data")
-            print(f"    Successfully processed recording: {recording_folder.name}")
-
-    if verbose:
-        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
-
     # Build icephys table hierarchical structure following PyNWB best practices
-    if verbose:
-        print(f"  Building icephys table structure for {len(recording_indices)} recordings...")
 
     # Step 1: Build simultaneous recordings (each location/trial is its own simultaneous group)
     simultaneous_recording_indices = []
@@ -668,15 +620,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     experimental_condition_index = nwbfile.add_icephys_experimental_condition(
         repetitions=[repetition_index], genotype=genotype
     )
-
-    if verbose:
-        print(f"    Added genotype condition '{genotype}' with 1 repetition")
-        print(f"  Successfully built icephys table hierarchy:")
-        print(f"    - {len(recording_indices)} intracellular recordings")
-        print(f"    - {len(simultaneous_recording_indices)} simultaneous recordings")
-        print(f"    - {len(sequential_recording_indices)} sequential recordings")
-        print(f"    - 1 repetition (Animal {session_info['animal_id']}, Cell {session_info['cell_number']})")
-        print(f"    - 1 genotype condition ('{genotype}')")
 
     # Use utility function to add trials table with proper chronological ordering
     # Add trials table using interface
@@ -719,12 +662,7 @@ if __name__ == "__main__":
         genotype_path = base_path / genotype
 
         if not genotype_path.exists():
-            if verbose:
-                print(f"Skipping genotype '{genotype}' - path does not exist: {genotype_path}")
             continue
-
-        if verbose:
-            print(f"Processing oxotremorine-M dendritic excitability data for: {genotype}")
 
         # Get all session folders (each session = one animal/cell)
         session_folders = [f for f in genotype_path.iterdir() if f.is_dir()]
@@ -733,15 +671,8 @@ if __name__ == "__main__":
         # Apply stub_test filtering if enabled
         if stub_test:
             session_folders = session_folders[:2]
-            if verbose:
-                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
-
-        if verbose:
-            print(f"Found {len(session_folders)} session folders")
 
         if not session_folders:
-            if verbose:
-                print(f"No session folders found in {genotype_path}")
             continue
 
         # Process each session folder with progress bar
@@ -759,11 +690,6 @@ if __name__ == "__main__":
         )
 
         for session_folder in session_iterator:
-            if verbose:
-                print(f"\nProcessing session: {session_folder.name}")
-
-            if verbose:
-                print(f"\nProcessing session: {session_folder.name}")
 
             # Convert session data to NWB format with time alignment
             nwbfile = convert_session_to_nwbfile(
@@ -777,5 +703,3 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            if verbose:
-                print(f"Successfully saved: {nwbfile_path.name}")

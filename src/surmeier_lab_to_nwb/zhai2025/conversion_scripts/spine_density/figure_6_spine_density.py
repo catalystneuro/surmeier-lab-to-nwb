@@ -58,9 +58,6 @@ def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
         xml_content = re.sub(r"&#x0;", "", xml_content)
         xml_dict = xmltodict.parse(xml_content)
 
-    if verbose:
-        print(f"    Parsing XML metadata from: {xml_file.name}")
-
     metadata = {}
 
     # Check if this is PVScan or AutoQuant format
@@ -177,9 +174,6 @@ def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
                     metadata["z_slices"] = int(value)
                 except (ValueError, TypeError):
                     pass
-
-    if verbose:
-        print(f"    Extracted metadata keys: {list(metadata.keys())}")
 
     return metadata
 
@@ -308,9 +302,6 @@ def create_image_metadata(
     # Sort by Z-slice number
     tiff_files_with_z.sort(key=lambda x: x[1]["z_slice_number"])
 
-    if verbose:
-        print(f"    Creating metadata for {len(tiff_files_with_z)} individual images")
-
     # Calculate resolution in pixels per cm (converted from μm per pixel)
     pixel_size_x_um = xml_metadata.get("pixel_size_x", 0.15)
     pixel_size_y_um = xml_metadata.get("pixel_size_y", 0.15)
@@ -346,12 +337,6 @@ def create_image_metadata(
             "description": z_info["description"],
             "resolution": resolution,
         }
-
-        if verbose:
-            print(
-                f"      Added metadata for: {z_info['image_name']} (Z={z_info['z_slice_number']}, "
-                f"depth={z_info['z_depth_um']:.1f}μm)"
-            )
 
     return images_metadata
 
@@ -559,8 +544,6 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     """
     # Parse session information
     session_info = parse_session_info(session_folder_path)
-    if verbose:
-        print(f"Session date: {session_info['date_str']}, Animal: {session_info['animal_id']}")
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -569,10 +552,6 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_6_spine_density"]
-
-    if verbose:
-        print(f"Loaded general metadata from: {general_metadata_path}")
-        print(f"Experiment description: {general_metadata['NWBFile']['experiment_description'][:100]}...")
 
     # Create BIDS-style base session ID with detailed timestamp when available
     session_start_time = session_info["session_start_time"]
@@ -649,19 +628,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     microscope_device = None
     subfolders = [f for f in session_folder_path.iterdir() if f.is_dir()]
 
-    if verbose:
-        print(f"Found {len(subfolders)} image stacks in session")
-
     # Process each image stack
     for subfolder in subfolders:
-        if verbose:
-            print(f"  Processing: {subfolder.name}")
 
         # Parse container information
         container_info = parse_container_info(subfolder.name, session_id)
-
-        if verbose:
-            print(f"    Container name: {container_info['container_name']}")
 
         # Get all TIFF files in the folder, excluding projection images
         all_tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
@@ -681,33 +652,18 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         )
         assert len(tiff_files) > 0, f"No Z-stack TIFF files found in {subfolder.name}"
 
-        if verbose:
-            print(f"    Found {len(tiff_files)} TIFF files in {subfolder.name}")
-
         # Find and parse XML metadata file
         xml_file = find_xml_metadata_file(subfolder)
         if not xml_file:
             raise FileNotFoundError(f"No XML metadata file found in {subfolder.name}")
 
-        if verbose:
-            print(f"    Found XML metadata file: {xml_file.name}")
-
         xml_metadata = parse_xml_metadata(xml_file, verbose=verbose)
         if not xml_metadata:
             raise ValueError(f"Failed to parse XML metadata from {xml_file.name}")
 
-        if verbose:
-            print(
-                f"    Extracted metadata: pixel_size={xml_metadata.get('pixel_size_x', 'N/A')} μm, "
-                f"objective={xml_metadata.get('objective_lens', 'N/A')}, "
-                f"NA={xml_metadata.get('numerical_aperture', 'N/A')}"
-            )
-
         # Create microscope device (only once, using first available metadata)
         if microscope_device is None:
             microscope_device = create_microscope_device(nwbfile, xml_metadata)
-            if verbose:
-                print(f"    Created microscope device: {microscope_device.name}")
 
         # Create ImageInterface with sorted TIFF files
         interface = ImageInterface(
@@ -725,17 +681,8 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
         # Update the metadata with custom image information
         metadata["Images"][container_info["container_name"]].update(images_metadata)
 
-        if verbose:
-            print(f"    Adding interface to NWB file with {len(tiff_files)} individual images")
-
         # Add to NWB file using the interface
         interface.add_to_nwbfile(nwbfile=nwbfile, metadata=metadata)
-
-        if verbose:
-            print(f"    Successfully added image stack: {container_info['container_name']}")
-
-    if verbose:
-        print(f"Conversion completed for session: {session_info['animal_id']}")
 
     return nwbfile
 
@@ -766,9 +713,6 @@ if __name__ == "__main__":
         condition_path = base_path / condition
         assert condition_path.exists(), f"Base path does not exist: {condition_path}"
 
-        if verbose:
-            print(f"Processing spine density data for: {condition=}")
-
         # Get all session folders
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
@@ -776,11 +720,6 @@ if __name__ == "__main__":
         # Apply stub_test filtering if enabled
         if stub_test:
             session_folders = session_folders[:2]
-            if verbose:
-                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
-
-        if verbose:
-            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
@@ -788,8 +727,6 @@ if __name__ == "__main__":
         )
 
         for session_folder_path in session_iterator:
-            if verbose:
-                print(f"\nProcessing session: {session_folder_path.name}")
 
             # Convert data to NWB format
             nwbfile = convert_data_to_nwb(
@@ -804,5 +741,3 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            if verbose:
-                print(f"Successfully saved: {nwbfile_path.name}")

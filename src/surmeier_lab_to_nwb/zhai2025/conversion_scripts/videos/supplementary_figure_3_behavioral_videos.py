@@ -343,9 +343,6 @@ def convert_session_to_nwbfile(
     # Add behavioral epochs to NWB file
     nwbfile.add_time_intervals(behavioral_epochs)
 
-    if verbose:
-        print(f"Created NWB file for {animal_id} session {session_date} with {len(video_metadata_list)} videos")
-
     return nwbfile
 
 
@@ -384,11 +381,6 @@ if __name__ == "__main__":
     if stub_test:
         sessions_items = list(sessions.items())[:2]
         sessions = dict(sessions_items)
-        if verbose:
-            print(f"stub_test enabled: processing only first {len(sessions)} sessions")
-
-    if verbose:
-        print(f"Found {len(sessions)} Supplementary Figure 3 video sessions")
 
     # Process each session
     for session_date, session_path in tqdm(
@@ -400,8 +392,6 @@ if __name__ == "__main__":
 
         # Create NWB files for each animal
         for animal_id, video_files in animals.items():
-            if verbose:
-                print(f"  Animal: {animal_id} ({len(video_files)} videos)")
 
             # Determine genotype based on video metadata
             first_video_metadata = extract_video_metadata_supfig3(video_files[0])
@@ -423,8 +413,3 @@ if __name__ == "__main__":
 
             # Write the NWB file
             configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path)
-            if verbose:
-                print(f"    Saved: {output_path}")
-
-    if verbose:
-        print(f"\nSupplementary Figure 3 video conversion complete. Files saved to: {output_base_path}")

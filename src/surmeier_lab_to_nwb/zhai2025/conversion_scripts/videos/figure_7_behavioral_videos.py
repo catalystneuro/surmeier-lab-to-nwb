@@ -345,9 +345,6 @@ def convert_session_to_nwbfile(
     # Add behavioral epochs to NWB file
     nwbfile.add_time_intervals(behavioral_epochs)
 
-    if verbose:
-        print(f"Created NWB file for {animal_id} session {session_date} with {len(video_metadata_list)} videos")
-
     return nwbfile
 
 
@@ -378,26 +375,17 @@ if __name__ == "__main__":
     if stub_test:
         sessions_items = list(sessions.items())[:2]
         sessions = dict(sessions_items)
-        if verbose:
-            print(f"stub_test enabled: processing only first {len(sessions)} sessions")
-
-    if verbose:
-        print(f"Found {len(sessions)} Figure 7 video sessions")
 
     # Process each session
     for session_date, session_path in tqdm(
         sessions.items(), desc="Converting Figure7 Videos", disable=not verbose, unit=" session"
     ):
-        if verbose:
-            print(f"\nProcessing Figure 7 session: {session_date}")
 
         # Group videos by animal
         animals = group_videos_by_animal(session_path)
 
         # Create NWB files for each animal
         for animal_id, video_files in animals.items():
-            if verbose:
-                print(f"  Animal: {animal_id} ({len(video_files)} videos)")
 
             # Create output filename
             genotype = "CDGI KO"  # All Figure 7 videos are CDGI knockout
@@ -415,8 +403,3 @@ if __name__ == "__main__":
 
             # Write the NWB file
             configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path)
-            if verbose:
-                print(f"    Saved: {output_path}")
-
-    if verbose:
-        print(f"\nFigure 7 video conversion complete. Files saved to: {output_base_path}")

@@ -149,20 +149,11 @@ def convert_session_to_nwbfile(
         "session_letter": first_recording_info["session_letter"],
     }
 
-    if verbose:
-        print(
-            f"Processing session folder: {session_folder_path.name} (Session {session_info['session_letter']}) ({condition})"
-        )
-        print(f"  Found {len(recording_folders)} sweep recordings")
-
     # Calculate recording IDs, session start times, and create interface mappings
     session_start_times = []  # (timestamp, recording_folder, recording_id)
     recording_id_to_info = {}
     recording_id_to_folder = {}
     t_starts = {}  # t_starts[recording_id] = t_start_offset
-
-    if verbose:
-        print(f"  Validating session start times and calculating recording IDs...")
 
     for recording_folder in recording_folders:
         # Parse recording information using unified function
@@ -184,9 +175,6 @@ def convert_session_to_nwbfile(
         recording_id_to_folder[recording_id] = recording_folder
         session_start_times.append((session_start_time, recording_folder, recording_id))
 
-        if verbose:
-            print(f"    Recording {recording_folder.name}: timestamp = {session_start_time}")
-
     if not session_start_times:
         raise ValueError(f"No valid recordings found in session folder: {session_folder_path}")
 
@@ -194,19 +182,11 @@ def convert_session_to_nwbfile(
     earliest_time = min(session_start_times, key=lambda x: x[0])[0]
     earliest_folder = next(folder for start_time, folder, _ in session_start_times if start_time == earliest_time)
 
-    if verbose:
-        print(f"  Overall session start time: {earliest_time}")
-        print(f"    Earliest time source: recording {earliest_folder.name}")
-
     # Calculate t_start offsets for temporal alignment
     for start_time, folder, recording_id in session_start_times:
         # Calculate offset relative to overall session start time
         t_start_offset = (start_time - earliest_time).total_seconds()
         t_starts[recording_id] = t_start_offset
-
-        if verbose:
-            print(f"    Recording {folder.name} ({recording_id}) temporal alignment:")
-            print(f"      t_start offset = {t_start_offset:.3f} seconds")
 
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
@@ -225,9 +205,6 @@ def convert_session_to_nwbfile(
             "session_id": session_id,
         }
     )
-
-    if verbose:
-        print(f"Session date: {session_info['date_str']}")
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -371,12 +348,6 @@ def convert_session_to_nwbfile(
             }
         )
 
-        if verbose:
-            print(f"  Processing recording for folder: {recording_folder.name}")
-            print(f"    Recording ID: {recording_id}")
-            print(f"    LED intensity: {recording_info['led_intensity']}, Sweep: {recording_info['sweep_number']}")
-            print(f"    Temporal alignment offset: {t_starts[recording_id]:.3f} seconds")
-
         # Add intracellular data to NWB file
         interface.add_to_nwbfile(nwbfile=nwbfile, metadata=interface_metadata)
 
@@ -467,15 +438,7 @@ def convert_session_to_nwbfile(
             "recording_info": recording_info,
         }
 
-        if verbose:
-            print(f"    Successfully processed recording: {recording_folder.name}")
-
-    if verbose:
-        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
-
     # Build icephys table hierarchical structure following PyNWB best practices
-    if verbose:
-        print(f"  Building icephys table structure for {len(recording_indices)} recordings...")
 
     # Step 1: Build simultaneous recordings (each sweep is its own simultaneous group)
     simultaneous_recording_indices = []
@@ -510,9 +473,6 @@ def convert_session_to_nwbfile(
 
     nwbfile.add_icephys_experimental_condition(repetitions=[repetition_index], condition=condition)
 
-    if verbose:
-        print(f"  Successfully built icephys table structure")
-
     return nwbfile
 
 
@@ -536,8 +496,6 @@ def main():
 
     # Process each condition
     for condition in conditions:
-        if verbose:
-            print(f"Processing Sr²⁺-oEPSC data for: {condition}")
 
         condition_path = raw_data_root / condition
         if not condition_path.exists():
@@ -555,11 +513,6 @@ def main():
         # Apply stub_test filtering if enabled
         if stub_test:
             session_folders = session_folders[:2]
-            if verbose:
-                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
-
-        if verbose:
-            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
@@ -568,8 +521,6 @@ def main():
 
         # Process each session
         for session_folder in session_iterator:
-            if verbose:
-                print(f"\nProcessing session: {session_folder.name}")
 
             # Convert session to NWB
             nwbfile = convert_session_to_nwbfile(
@@ -584,9 +535,6 @@ def main():
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-
-            if verbose:
-                print(f"Successfully saved: {nwbfile_path}")
 
 
 if __name__ == "__main__":
