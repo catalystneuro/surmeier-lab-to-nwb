@@ -21,6 +21,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
 )
@@ -289,14 +292,16 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         }
 
     # Create session ID following pattern from somatic excitability scripts
-    genotype_to_camel_case = {
-        "WT": "WT",
-        "CDGI KO": "CDGIKO",
+    # Map genotype to condition format for consistency
+    genotype_to_condition = {
+        "WT": "WT oxoM treatment",
+        "KO": "CDGI KO oxoM treatment",
     }
 
+    condition = genotype_to_condition.get(genotype, f"{genotype} oxoM treatment")
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_genotype = genotype_to_camel_case.get(genotype, genotype.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure7++DendriticExcitability++OxoM++{clean_genotype}++{timestamp}"
+    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
+    base_session_id = f"Figure7++DendriticExcitability++OxoM++{condition_camel_case}++{timestamp}"
     script_specific_id = f"Animal++{session_info['animal_id']}++Cell++{session_info['cell_number']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
@@ -321,13 +326,15 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
             pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["oxotremorine_M"]
 
     # Create session-specific metadata from template with runtime substitutions
+    cell_type = "CDGI KO iSPN" if genotype == "KO" else "WT iSPN"  # Cell type based on genotype
     genotype_description = "CDGI knockout" if genotype == "KO" else "wildtype"
-    condition = f"{genotype_description} oxoM treatment"
+    condition_underscore = format_condition[condition]["underscore"]
+    condition_human_readable = format_condition[condition]["human_readable"]
 
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition,
+                condition=condition_human_readable,
                 cell_number=session_info["cell_number"],
             ),
             "session_start_time": session_start_time,
@@ -559,7 +566,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
         session_info=session_info,
-        condition=condition,
+        condition=condition_underscore,
         stimulus_type="dendritic_excitability_oxotremorine_M_protocol",
         verbose=verbose,
     )

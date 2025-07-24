@@ -189,8 +189,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Create session ID following pattern from figure_1_somatic_excitability.py
     cell_type = "iSPN"  # Indirect pathway SPN
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = format_condition[condition]["CamelCase"]  # Use centralized mapping
-    base_session_id = f"Figure3++SomaticExcitability++{clean_condition}++{timestamp}"
+    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
+    base_session_id = f"Figure3++SomaticExcitability++{condition_camel_case}++{timestamp}"
     script_specific_id = f"{cell_type}"  # Specific to this script, can be adjusted if needed
     session_id = f"{base_session_id}++{script_specific_id}"
 
@@ -210,10 +210,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         if "sulpiride" in script_template["NWBFile"]["pharmacology_conditions"]:
             pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["sulpiride"]
 
+    condition_human_readable = format_condition[condition]["human_readable"]
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=format_condition[condition]["human_readable"]
+                condition=condition_human_readable
             ),
             "session_start_time": session_start_time,
             "session_id": session_id,
@@ -268,7 +269,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
                 "name": electrode_name,
                 "description": (
                     f"Whole-cell patch clamp electrode recording from {cell_type} soma in the dorsolateral striatum - "
-                    f"{condition} - F-I protocol with {len(recording_folders)} current steps"
+                    f"{condition_human_readable} - F-I protocol with {len(recording_folders)} current steps"
                 ),
                 "cell_id": f"CellRecordedAt{timestamp}",
                 "location": "soma - dorsolateral striatum",
@@ -282,7 +283,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             {
                 "name": series_name,
                 "description": (
-                    f"Current clamp recording from {cell_type} - {condition} - "
+                    f"Current clamp recording from {cell_type} - {condition_human_readable} - "
                     f"{recording_info['current_formatted']} current injection - "
                     f"F-I protocol step {recording_info['protocol_step']}"
                 ),
@@ -310,7 +311,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     build_somatic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
-        condition=condition,
+        condition=condition_underscore,
     )
 
     return nwbfile

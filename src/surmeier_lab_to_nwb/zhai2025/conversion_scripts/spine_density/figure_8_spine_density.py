@@ -12,7 +12,6 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_8_conversi
 """
 
 import re
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
@@ -23,6 +22,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
     TiffImageStackInterface,
 )
@@ -220,15 +222,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    # Create session ID following somatic_excitability pattern
-    condition_to_camel_case = {
-        "control": "Control",
-        "M1R antagonist": "M1RAntagonist",
-    }
-
+    # Create session ID using centralized format_condition dictionary
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure8SpineDensity{clean_condition}Timestamp{timestamp}"
+    condition_camel_case = format_condition[condition]["CamelCase"]
+    condition_human_readable = format_condition[condition]["human_readable"]
+    base_session_id = f"Figure8SpineDensity{condition_camel_case}Timestamp{timestamp}"
     script_specific_id = f"Sub{session_info['animal_id']}"
     session_id = f"{base_session_id}{script_specific_id}"
 
@@ -242,9 +240,10 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, animal_id=session_info["animal_id"], date_str=session_info["date_str"]
+                condition=condition_human_readable,
+                animal_id=session_info["animal_id"],
+                date_str=session_info["date_str"],
             ),
-            "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
             "session_id": session_id,
             "surgery": general_metadata["NWBFile"]["surgery"] + surgery_addition,

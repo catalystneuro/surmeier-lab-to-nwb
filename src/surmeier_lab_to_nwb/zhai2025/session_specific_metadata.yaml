@@ -298,7 +298,10 @@ figure_6_spine_density:
 # Figure 7 Scripts (CDGI knockout)
 figure_7_dendritic_excitability:
   NWBFile:
-    session_description: "Figure 7 dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
+    session_description: >
+      "Figure 7 dendritic excitability assessment in CDGI knockout mice for condition '{condition}'.
+      Combined patch clamp electrophysiology and two-photon laser scanning microscopy.
+      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
     keywords:
       - "calcium imaging"
       - "dendritic excitability"
@@ -312,7 +315,10 @@ figure_7_dendritic_excitability:
 
 figure_7_oxoM_dendritic_excitability:
   NWBFile:
-    session_description: "Figure 7 oxoM-stimulated dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy with muscarinic agonist stimulation. Brief current steps with Ca2+ imaging following oxoM treatment. Cell {cell_number}."
+    session_description: >
+      "Figure 7 oxoM-stimulated dendritic excitability assessment in CDGI knockout mice for condition '{condition}'.
+      Combined patch clamp electrophysiology and two-photon laser scanning microscopy with muscarinic agonist stimulation.
+      Brief current steps with Ca2+ imaging following oxoM treatment. Cell {cell_number}."
     keywords:
       - "calcium imaging"
       - "dendritic excitability"
@@ -328,7 +334,9 @@ figure_7_oxoM_dendritic_excitability:
 
 figure_7_somatic_excitability:
   NWBFile:
-    session_description: "Figure 7 somatic excitability assessment in CDGI knockout mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
+    session_description: >
+      "Figure 7 somatic excitability assessment in CDGI knockout mice for condition '{condition}'.
+      Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
     keywords:
       - "somatic excitability"
       - "F-I relationship"
@@ -341,7 +349,10 @@ figure_7_somatic_excitability:
 
 figure_7_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in CDGI knockout mice for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
+    session_description: >
+      "Dendritic spine density assessment in CDGI knockout mice for condition {condition}.
+      Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+      proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     keywords:
       - "spine density"
       - "dendritic spines"
@@ -354,7 +365,8 @@ figure_7_spine_density:
 
 figure_7_behavioral_aim_experiments:
   NWBFile:
-    session_description: "Figure 7 Behavioral Assessment - AIM scoring for dyskinesia analysis in CDGI knockout study"
+    session_description: >
+      "Figure 7 Behavioral Assessment - AIM scoring for dyskinesia analysis in CDGI knockout study"
     keywords:
       - "AIM"
       - "Abnormal Involuntary Movement"
@@ -367,7 +379,8 @@ figure_7_behavioral_aim_experiments:
 
 figure_7_behavioral_videos:
   NWBFile:
-    session_description: "Figure 7 Behavioral Videos - Contralateral rotation behavior assessment for CDGI knockout dyskinesia study"
+    session_description: >
+      "Figure 7 Behavioral Videos - Contralateral rotation behavior assessment for CDGI knockout dyskinesia study"
     keywords:
       - "contralateral rotation"
       - "behavioral assessment"
@@ -381,7 +394,9 @@ figure_7_behavioral_videos:
 # Figure 8 Scripts (M1R CRISPR)
 figure_8_somatic_excitability:
   NWBFile:
-    session_description: "Figure 8 somatic excitability assessment in M1R CRISPR mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
+    session_description: >
+      "Figure 8 somatic excitability assessment in M1R CRISPR mice for condition '{condition}'.
+      Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
     surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
     keywords:
       - "somatic excitability"
@@ -396,7 +411,10 @@ figure_8_somatic_excitability:
 
 figure_8_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in M1R CRISPR mice for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
+    session_description: >
+      "Dendritic spine density assessment in M1R CRISPR mice for condition {condition}.
+      Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+      proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
     keywords:
       - "spine density"
@@ -411,7 +429,8 @@ figure_8_spine_density:
 
 figure_8_behavioral_aim_experiments:
   NWBFile:
-    session_description: "Figure 8 Behavioral Assessment - AIM scoring for dyskinesia analysis in M1R CRISPR study"
+    session_description: >
+      "Figure 8 Behavioral Assessment - AIM scoring for dyskinesia analysis in M1R CRISPR study"
     surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
     keywords:
       - "AIM"
@@ -426,7 +445,8 @@ figure_8_behavioral_aim_experiments:
 # Video Scripts
 supplementary_figure_3_behavioral_videos:
   NWBFile:
-    session_description: "Supplementary Figure 3 Behavioral Videos - M1R CRISPR behavioral assessment for dyskinesia study"
+    session_description: >
+      "Supplementary Figure 3 Behavioral Videos - M1R CRISPR behavioral assessment for dyskinesia study"
     keywords:
       - "M1R CRISPR"
       - "gene editing"

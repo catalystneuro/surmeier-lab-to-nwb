@@ -23,6 +23,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
 )
@@ -281,16 +284,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
     # Create session ID following pattern from somatic excitability scripts
-    condition_to_camel_case = {
-        "LID off-state": "LIDOffState",
-        "LID on-state": "LIDOnState",
-        "LID on-state with sul (iSPN)": "LIDOnStateWithSulpiride",
-    }
-
+    cell_type = "iSPN"  # Indirect pathway SPN for dendritic excitability experiments
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure3++DendriticExcitability++{clean_condition}++{timestamp}"
-    script_specific_id = f"Cell++{first_recording_info['cell_number']}"
+    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
+    base_session_id = f"Figure3++DendriticExcitability++{condition_camel_case}++{timestamp}"
+    script_specific_id = f"{cell_type}++Cell++{first_recording_info['cell_number']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
     # Handle pharmacology conditions dynamically
@@ -300,10 +298,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             pharmacology_text += " " + script_template["pharmacology_conditions"]["sulpiride"]
 
     # Create session-specific metadata from template with runtime substitutions
+    condition_underscore = format_condition[condition]["underscore"]
+    condition_human_readable = format_condition[condition]["human_readable"]
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition,
+                condition=condition_human_readable,
                 cell_number=first_recording_info["cell_number"],
             ),
             "session_start_time": session_start_time,
@@ -405,7 +405,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             {
                 "name": electrode_name,
                 "description": (
-                    f"Recording from iSPN {recording_info['location_description']} - {condition} - "
+                    f"Recording from {cell_type} {recording_info['location_description']} - {condition_human_readable} - "
                     f"Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']}"
                 ),
                 "cell_id": f"Cell{recording_info['cell_number']}",
@@ -420,8 +420,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             {
                 "name": series_name,
                 "description": (
-                    f"Current clamp recording from iSPN {recording_info['location_description']} - "
-                    f"{condition} - Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']} - "
+                    f"Current clamp recording from {cell_type} {recording_info['location_description']} - "
+                    f"{condition_human_readable} - Cell {recording_info['cell_number']} - Trial {recording_info['trial_number']} - "
                     f"Three 2 nA current injections, 2 ms each, at 50 Hz"
                 ),
             }
@@ -539,7 +539,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
         session_info={"cell_number": first_recording_info["cell_number"]},
-        condition=condition,
+        condition=condition_underscore,
         stimulus_type="dendritic_excitability_current_injection",
         verbose=verbose,
     )
@@ -619,7 +619,7 @@ if __name__ == "__main__":
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
             session_folders,
-            desc=f"Converting Figure3 DendriticExcitability {condition}",
+            desc=f"Converting Figure3 DendriticExcitability {format_condition[condition]['human_readable']}",
             unit=" session",
         )
 

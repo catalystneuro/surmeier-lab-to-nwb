@@ -22,6 +22,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
 )
@@ -239,18 +242,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Overall session start time is the earliest across all interfaces
     session_start_time = min(earliest_ophys_time, earliest_intracellular_time)
 
-    # Determine which interface had the earliest time
-    if session_start_time == earliest_ophys_time:
-        earliest_folder = next(
-            folder for start_time, folder, _ in ophys_session_start_times if start_time == session_start_time
-        )
-        earliest_interface = "line_scan_ophys"
-    else:
-        earliest_folder = next(
-            folder for start_time, folder, _ in intracellular_session_start_times if start_time == session_start_time
-        )
-        earliest_interface = "intracellular_electrophysiology"
-
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
         intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
@@ -280,22 +271,20 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     script_template = session_metadata_template["figure_7_dendritic_excitability"]
 
     # Create session ID following pattern from somatic excitability scripts
-    condition_to_camel_case = {
-        "LID off-state": "LIDOffState",
-        "LID on-state": "LIDOnState",
-    }
-
+    cell_type = "CDGI KO iSPN"  # CDGI knockout indirect pathway SPN
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure7++DendriticExcitability++{clean_condition}++{timestamp}"
-    script_specific_id = f"Sub++{session_folder_path.name}"
+    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
+    base_session_id = f"Figure7++DendriticExcitability++{condition_camel_case}++{timestamp}"
+    script_specific_id = f"{cell_type.replace(' ', '')}++Sub++{session_folder_path.name}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
     # Create session-specific metadata from template with runtime substitutions
+    condition_underscore = format_condition[condition]["underscore"]
+    condition_human_readable = format_condition[condition]["human_readable"]
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, cell_number=first_recording_info["cell_number"]
+                condition=condition_human_readable, cell_number=first_recording_info["cell_number"]
             ),
             "session_start_time": session_start_time,
             "session_id": session_id,
@@ -542,7 +531,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
         session_info={"cell_number": first_recording_info["cell_number"]},
-        condition=condition,
+        condition=condition_underscore,
         stimulus_type="dendritic_excitability_current_injection",
         verbose=verbose,
         cdgi_genotype=cdgi_genotype,
@@ -622,7 +611,7 @@ if __name__ == "__main__":
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
             session_folders,
-            desc=f"Converting Figure7 DendriticExcitability {condition}",
+            desc=f"Converting Figure7 DendriticExcitability {format_condition[condition]['human_readable']}",
             unit=" session",
         )
 

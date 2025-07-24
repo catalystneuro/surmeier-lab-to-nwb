@@ -23,6 +23,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
     TiffImageStackInterface,
 )
@@ -197,17 +200,11 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     # Parse session information
     session_info = parse_session_info(session_folder_path)
 
-    # Create session ID following somatic_excitability pattern
-    condition_to_camel_case = {
-        "control iSPN": "ControlISPN",
-        "LID off-state iSPN": "LIDOffStateISPN",
-        "LID on-state iSPN": "LIDOnStateISPN",
-        "PD iSPN": "PDISPN",
-    }
-
+    # Create session ID using centralized format_condition dictionary
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure4SpineDensity{clean_condition}Timestamp{timestamp}"
+    condition_camel_case = format_condition[condition]["CamelCase"]
+    condition_human_readable = format_condition[condition]["human_readable"]
+    base_session_id = f"Figure4SpineDensity{condition_camel_case}Timestamp{timestamp}"
     script_specific_id = f"Animal{session_info['animal_id']}"
     session_id = f"{base_session_id}{script_specific_id}"
 
@@ -226,7 +223,9 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, animal_id=session_info["animal_id"], date_str=session_info["date_str"]
+                condition=condition_human_readable,
+                animal_id=session_info["animal_id"],
+                date_str=session_info["date_str"],
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],

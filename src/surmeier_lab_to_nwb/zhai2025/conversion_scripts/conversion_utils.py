@@ -81,6 +81,19 @@ format_condition = {
         "human_readable": "KO on-state",
         "description_and_purpose": "ChI-M1R knockout animals in on-state",
     },
+    # Figure 7 oxoM treatment conditions
+    "WT oxoM treatment": {
+        "CamelCase": "WTOxoMTreatment",
+        "underscore": "wt_oxom_treatment",
+        "human_readable": "WT oxoM treatment",
+        "description_and_purpose": "Wildtype animals with oxotremorine-M muscarinic agonist treatment",
+    },
+    "CDGI KO oxoM treatment": {
+        "CamelCase": "CDGIKOOxoMTreatment",
+        "underscore": "cdgi_ko_oxom_treatment",
+        "human_readable": "CDGI KO oxoM treatment",
+        "description_and_purpose": "CalDAG-GEFI knockout animals with oxotremorine-M muscarinic agonist treatment",
+    },
     # Figure 8 conditions
     "M1R CRISPR": {
         "CamelCase": "M1RCRISPR",
@@ -93,6 +106,67 @@ format_condition = {
         "underscore": "interleaved_control",
         "human_readable": "interleaved control",
         "description_and_purpose": "Control condition interleaved with M1R CRISPR experiments",
+    },
+    # Spine density conditions
+    "control dSPN": {
+        "CamelCase": "ControlDSPN",
+        "underscore": "control_dspn",
+        "human_readable": "control dSPN",
+        "description_and_purpose": "Control direct pathway spiny projection neurons",
+    },
+    "LID off-state dSPN": {
+        "CamelCase": "LIDOffStateDSPN",
+        "underscore": "lid_off_state_dspn",
+        "human_readable": "LID off-state dSPN",
+        "description_and_purpose": "LID off-state direct pathway spiny projection neurons",
+    },
+    "LID on-state dSPN": {
+        "CamelCase": "LIDOnStateDSPN",
+        "underscore": "lid_on_state_dspn",
+        "human_readable": "LID on-state dSPN",
+        "description_and_purpose": "LID on-state direct pathway spiny projection neurons",
+    },
+    "PD dSPN": {
+        "CamelCase": "PDDSN",
+        "underscore": "pd_dspn",
+        "human_readable": "PD dSPN",
+        "description_and_purpose": "Parkinson's disease direct pathway spiny projection neurons",
+    },
+    "control iSPN": {
+        "CamelCase": "ControlISPN",
+        "underscore": "control_ispn",
+        "human_readable": "control iSPN",
+        "description_and_purpose": "Control indirect pathway spiny projection neurons",
+    },
+    "LID off-state iSPN": {
+        "CamelCase": "LIDOffStateISPN",
+        "underscore": "lid_off_state_ispn",
+        "human_readable": "LID off-state iSPN",
+        "description_and_purpose": "LID off-state indirect pathway spiny projection neurons",
+    },
+    "LID on-state iSPN": {
+        "CamelCase": "LIDOnStateISPN",
+        "underscore": "lid_on_state_ispn",
+        "human_readable": "LID on-state iSPN",
+        "description_and_purpose": "LID on-state indirect pathway spiny projection neurons",
+    },
+    "PD iSPN": {
+        "CamelCase": "PDISPN",
+        "underscore": "pd_ispn",
+        "human_readable": "PD iSPN",
+        "description_and_purpose": "Parkinson's disease indirect pathway spiny projection neurons",
+    },
+    "KO off": {
+        "CamelCase": "KOOff",
+        "underscore": "ko_off",
+        "human_readable": "KO off",
+        "description_and_purpose": "ChI-M1R knockout animals in off-state for spine density analysis",
+    },
+    "KO on": {
+        "CamelCase": "KOOn",
+        "underscore": "ko_on",
+        "human_readable": "KO on",
+        "description_and_purpose": "ChI-M1R knockout animals in on-state for spine density analysis",
     },
 }
 

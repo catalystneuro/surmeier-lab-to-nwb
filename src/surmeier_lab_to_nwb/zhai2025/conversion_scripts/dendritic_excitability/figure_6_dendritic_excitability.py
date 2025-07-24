@@ -22,6 +22,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
 )
@@ -283,18 +286,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Overall session start time is the earliest across all interfaces
     session_start_time = min(earliest_ophys_time, earliest_intracellular_time)
 
-    # Determine which interface had the earliest time
-    if session_start_time == earliest_ophys_time:
-        earliest_folder = next(
-            folder for start_time, folder, _ in ophys_session_start_times if start_time == session_start_time
-        )
-        earliest_interface = "line_scan_ophys"
-    else:
-        earliest_folder = next(
-            folder for start_time, folder, _ in intracellular_session_start_times if start_time == session_start_time
-        )
-        earliest_interface = "intracellular_electrophysiology"
-
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
         intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
@@ -325,33 +316,27 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Create session-specific metadata using session start time from XML
 
-    # Create BIDS-style base session ID with detailed timestamp when available
-    if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
     # Create session ID following pattern from somatic excitability scripts
-    condition_to_camel_case = {
-        "LID off-state": "LIDOffState",
-        "LID on-state": "LIDOnState",
-        "LID on-state with antagonist": "LIDOnStateWithAntagonist",
-    }
-
+    cell_type = "iSPN"  # Indirect pathway SPN for M1R antagonist experiments
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure6++DendriticExcitability++{clean_condition}++{timestamp}"
-    script_specific_id = f"Sub++{session_folder_path.name}"
+    condition_camel_case = format_condition[condition]["CamelCase"]  # Use centralized mapping
+    base_session_id = f"Figure6++DendriticExcitability++{condition_camel_case}++{timestamp}"
+    script_specific_id = f"{cell_type}++Sub++{session_folder_path.name}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
-    # Handle conditional pharmacology based on condition
+    # Handle conditional pharmacology based on condition using centralized mapping
     pharmacology_addition = ""
-    if "antagonist" in condition and "pharmacology_conditions" in script_template["NWBFile"]:
+    condition_underscore = format_condition[condition]["underscore"]
+    if "antagonist" in condition_underscore and "pharmacology_conditions" in script_template["NWBFile"]:
         if "antagonist" in script_template["NWBFile"]["pharmacology_conditions"]:
             pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["antagonist"]
 
     # Create session-specific metadata from template with runtime substitutions
+    condition_human_readable = format_condition[condition]["human_readable"]
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, num_recordings=len(all_recording_folders)
+                condition=condition_human_readable, num_recordings=len(all_recording_folders)
             ),
             "session_start_time": session_start_time,
             "session_id": session_id,
@@ -363,7 +348,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "description": script_template["Subject"]["description"].format(
                 session_id=session_id,
                 animal_id=session_folder_path.name,
-                treatment="THP (3 mg/kg, i.p.) + VU 0255035 (5 μM)" if "antagonist" in condition else "Saline control",
+                treatment=(
+                    "THP (3 mg/kg, i.p.) + VU 0255035 (5 μM)"
+                    if "antagonist" in condition_underscore
+                    else "Saline control"
+                ),
             ),
             "genotype": script_template["Subject"]["genotype"],
         },
@@ -601,7 +590,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
         session_info={"cell_number": first_recording_info["cell_number"]},
-        condition=condition,
+        condition=condition_underscore,
         stimulus_type="dendritic_excitability_current_injection",
         verbose=verbose,
         m1r_treatment=m1r_treatment,
@@ -682,7 +671,7 @@ if __name__ == "__main__":
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
             session_folders,
-            desc=f"Converting Figure6 DendriticExcitability {condition}",
+            desc=f"Converting Figure6 DendriticExcitability {format_condition[condition]['human_readable']}",
             disable=verbose,
             unit=" session",
         )
