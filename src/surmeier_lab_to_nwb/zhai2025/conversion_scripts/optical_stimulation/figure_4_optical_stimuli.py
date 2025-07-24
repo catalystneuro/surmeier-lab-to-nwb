@@ -527,7 +527,8 @@ def main():
 
             # Generate output filename
             condition_safe = condition.replace(" ", "_").replace("-", "_")
-            nwbfile_path = output_root / f"figure4_sr_oepsc_{condition_safe}_{session_folder.name}.nwb"
+            # Create output filename using session_id from nwbfile
+            nwbfile_path = output_root / f"{nwbfile.session_id}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

@@ -24,8 +24,10 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.utils import (
+    build_icephys_table_structure,
+)
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
-    DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
     PrairieViewLineScanInterface,
 )
@@ -557,76 +559,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-    # Build icephys table hierarchical structure following PyNWB best practices
-
-    # Step 1: Build simultaneous recordings (each trial is its own simultaneous group)
-    simultaneous_recording_indices = []
-    for recording_index in recording_indices:
-        metadata = recording_to_metadata[recording_index]
-        simultaneous_index = nwbfile.add_icephys_simultaneous_recording(
-            recordings=[recording_index]  # Each trial is its own simultaneous group
-        )
-        simultaneous_recording_indices.append(simultaneous_index)
-
-    # Step 2: Build sequential recordings (each trial is its own sequence)
-    for simultaneous_index in simultaneous_recording_indices:
-        sequential_index = nwbfile.add_icephys_sequential_recording(
-            simultaneous_recordings=[simultaneous_index],  # Each trial is its own sequence as requested
-            stimulus_type="dendritic_excitability_current_injection",
-        )
-        sequential_recording_indices.append(sequential_index)
-
-    # Step 3: Build repetitions table (group trials by dendritic location)
-    repetitions_table = nwbfile.get_icephys_repetitions()
-    repetitions_table.add_column(
-        name="dendrite_distance_um", description="Approximate distance from soma in micrometers for this location"
+    # Build icephys table hierarchical structure and trials table using shared utility function
+    build_icephys_table_structure(
+        nwbfile=nwbfile,
+        recording_indices=recording_indices,
+        recording_to_metadata=recording_to_metadata,
+        t_starts=t_starts,
+        session_info=session_info,
+        condition=condition,
+        stimulus_type="dendritic_excitability_current_injection",
+        verbose=verbose,
     )
-    repetitions_table.add_column(name="dendrite_type", description="Type of dendritic location: Distal or Proximal")
-    repetitions_table.add_column(
-        name="dendrite_number", description="Number identifier for the specific dendritic location"
-    )
-
-    repetition_indices = []
-    for location_id, location_recording_indices in location_to_recording_indices.items():
-        # Get metadata from first recording at this location for location info
-        first_recording_index = location_recording_indices[0]
-        first_metadata = recording_to_metadata[first_recording_index]
-        recording_info = first_metadata["recording_info"]
-
-        # Get corresponding sequential recording indices for this location
-        location_sequential_indices = []
-        for recording_index in location_recording_indices:
-            # Find the sequential index that corresponds to this recording
-            seq_index = recording_indices.index(recording_index)
-            location_sequential_indices.append(sequential_recording_indices[seq_index])
-
-        dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40
-
-        repetition_index = nwbfile.add_icephys_repetition(
-            sequential_recordings=location_sequential_indices,
-            dendrite_distance_um=dendrite_distance_um,
-            dendrite_type=recording_info["location_full"],  # "Distal" or "Proximal"
-            dendrite_number=int(recording_info["location_number"]),
-        )
-        repetition_indices.append(repetition_index)
-
-    # Step 4: Build experimental conditions table (group all repetitions by LID condition)
-    # Note: Cell information is per-session data, stored at NWBFile level, not per-recording
-    experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
-    experimental_conditions_table.add_column(
-        name="condition", description="Experimental condition for L-DOPA induced dyskinesia study"
-    )
-
-    experimental_condition_index = nwbfile.add_icephys_experimental_condition(
-        repetitions=repetition_indices, condition=condition
-    )
-
-    # Use utility function to add trials table with proper chronological ordering
-    # Add trials table using interface
-    trials_interface = DendriticTrialsInterface(
-        recording_indices=recording_indices, recording_to_metadata=recording_to_metadata, t_starts=t_starts
-    )
-    trials_interface.add_to_nwbfile(nwbfile, verbose=verbose)
 
     return nwbfile
 
