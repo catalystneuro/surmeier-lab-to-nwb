@@ -21,6 +21,9 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.utils import (
+    build_icephys_table_structure,
+)
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
     PrairieViewCurrentClampInterface,
@@ -108,7 +111,7 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
-def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
+def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWBFile:
     """
     Convert a single session of Figure 7 CDGI knockout somatic excitability data to NWB format with time alignment.
 
@@ -118,8 +121,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         Path to the session folder containing cell recordings
     condition : str
         Experimental condition (e.g., "KO off-state", "KO on-state")
-    verbose : bool, default=False
-        Enable verbose output showing detailed processing information
 
     Returns
     -------
@@ -146,20 +147,11 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "animal_letter": first_recording_info["animal_letter"],
     }
 
-    if verbose:
-        print(
-            f"Processing session folder: {session_folder_path.name} (Animal {session_info['animal_letter']}, Cell {session_info['cell_number']})"
-        )
-        print(f"  Found {len(recording_folders)} current step recordings")
-
     # Calculate recording IDs, session start times, and create interface mappings
     session_start_times = []  # (timestamp, recording_folder, recording_id)
     recording_id_to_info = {}
     recording_id_to_folder = {}
     t_starts = {}  # t_starts[recording_id] = t_start_offset
-
-    if verbose:
-        print(f"  Validating session start times and calculating recording IDs...")
 
     for recording_folder in recording_folders:
         # Parse recording information using unified function
@@ -183,29 +175,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         recording_id_to_folder[recording_id] = recording_folder
         session_start_times.append((session_start_time, recording_folder, recording_id))
 
-        if verbose:
-            print(f"    Recording {recording_folder.name}: timestamp = {session_start_time}")
-
     if not session_start_times:
         raise ValueError(f"No valid recordings found in session folder: {session_folder_path}")
 
     # Find the earliest session start time across all recordings
     earliest_time = min(session_start_times, key=lambda x: x[0])[0]
-    earliest_folder = next(folder for start_time, folder, _ in session_start_times if start_time == earliest_time)
-
-    if verbose:
-        print(f"  Overall session start time: {earliest_time}")
-        print(f"    Earliest time source: recording {earliest_folder.name}")
 
     # Calculate t_start offsets for temporal alignment
-    for start_time, folder, recording_id in session_start_times:
+    for start_time, _, recording_id in session_start_times:
         # Calculate offset relative to overall session start time
         t_start_offset = (start_time - earliest_time).total_seconds()
         t_starts[recording_id] = t_start_offset
-
-        if verbose:
-            print(f"    Recording {folder.name} ({recording_id}) temporal alignment:")
-            print(f"      t_start offset = {t_start_offset:.3f} seconds")
 
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
@@ -225,9 +205,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "session_id": session_id,
         }
     )
-
-    if verbose:
-        print(f"Session date: {session_info['date_str']}")
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -313,8 +290,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Data structures for tracking icephys table indices
     recording_indices = []  # Store all intracellular recording indices
-    recording_to_metadata = {}  # Map recording index to metadata for table building
-    sequential_recording_indices = []  # Store sequential recording indices
 
     # Process each recording using the calculated recording IDs and temporal alignment
     for recording_id, recording_folder in recording_id_to_folder.items():
@@ -342,13 +317,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"F-I protocol with {len(recording_folders)} current steps"
                 ),
                 "cell_id": session_info["cell_number"],
-                "animal_id": session_info["animal_letter"],
                 "location": "soma - dorsolateral striatum",
                 "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
-                "seal": "Gigaohm seal (whole-cell configuration) (Paper Methods: patch clamp methodology, whole-cell configuration implied)",
-                "resistance": "3-5 MΩ (borosilicate glass pipette) (Protocol: Ex_vivo_mouse_brain_patch_clamp_recordings: 'Pipette resistance must be of 3 to 5 megaohms')",
-                "filtering": "2 kHz low-pass filter (Paper Methods: 'signals were filtered at 2 kHz and digitized at 10 kHz')",
-                "initial_access_resistance": "<20 MΩ (typical for whole-cell recordings) (Standard electrophysiology practice for healthy whole-cell recordings)",
             }
         )
 
@@ -366,12 +336,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             }
         )
 
-        if verbose:
-            print(f"  Processing recording for folder: {recording_folder.name}")
-            print(f"    Recording ID: {recording_id}")
-            print(f"    Current: {recording_info['current_pA']} pA (step {recording_info['protocol_step']})")
-            print(f"    Temporal alignment offset: {t_starts[recording_id]:.3f} seconds")
-
         # Add intracellular data to NWB file
         interface.add_to_nwbfile(nwbfile=nwbfile, metadata=interface_metadata)
 
@@ -388,70 +352,19 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             animal_letter=session_info["animal_letter"],
         )
 
-        # Track recording index and metadata for table building
+        # Track recording index for table building
         recording_indices.append(recording_index)
-        recording_to_metadata[recording_index] = {
-            "recording_id": recording_id,
-            "recording_info": recording_info,
-            "series_name": series_name,
-        }
 
-        if verbose:
-            print(f"    Successfully processed recording: {recording_folder.name}")
+    # Build icephys table hierarchical structure using shared utility function
 
-    if verbose:
-        print(f"Successfully processed all recordings from session: {session_folder_path.name}")
-
-    # Build icephys table hierarchical structure following PyNWB best practices
-    if verbose:
-        print(f"  Building icephys table structure for {len(recording_indices)} recordings...")
-
-    # Step 1: Build simultaneous recordings (each current step is its own simultaneous group)
-    simultaneous_recording_indices = []
-    for recording_index in recording_indices:
-        simultaneous_index = nwbfile.add_icephys_simultaneous_recording(
-            recordings=[recording_index]  # Each current step is its own simultaneous group
-        )
-        simultaneous_recording_indices.append(simultaneous_index)
-
-    # Step 2: Build sequential recording (group all current steps for this cell)
-    sequential_index = nwbfile.add_icephys_sequential_recording(
-        simultaneous_recordings=simultaneous_recording_indices,
+    build_icephys_table_structure(
+        nwbfile=nwbfile,
+        recording_indices=recording_indices,
+        session_info=session_info,
+        condition=condition,
         stimulus_type="F-I_protocol_somatic_excitability_CDGI_knockout",
+        include_animal_letter=True,
     )
-    sequential_recording_indices.append(sequential_index)
-
-    # Step 3: Build repetitions table (for this single cell, it's just one repetition)
-    repetitions_table = nwbfile.get_icephys_repetitions()
-    repetitions_table.add_column(name="cell_number", description="Cell number identifier for this recording session")
-    repetitions_table.add_column(
-        name="animal_letter", description="Animal identifier letter for this experimental session"
-    )
-
-    repetition_index = nwbfile.add_icephys_repetition(
-        sequential_recordings=sequential_recording_indices,
-        cell_number=int(session_info["cell_number"]),
-        animal_letter=session_info["animal_letter"],
-    )
-
-    # Step 4: Build experimental conditions table (group by CDGI knockout condition)
-    experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
-    experimental_conditions_table.add_column(
-        name="condition", description="Experimental condition for CDGI knockout LID study"
-    )
-
-    experimental_condition_index = nwbfile.add_icephys_experimental_condition(
-        repetitions=[repetition_index], condition=condition
-    )
-
-    if verbose:
-        print(f"    Added experimental condition '{condition}' with 1 repetition")
-        print(f"  Successfully built icephys table hierarchy:")
-        print(f"    - {len(recording_indices)} intracellular recordings")
-        print(f"    - {len(simultaneous_recording_indices)} simultaneous recordings")
-        print(f"    - {len(sequential_recording_indices)} sequential recordings")
-        print(f"    - 1 repetition (Animal {session_info['animal_letter']}, Cell {session_info['cell_number']})")
-        print(f"    - 1 experimental condition ('{condition}')")
 
     return nwbfile
 
@@ -490,9 +403,6 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
-        if verbose:
-            print(f"Processing CDGI knockout somatic excitability data for: {condition}")
-
         # Get all session folders (each session = one animal/cell)
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
@@ -500,11 +410,6 @@ if __name__ == "__main__":
         # Apply stub_test filtering if enabled
         if stub_test:
             session_folders = session_folders[:2]
-            if verbose:
-                print(f"stub_test enabled: processing only first {len(session_folders)} session folders")
-
-        if verbose:
-            print(f"Found {len(session_folders)} session folders")
 
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
@@ -514,14 +419,11 @@ if __name__ == "__main__":
         )
 
         for session_folder in session_iterator:
-            if verbose:
-                print(f"\nProcessing session: {session_folder.name}")
 
             # Convert session data to NWB format with time alignment
             nwbfile = convert_session_to_nwbfile(
                 session_folder_path=session_folder,
                 condition=condition,
-                verbose=verbose,
             )
 
             # Create output filename
@@ -530,5 +432,3 @@ if __name__ == "__main__":
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
-            if verbose:
-                print(f"Successfully saved: {nwbfile_path.name}")

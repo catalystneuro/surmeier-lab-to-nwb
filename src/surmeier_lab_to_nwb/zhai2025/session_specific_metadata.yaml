@@ -4,7 +4,7 @@
 # Figure 1 Scripts
 figure_1_somatic_excitability:
   NWBFile:
-    session_description: "Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number} recorded on {date_str}."
+    session_description: "Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number}."
     experiment_description: "Somatic excitability changes in dSPNs during condition '{condition}'. This experiment is part of Figure 1 from Zhai et al. 2025, investigating how LID affects dSPN excitability and the role of D1 receptor signaling. F-I protocol with {num_current_steps} current steps."
     keywords:
       - "somatic excitability"
@@ -12,11 +12,11 @@ figure_1_somatic_excitability:
       - "rheobase"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection). Cell {cell_number} recorded on {date_str}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection). Cell {cell_number}."
 
 figure_1_dendritic_excitability:
   NWBFile:
-    session_description: "Dendritic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number} in date {date_str}."
+    session_description: "Dendritic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
     experiment_description: "Figure 1 dendritic excitability experiment from Zhai et al. 2025 investigating LID-induced changes in dendritic Ca²⁺ dynamics. Whole-cell current clamp recordings paired with two-photon Ca²⁺ imaging to assess back-propagating action potential invasion into dSPN dendrites. Data reveals LID-associated alterations in dendritic excitability linked to spine density changes."
     keywords:
       - "calcium imaging"
@@ -25,12 +25,12 @@ figure_1_dendritic_excitability:
       - "back-propagating action potentials"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection). Cell {cell_number} recorded on {date_str}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection). Cell {cell_number}."
 
 # Figure 2 Scripts
 figure_2_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id} recorded on {date_str}."
+    session_description: "Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     experiment_description: "Figure 2 spine density experiment from Zhai et al. 2025 investigating how LID affects dSPN dendritic spine morphology. Two-photon microscopy with 0.15 μm pixels and 0.3 μm z-steps enables quantitative assessment of spine density changes that correlate with functional synaptic alterations during dyskinesia."
     keywords:
       - "spine density"
@@ -40,7 +40,7 @@ figure_2_spine_density:
       - "methodology validation"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. dSPNs identified by Drd1-Tdtomato expression. Session {session_id} recorded on {date_str}."
+    description: "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}."
 
 figure_2_optical_stimuli:
   NWBFile:
@@ -59,12 +59,12 @@ figure_2_optical_stimuli:
       - "asynchronous EPSCs"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments. dSPNs identified by Drd1-Tdtomato expression. Session {session_letter} recorded on {date_str}."
+    description: "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments. dSPNs identified by Drd1-Tdtomato expression. Session {session_letter}."
 
 # Figure 3 Scripts
 figure_3_somatic_excitability:
   NWBFile:
-    session_description: "Somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number} recorded on {date_str}."
+    session_description: "Somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number}."
     experiment_description: "Somatic excitability changes in iSPNs during condition '{condition}'. This experiment is part of Figure 3 from Zhai et al. 2025, investigating how LID affects iSPN excitability and the role of D2 receptor signaling. F-I protocol with {num_current_steps} current steps."
     pharmacology_conditions:
       sulpiride: "Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced somatic excitability changes in iSPNs."
@@ -74,11 +74,11 @@ figure_3_somatic_excitability:
       - "rheobase"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number} recorded on {date_str}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number}."
 
 figure_3_dendritic_excitability:
   NWBFile:
-    session_description: "Dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number} in date {date_str}."
+    session_description: "Dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
     experiment_description: "Figure 3 dendritic excitability experiment from Zhai et al. 2025 investigating LID-induced changes in iSPN dendritic Ca²⁺ dynamics and the role of D2 receptor signaling. Combined whole-cell current clamp recordings with two-photon Ca²⁺ imaging to assess back-propagating action potential invasion and dendritic Ca²⁺ transients in iSPNs."
     pharmacology_conditions:
       sulpiride: "Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced dendritic excitability changes in iSPNs."
@@ -89,12 +89,12 @@ figure_3_dendritic_excitability:
       - "back-propagating action potentials"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number} recorded on {date_str}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number}."
 
 # Figure 4 Scripts
 figure_4_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id} recorded on {date_str}."
+    session_description: "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     experiment_description: "Figure 4 spine density experiment from Zhai et al. 2025 investigating spine density changes in iSPNs. This data is part of Figure 4, which compares two-photon spine density measurements with high-resolution confocal microscopy to validate methodological approaches."
     keywords:
       - "spine density"
@@ -104,7 +104,7 @@ figure_4_spine_density:
       - "methodology validation"
   Subject:
     genotype: "Drd2-EGFP+"
-    description: "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. iSPNs identified by Drd2-EGFP expression. Session {session_id} recorded on {date_str}."
+    description: "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. iSPNs identified by Drd2-EGFP expression. Session {session_id}."
 
 figure_4_optical_stimuli:
   NWBFile:
@@ -122,7 +122,7 @@ figure_4_optical_stimuli:
       - "asynchronous EPSCs"
   Subject:
     genotype: "Drd2-EGFP+"
-    description: "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments. iSPNs identified by lack of Drd2-EGFP expression. Session {session_letter} recorded on {date_str}."
+    description: "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments. iSPNs identified by lack of Drd2-EGFP expression. Session {session_letter}."
 
 figure_4_confocal_spine_density_nikon:
   NWBFile:
@@ -173,7 +173,7 @@ figure_5_acetylcholine_biosensor:
       - "pharmacological modulation"
   Subject:
     genotype: "C57BL/6 with GRABACh3.0 sensor"
-    description: "Experimental mouse with unilateral 6-OHDA lesion and GRABACh3.0 acetylcholine sensor expression in striatal cholinergic interneurons. Session {session_id} recorded on {date_str}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion and GRABACh3.0 acetylcholine sensor expression in striatal cholinergic interneurons. Session {session_id}."
 
 # Figure 6 Scripts
 figure_6_dendritic_excitability:
@@ -191,11 +191,11 @@ figure_6_dendritic_excitability:
       - "muscarinic"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Session {session_id} recorded on {date_str}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Session {session_id}."
 
 figure_6_somatic_excitability:
   NWBFile:
-    session_description: "Figure 6 somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Testing M1R contribution to LID-induced somatic excitability changes. Cell {cell_number} recorded on {date_str}."
+    session_description: "Figure 6 somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Testing M1R contribution to LID-induced somatic excitability changes. Cell {cell_number}."
     experiment_description: "Figure 6 somatic excitability experiment from Zhai et al. 2025 investigating M1R modulation of LID-induced excitability changes in iSPNs. F-I relationship analysis reveals how M1R antagonists can reverse dyskinesia-associated hyperexcitability, demonstrating the critical role of muscarinic signaling in LID pathophysiology."
     pharmacology_conditions:
       antagonist: "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced somatic excitability changes."
@@ -207,11 +207,11 @@ figure_6_somatic_excitability:
       - "muscarinic"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number} recorded on {date_str}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number}."
 
 figure_6_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Testing M1R contribution to LID-induced spine density changes. Animal {animal_id} recorded on {date_str}."
+    session_description: "Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Testing M1R contribution to LID-induced spine density changes. Animal {animal_id}."
     experiment_description: "Figure 6 spine density experiment from Zhai et al. 2025 investigating M1R modulation of LID-induced spine density changes in iSPNs. Two-photon microscopy reveals how M1R antagonist treatment can prevent or reverse dyskinesia-associated spine density alterations, demonstrating the critical role of muscarinic signaling in structural synaptic plasticity during LID."
     pharmacology_conditions:
       antagonist: "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced spine density changes."
@@ -224,12 +224,12 @@ figure_6_spine_density:
       - "muscarinic"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Adult Drd2-eGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and M1R antagonist treatment for spine density analysis. iSPNs identified by Drd2-eGFP expression. Animal {animal_id} recorded on {date_str}."
+    description: "Adult Drd2-eGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and M1R antagonist treatment for spine density analysis. iSPNs identified by Drd2-eGFP expression. Animal {animal_id}."
 
 # Figure 7 Scripts (CDGI knockout)
 figure_7_dendritic_excitability:
   NWBFile:
-    session_description: "Figure 7 dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number} in date {date_str}."
+    session_description: "Figure 7 dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy. Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
     experiment_description: "Figure 7 dendritic excitability experiment from Zhai et al. 2025 investigating CDGI knockout effects on dendritic Ca²⁺ dynamics during LID. Combined whole-cell recordings with two-photon Ca²⁺ imaging reveals how CDGI deletion affects back-propagating action potential invasion and dendritic excitability in dyskinetic conditions."
     keywords:
       - "calcium imaging"
@@ -240,11 +240,11 @@ figure_7_dendritic_excitability:
       - "knockout"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology. Cell {cell_number} recorded on {date_str}."
+    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology. Cell {cell_number}."
 
 figure_7_oxoM_dendritic_excitability:
   NWBFile:
-    session_description: "Figure 7 oxoM-stimulated dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy with muscarinic agonist stimulation. Brief current steps with Ca2+ imaging following oxoM treatment. Cell {cell_number} in date {date_str}."
+    session_description: "Figure 7 oxoM-stimulated dendritic excitability assessment in CDGI knockout mice for condition '{condition}'. Combined patch clamp electrophysiology and two-photon laser scanning microscopy with muscarinic agonist stimulation. Brief current steps with Ca2+ imaging following oxoM treatment. Cell {cell_number}."
     experiment_description: "Figure 7 oxoM dendritic excitability experiment from Zhai et al. 2025 investigating muscarinic agonist effects on dendritic Ca²⁺ dynamics in CDGI knockout mice. OxoM treatment reveals how CDGI deletion affects muscarinic receptor-mediated dendritic excitability changes during LID."
     keywords:
       - "calcium imaging"
@@ -257,11 +257,11 @@ figure_7_oxoM_dendritic_excitability:
       - "muscarinic agonist"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology with muscarinic agonist treatment. Cell {cell_number} recorded on {date_str}."
+    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology with muscarinic agonist treatment. Cell {cell_number}."
 
 figure_7_somatic_excitability:
   NWBFile:
-    session_description: "Figure 7 somatic excitability assessment in CDGI knockout mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Animal {animal_letter}, Cell {cell_number} recorded on {date_str}."
+    session_description: "Figure 7 somatic excitability assessment in CDGI knockout mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Animal {animal_letter}, Cell {cell_number}."
     experiment_description: "Figure 7 somatic excitability experiment from Zhai et al. 2025 investigating CDGI knockout effects on somatic excitability during LID. F-I relationship analysis reveals how CDGI deletion affects neuronal excitability and contributes to dyskinetic behaviors."
     keywords:
       - "somatic excitability"
@@ -271,11 +271,11 @@ figure_7_somatic_excitability:
       - "knockout"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_letter}, Cell {cell_number} recorded on {date_str}."
+    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_letter}, Cell {cell_number}."
 
 figure_7_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in CDGI knockout mice for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id} recorded on {date_str}."
+    session_description: "Dendritic spine density assessment in CDGI knockout mice for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     experiment_description: "Figure 7 spine density experiment from Zhai et al. 2025 investigating CDGI knockout effects on spine density during LID. Two-photon microscopy reveals how CDGI deletion affects dendritic spine morphology and density, contributing to understanding of structural synaptic changes in dyskinesia."
     keywords:
       - "spine density"
@@ -285,7 +285,7 @@ figure_7_spine_density:
       - "knockout"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse for spine density assessment. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_id} recorded on {date_str}."
+    description: "CDGI knockout mouse for spine density assessment. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_id}."
 
 figure_7_behavioral_aim_experiments:
   NWBFile:
@@ -299,7 +299,7 @@ figure_7_behavioral_aim_experiments:
       - "L-DOPA"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse for behavioral assessment. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_id} recorded on {date_str}."
+    description: "CDGI knockout mouse for behavioral assessment. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_id}."
 
 figure_7_behavioral_videos:
   NWBFile:
@@ -318,7 +318,7 @@ figure_7_behavioral_videos:
 # Figure 8 Scripts (M1R CRISPR)
 figure_8_somatic_excitability:
   NWBFile:
-    session_description: "Figure 8 somatic excitability assessment in M1R CRISPR mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number} recorded on {date_str}."
+    session_description: "Figure 8 somatic excitability assessment in M1R CRISPR mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number}."
     experiment_description: "M1R CRISPR effects on {cell_type} somatic excitability during condition '{condition}'. This experiment is part of Figure 8 from Zhai et al. 2025, investigating how M1R deletion affects {cell_type} excitability and dyskinetic behaviors using CRISPR-Cas9 gene editing. F-I protocol with {num_current_steps} current steps."
     surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
     keywords:
@@ -330,11 +330,11 @@ figure_8_somatic_excitability:
       - "gene editing"
   Subject:
     genotype: "M1R CRISPR knockout"
-    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing. Cell {cell_number} recorded on {date_str}."
+    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing. Cell {cell_number}."
 
 figure_8_spine_density:
   NWBFile:
-    session_description: "Dendritic spine density assessment in M1R CRISPR mice for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id} recorded on {date_str}."
+    session_description: "Dendritic spine density assessment in M1R CRISPR mice for condition {condition}. Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations: proximal (~40 μm from soma) and distal (>80 μm from soma). Animal {animal_id}."
     experiment_description: "Figure 8 spine density experiment from Zhai et al. 2025 investigating M1R CRISPR effects on spine density during LID. Two-photon microscopy with 0.15 μm pixels, 0.3 μm z-steps, 60x objective (NA=1.0), optical zoom 5.2x, 10 μs dwell time. Images were deconvolved using AutoQuant X3.0.4 (MediaCybernetics) and semi-automated spine counting was performed using 3D reconstructions in NeuronStudio (CNIC, Mount Sinai). This data is part of Figure 8, which investigates the role of M1R signaling in spine density using CRISPR."
     surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
     keywords:
@@ -346,7 +346,7 @@ figure_8_spine_density:
       - "CRISPR"
   Subject:
     genotype: "M1R CRISPR knockout"
-    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing for spine density analysis. Animal {animal_id} recorded on {date_str}."
+    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing for spine density analysis. Animal {animal_id}."
 
 figure_8_behavioral_aim_experiments:
   NWBFile:
@@ -361,7 +361,7 @@ figure_8_behavioral_aim_experiments:
       - "L-DOPA"
   Subject:
     genotype: "M1R CRISPR knockout"
-    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing. Animal {animal_id} recorded on {date_str}."
+    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing. Animal {animal_id}."
 
 # Video Scripts
 supplementary_figure_3_behavioral_videos:
