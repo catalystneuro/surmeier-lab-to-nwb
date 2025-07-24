@@ -200,12 +200,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     script_specific_id = f"Cell{session_info['cell_number']}"
     session_id = f"{base_session_id}{script_specific_id}"
 
-    session_info.update(
-        {
-            "session_id": session_id,
-        }
-    )
-
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
     general_metadata = load_dict_from_file(general_metadata_path)
@@ -231,7 +225,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             "experiment_description": script_template["NWBFile"]["experiment_description"].format(
                 condition=condition, num_current_steps=len(recording_folders)
             ),
-            "session_id": session_info["session_id"],
+            "session_id": session_id,
             "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
             "keywords": script_template["NWBFile"]["keywords"],
         },
@@ -257,6 +251,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         session_id=metadata["NWBFile"]["session_id"],
         surgery=metadata["NWBFile"]["surgery"],
         pharmacology=metadata["NWBFile"]["pharmacology"],
+        slices=metadata["NWBFile"]["slices"],
         keywords=metadata["NWBFile"]["keywords"],
     )
 

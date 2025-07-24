@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import xmltodict
+from neuroconv.datainterfaces import ImageInterface
 from pynwb import NWBFile
 from pynwb.device import Device
 
@@ -365,3 +366,111 @@ def create_microscope_device(nwbfile: NWBFile, xml_metadata: Dict[str, Any]) -> 
 
     nwbfile.add_device(microscope_device)
     return microscope_device
+
+
+class TiffImageStackInterface(ImageInterface):
+    """
+    Custom ImageInterface for spine density TIFF image stacks.
+
+    This interface extends ImageInterface to:
+    1. Automatically filter out projection files
+    2. Create microscope device from XML metadata
+    3. Generate custom image metadata with Z-slice information
+    """
+
+    def __init__(self, subfolder: Path, container_info: Dict[str, str], verbose: bool = False):
+        """
+        Initialize TiffImageStackInterface.
+
+        Parameters
+        ----------
+        subfolder : Path
+            Path to subfolder containing TIFF files and XML metadata
+        container_info : Dict[str, str]
+            Container information with name and description
+        verbose : bool, default=False
+            Enable verbose output
+        """
+        self.subfolder = subfolder
+        self.container_info = container_info
+        self.verbose = verbose
+
+        # Get all TIFF files in the folder, excluding projection images
+        all_tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
+
+        # Filter out projection images and keep only Z-stack images
+        tiff_files = sorted(
+            [
+                f
+                for f in all_tiff_files
+                if not (
+                    f.name.startswith("_")
+                    or "project" in f.name.lower()
+                    or f.name.endswith("_xy.tif")
+                    or f.name.endswith("_xz.tif")
+                    or f.name.endswith("_zy.tif")
+                )
+            ]
+        )
+
+        if len(tiff_files) == 0:
+            raise ValueError(f"No Z-stack TIFF files found in {subfolder.name}")
+
+        # Find and parse XML metadata file
+        xml_file = find_xml_metadata_file(subfolder)
+        if not xml_file:
+            raise FileNotFoundError(f"No XML metadata file found in {subfolder.name}")
+
+        self.xml_metadata = parse_xml_metadata(xml_file, verbose=verbose)
+        if not self.xml_metadata:
+            raise ValueError(f"Failed to parse XML metadata from {xml_file.name}")
+
+        # Initialize parent ImageInterface
+        super().__init__(file_paths=tiff_files, images_container_metadata_key=container_info["container_name"])
+
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        Get metadata with custom image information.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Metadata dictionary with custom image information
+        """
+        # Get base metadata from parent
+        metadata = super().get_metadata()
+
+        # Create custom metadata for individual images
+        images_metadata = create_image_metadata(
+            tiff_files=self.file_paths,
+            container_info=self.container_info,
+            xml_metadata=self.xml_metadata,
+            verbose=self.verbose,
+        )
+
+        # Update the metadata with custom image information
+        metadata["Images"][self.container_info["container_name"]].update(images_metadata)
+
+        return metadata
+
+    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Add image stack to NWB file and create microscope device.
+
+        Parameters
+        ----------
+        nwbfile : NWBFile
+            NWB file to add data to
+        metadata : Optional[Dict[str, Any]], default=None
+            Metadata dictionary
+        """
+        # Create microscope device if it doesn't exist
+        if "TwoPhotonMicroscope" not in nwbfile.devices:
+            create_microscope_device(nwbfile, self.xml_metadata)
+
+        # Use provided metadata or get default
+        if metadata is None:
+            metadata = self.get_metadata()
+
+        # Add to NWB file using parent method
+        super().add_to_nwbfile(nwbfile=nwbfile, metadata=metadata)

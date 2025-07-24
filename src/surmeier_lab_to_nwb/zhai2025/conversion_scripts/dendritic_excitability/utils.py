@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 from pynwb import NWBFile
 
 
-def build_icephys_table_structure(
+def build_dendritic_icephys_table_structure(
     nwbfile: NWBFile,
     recording_indices: List[int],
     recording_to_metadata: Dict[int, Dict[str, Any]],

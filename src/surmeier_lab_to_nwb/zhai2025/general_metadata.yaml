@@ -43,7 +43,13 @@ NWBFile:
     five i.p. injections every other day—6 mg kg⁻¹ for the first
     two sessions, 12 mg kg⁻¹ thereafter—each co-administered with
     benserazide 12 mg kg⁻¹ to inhibit peripheral decarboxylation.
-  slices: "Sagittal slices (280-μm thick) were sectioned using a vibratome (Leica VT1200). After cutting, slices were incubated at 34 °C for 30 min in ACSF containing (in mM): 124 NaCl, 3 KCl, 1 NaH2PO4, 2.0 CaCl2, 1.0 MgCl2, 26 NaHCO3 and 13.89 glucose, after which they were stored at room temperature until recording. External solutions were oxygenated with carbogen (95%CO2/5%O2) at all time."
+  slices: |
+    Sagittal slices (280-μm thick) were sectioned using a vibratome (Leica VT1200).
+    After cutting, slices were incubated at 34 °C for 30 min in ACSF containing
+    (in mM): 124 NaCl, 3 KCl, 1 NaH2PO4, 2.0 CaCl2, 1.0 MgCl2, 26 NaHCO3
+    and 13.89 glucose, after which they were stored at room temperature until
+    recording. External solutions were oxygenated with carbogen (95%CO2/5%O2)
+    at all time.
 Subject:
   species: Mus musculus
   strain: "C57BL/6"

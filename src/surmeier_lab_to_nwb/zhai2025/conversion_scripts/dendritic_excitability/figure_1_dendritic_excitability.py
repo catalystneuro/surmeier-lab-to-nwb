@@ -25,7 +25,7 @@ from pynwb import NWBFile
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.utils import (
-    build_icephys_table_structure,
+    build_dendritic_icephys_table_structure,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewCurrentClampInterface,
@@ -559,17 +559,22 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-    # Build icephys table hierarchical structure and trials table using shared utility function
-    build_icephys_table_structure(
+    # Build icephys table hierarchical structure using shared utility function
+    build_dendritic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
-        t_starts=t_starts,
         session_info=session_info,
         condition=condition,
         stimulus_type="dendritic_excitability_current_injection",
         verbose=verbose,
     )
+
+    # Add trials table using interface
+    trials_interface = DendriticTrialsInterface(
+        recording_indices=recording_indices, recording_to_metadata=recording_to_metadata, t_starts=t_starts
+    )
+    trials_interface.add_to_nwbfile(nwbfile, verbose=verbose)
 
     return nwbfile
 

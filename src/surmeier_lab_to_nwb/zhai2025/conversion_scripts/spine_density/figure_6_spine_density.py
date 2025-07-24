@@ -22,7 +22,6 @@ from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
-from pynwb.device import Device
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.utils import (
@@ -179,41 +178,6 @@ def parse_container_info(subfolder_name: str, session_id: str) -> Dict[str, str]
         "container_name": container_name,
         "description": description,
     }
-
-
-def create_microscope_device(nwbfile: NWBFile, xml_metadata: Dict[str, Any]) -> Device:
-    """
-    Create microscope device with specifications from XML metadata.
-
-    Parameters
-    ----------
-    nwbfile : NWBFile
-        NWB file to add device to
-    xml_metadata : Dict[str, Any]
-        Metadata extracted from XML file
-
-    Returns
-    -------
-    Device
-        Device object for microscope
-    """
-    # Use metadata from XML or defaults from paper
-    objective_lens = xml_metadata.get("objective_lens", "Olympus 60X")
-    numerical_aperture = xml_metadata.get("numerical_aperture", 1.0)
-    magnification = xml_metadata.get("magnification", 60)
-    system_version = xml_metadata.get("system_version", "PVScan")
-
-    device_description = (
-        f"Two-photon laser scanning microscope with {objective_lens} objective "
-        f"(NA={numerical_aperture}, {magnification}x magnification). "
-        f"System: {system_version} (Bruker/Prairie View). "
-        f"Used for spine density imaging with 0.15 μm pixels and 0.3 μm z-steps."
-    )
-
-    microscope_device = Device(name="TwoPhotonMicroscope", description=device_description, manufacturer="Bruker")
-
-    nwbfile.add_device(microscope_device)
-    return microscope_device
 
 
 def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
