@@ -287,7 +287,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
     # Data structures for tracking icephys table indices
     recording_indices = []  # Store all intracellular recording indices
-    recording_to_metadata = {}  # Map recording index to metadata for table building
 
     # Process each recording using the calculated recording IDs and temporal alignment
     for recording_id, recording_folder in recording_id_to_folder.items():
@@ -347,13 +346,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             recording_id=recording_id,
         )
 
-        # Track recording index and metadata for table building
+        # Track recording index for table building
         recording_indices.append(recording_index)
-        recording_to_metadata[recording_index] = {
-            "recording_id": recording_id,
-            "recording_info": recording_info,
-            "series_name": series_name,
-        }
 
     # Build icephys table hierarchical structure using shared utility function
     build_icephys_table_structure(

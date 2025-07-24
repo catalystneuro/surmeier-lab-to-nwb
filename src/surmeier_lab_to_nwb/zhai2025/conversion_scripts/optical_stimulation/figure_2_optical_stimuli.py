@@ -523,8 +523,7 @@ if __name__ == "__main__":
                 verbose=verbose,
             )
 
-            # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("-", "_")
-            nwbfile_path = nwb_files_dir / f"figure2_sr_oepsc_{condition_safe}_{session_folder.name}.nwb"
+            # Create output filename using session_id from nwbfile
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

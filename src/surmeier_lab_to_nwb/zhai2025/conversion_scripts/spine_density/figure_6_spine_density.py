@@ -427,9 +427,8 @@ if __name__ == "__main__":
                 verbose=verbose,
             )
 
-            # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("(", "").replace(")", "")
-            nwbfile_path = nwb_files_dir / f"figure6_spine_density_{condition_safe}_{session_folder_path.name}.nwb"
+            # Create output filename using session_id from nwbfile
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
