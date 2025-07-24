@@ -21,7 +21,7 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    get_condition_mapping,
+    format_condition,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
     build_somatic_icephys_table_structure,
@@ -189,7 +189,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Create session ID following pattern from figure_1_somatic_excitability.py
     cell_type = "iSPN"  # Indirect pathway SPN
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = get_condition_mapping(condition, "camel_case")
+    clean_condition = format_condition[condition]["CamelCase"]  # Use centralized mapping
     base_session_id = f"Figure3++SomaticExcitability++{clean_condition}++{timestamp}"
     script_specific_id = f"{cell_type}"  # Specific to this script, can be adjusted if needed
     session_id = f"{base_session_id}++{script_specific_id}"
@@ -203,15 +203,18 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     script_template = session_metadata_template["figure_3_somatic_excitability"]
 
     # Create session-specific metadata from template with runtime substitutions
-    # Handle conditional pharmacology based on condition
+    # Handle conditional pharmacology based on condition using centralized mapping
     pharmacology_addition = ""
-    if "sul" in condition and "pharmacology_conditions" in script_template["NWBFile"]:
+    condition_underscore = format_condition[condition]["underscore"]
+    if "sul" in condition_underscore and "pharmacology_conditions" in script_template["NWBFile"]:
         if "sulpiride" in script_template["NWBFile"]["pharmacology_conditions"]:
             pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["sulpiride"]
 
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": script_template["NWBFile"]["session_description"].format(condition=condition),
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=format_condition[condition]["human_readable"]
+            ),
             "session_start_time": session_start_time,
             "session_id": session_id,
             "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,

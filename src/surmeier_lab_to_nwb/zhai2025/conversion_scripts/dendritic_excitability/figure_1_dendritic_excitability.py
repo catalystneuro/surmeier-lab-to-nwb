@@ -237,18 +237,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     # Overall session start time is the earliest across all interfaces
     session_start_time = min(earliest_ophys_time, earliest_intracellular_time)
 
-    # Determine which interface had the earliest time
-    if session_start_time == earliest_ophys_time:
-        earliest_folder = next(
-            folder for start_time, folder, _ in ophys_session_start_times if start_time == session_start_time
-        )
-        earliest_interface = "line_scan_ophys"
-    else:
-        earliest_folder = next(
-            folder for start_time, folder, _ in intracellular_session_start_times if start_time == session_start_time
-        )
-        earliest_interface = "intracellular_electrophysiology"
-
     # Calculate t_start offsets for temporal alignment with interface-specific timing
     for ophys_time, folder, recording_id in ophys_session_start_times:
         intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)

@@ -21,7 +21,7 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    get_condition_mapping,
+    format_condition,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
     build_somatic_icephys_table_structure,
@@ -190,7 +190,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Create session ID following pattern from figure_1_somatic_excitability.py
     cell_type = "iSPN"
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = get_condition_mapping(condition, "camel_case")
+    clean_condition = format_condition[condition]["CamelCase"]  # Use centralized mapping
     base_session_id = f"Figure8++SomaticExcitability++{clean_condition}++{timestamp}"
     script_specific_id = f"{cell_type}"  # Specific to this script, can be adjusted if needed
     session_id = f"{base_session_id}++{script_specific_id}"
@@ -208,7 +208,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": script_template["NWBFile"]["session_description"].format(condition=condition),
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=format_condition[condition]["human_readable"]
+            ),
             "session_start_time": session_start_time,
             "session_id": session_id,
             "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],

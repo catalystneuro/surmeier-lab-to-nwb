@@ -37,7 +37,7 @@ from pynwb import NWBFile
 
 # Import interfaces from the codebase
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    get_condition_mapping,
+    get_format_condition,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.optical_stimulation.optical_stimulation_utils import (
     build_optical_icephys_table_structure,
@@ -204,7 +204,7 @@ def convert_session_to_nwbfile(
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
 
     # Create session ID following new pattern
-    base_session_id = f"figure4_OpticalStimuli_{get_condition_mapping(condition, 'underscore')}_{timestamp}"
+    base_session_id = f"figure4_OpticalStimuli_{get_format_condition(condition, 'underscore')}_{timestamp}"
     script_specific_id = f"Session{session_info['session_letter']}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
@@ -508,7 +508,7 @@ def main():
             )
 
             # Generate output filename
-            condition_safe = get_condition_mapping(condition, "underscore")
+            condition_safe = get_format_condition(condition, "underscore")
             # Create output filename using session_id from nwbfile
             nwbfile_path = output_root / f"{nwbfile.session_id}.nwb"
 

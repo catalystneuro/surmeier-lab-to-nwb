@@ -23,7 +23,7 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    get_condition_mapping,
+    get_format_condition,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.optical_stimulation.optical_stimulation_utils import (
     build_optical_icephys_table_structure,
@@ -190,7 +190,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
 
     # Create session ID with ++ separators (no dashes or underscores)
-    clean_condition = get_condition_mapping(condition, "camel_case")
+    clean_condition = get_format_condition(condition, "camel_case")
     base_session_id = f"Figure2++OpticalStimuli++{clean_condition}++{timestamp}"
     script_specific_id = f"Session++{session_info['session_letter']}"
     session_id = f"{base_session_id}++{script_specific_id}"

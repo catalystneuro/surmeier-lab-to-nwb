@@ -13,7 +13,9 @@ figure_1_somatic_excitability:
     - "rheobase"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection)."
+    description: >
+      "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle.
+      dSPNs identified by Drd1-Tdtomato expression (positive selection)."
 
 figure_1_dendritic_excitability:
   NWBFile:
@@ -28,7 +30,9 @@ figure_1_dendritic_excitability:
       - "back-propagating action potentials"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection)."
+    description: >
+      "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle.
+      dSPNs identified by Drd1-Tdtomato expression (positive selection)."
 
 # Figure 2 Scripts
 figure_2_spine_density:
@@ -45,7 +49,10 @@ figure_2_spine_density:
       - "methodology validation"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}."
+    description: >
+      "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+      Received dyskinesiogenic levodopa treatment for spine density analysis.
+      dSPNs identified by Drd1-Tdtomato expression. Session {session_id}."
 
 figure_2_optical_stimuli:
   NWBFile:
@@ -67,7 +74,10 @@ figure_2_optical_stimuli:
       - "asynchronous EPSCs"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments. dSPNs identified by Drd1-Tdtomato expression. Session {session_letter}."
+    description: >
+      "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+      Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments.
+      dSPNs identified by Drd1-Tdtomato expression. Session {session_letter}."
 
 # Figure 3 Scripts
 figure_3_somatic_excitability:
@@ -83,7 +93,9 @@ figure_3_somatic_excitability:
       - "rheobase"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection)."
+    description: >
+      "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle.
+      iSPNs identified by Drd2-eGFP expression (positive selection)."
 
 figure_3_dendritic_excitability:
   NWBFile:
@@ -100,7 +112,9 @@ figure_3_dendritic_excitability:
       - "back-propagating action potentials"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection)."
+    description: >
+      "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle.
+      iSPNs identified by Drd2-eGFP expression (positive selection)."
 
 # Figure 4 Scripts
 figure_4_spine_density:
@@ -117,7 +131,10 @@ figure_4_spine_density:
       - "methodology validation"
   Subject:
     genotype: "Drd2-EGFP+"
-    description: "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. iSPNs identified by Drd2-EGFP expression. Session {session_id}."
+    description: >
+      "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+      Received dyskinesiogenic levodopa treatment for spine density analysis.
+      iSPNs identified by Drd2-EGFP expression. Session {session_id}."
 
 figure_4_optical_stimuli:
   NWBFile:
@@ -138,7 +155,10 @@ figure_4_optical_stimuli:
       - "asynchronous EPSCs"
   Subject:
     genotype: "Drd2-EGFP+"
-    description: "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments. iSPNs identified by lack of Drd2-EGFP expression. Session {session_letter}."
+    description: >
+      "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+      Received dyskinesiogenic levodopa treatment and AAV5-hSyn-hChR2(H134R)-EYFP injection into motor cortex for optogenetic experiments.
+      iSPNs identified by lack of Drd2-EGFP expression. Session {session_letter}."
 
 figure_4_confocal_spine_density_nikon:
   NWBFile:
@@ -157,7 +177,10 @@ figure_4_confocal_spine_density_nikon:
       - "dendritic spines"
   Subject:
     genotype: "Drd2-EGFP+"
-    description: "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment for spine density analysis. iSPNs identified by Drd2-EGFP expression. Animal {animal_id} processed for confocal imaging validation study."
+    description: >
+      "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+      Received dyskinesiogenic levodopa treatment for spine density analysis.
+      iSPNs identified by Drd2-EGFP expression. Animal {animal_id} processed for confocal imaging validation study."
 
 figure_4h_confocal_spine_density_olympus:
   NWBFile:
@@ -177,7 +200,10 @@ figure_4h_confocal_spine_density_olympus:
       - "dendritic spines"
   Subject:
     genotype: "Wild-type with sparse iSPN labeling"
-    description: "Adult wild-type mouse with unilateral 6-OHDA lesion and sparse iSPN labeling via AAV-Cre/FLEX system. Received dyskinesiogenic levodopa treatment for spine density analysis using high-resolution confocal microscopy. Animal {animal_id} processed for Figure 4H methodological comparison study."
+    description: >
+      "Adult wild-type mouse with unilateral 6-OHDA lesion and sparse iSPN labeling via AAV-Cre/FLEX system.
+      Received dyskinesiogenic levodopa treatment for spine density analysis using high-resolution confocal microscopy.
+      Animal {animal_id} processed for Figure 4H methodological comparison study."
 
 # Figure 5 Scripts
 figure_5_acetylcholine_biosensor:
@@ -199,7 +225,9 @@ figure_5_acetylcholine_biosensor:
       - "pharmacological modulation"
   Subject:
     genotype: "C57BL/6 with GRABACh3.0 sensor"
-    description: "Experimental mouse with unilateral 6-OHDA lesion and GRABACh3.0 acetylcholine sensor expression in striatal cholinergic interneurons. Session {session_id}."
+    description: >
+      "Experimental mouse with unilateral 6-OHDA lesion and GRABACh3.0 acetylcholine sensor expression in striatal cholinergic interneurons.
+      Session {session_id}."
 
 # Figure 6 Scripts
 figure_6_dendritic_excitability:
@@ -220,7 +248,9 @@ figure_6_dendritic_excitability:
       - "muscarinic"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Session {session_id}."
+    description: >
+      "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle.
+      iSPNs identified by Drd2-eGFP expression (positive selection). Session {session_id}."
 
 figure_6_somatic_excitability:
   NWBFile:
@@ -238,7 +268,9 @@ figure_6_somatic_excitability:
       - "muscarinic"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection)."
+    description: >
+      "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle.
+      iSPNs identified by Drd2-eGFP expression (positive selection)."
 
 figure_6_spine_density:
   NWBFile:
@@ -258,7 +290,10 @@ figure_6_spine_density:
       - "muscarinic"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Adult Drd2-eGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. Received dyskinesiogenic levodopa treatment and M1R antagonist treatment for spine density analysis. iSPNs identified by Drd2-eGFP expression. Animal {animal_id}."
+    description: >
+      "Adult Drd2-eGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+      Received dyskinesiogenic levodopa treatment and M1R antagonist treatment for spine density analysis.
+      iSPNs identified by Drd2-eGFP expression. Animal {animal_id}."
 
 # Figure 7 Scripts (CDGI knockout)
 figure_7_dendritic_excitability:

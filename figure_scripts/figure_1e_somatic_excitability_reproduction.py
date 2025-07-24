@@ -28,6 +28,10 @@ import numpy as np
 import pandas as pd
 from pynwb import NWBHDF5IO
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    extract_condition_from_session_id,
+)
+
 # Suppress expected warnings when calculating statistics on groups with no spikes
 warnings.filterwarnings("ignore", message="Mean of empty slice")
 warnings.filterwarnings("ignore", message="invalid value encountered in scalar divide")
@@ -88,15 +92,15 @@ def count_action_potentials(voltage_trace: np.ndarray, timestamps: np.ndarray, t
     start_time = timestamps[0] + 0.2  # 200ms after start
     end_time = timestamps[0] + 0.7  # 700ms after start (500ms stimulus)
 
-    start_idx = np.searchsorted(timestamps, start_time)
-    end_idx = np.searchsorted(timestamps, end_time)
+    start_index = np.searchsorted(timestamps, start_time)
+    end_index = np.searchsorted(timestamps, end_time)
 
-    if start_idx >= end_idx or end_idx > len(voltage_trace):
+    if start_index >= end_index or end_index > len(voltage_trace):
         # Fall back to middle portion of recording
-        start_idx = len(voltage_trace) // 4
-        end_idx = 3 * len(voltage_trace) // 4
+        start_index = len(voltage_trace) // 4
+        end_index = 3 * len(voltage_trace) // 4
 
-    analysis_trace = voltage_trace[start_idx:end_idx]
+    analysis_trace = voltage_trace[start_index:end_index]
 
     if len(analysis_trace) == 0:
         return 0
@@ -214,13 +218,10 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
     pd.DataFrame
         Combined dataframe with all recordings and analyses
     """
-    nwb_files = list(nwb_dir.glob("figure1_somatic_excitability_*.nwb"))
+    nwb_files = list(nwb_dir.glob("Figure1++SomaticExcitability++*.nwb"))
 
     if not nwb_files:
-        raise FileNotFoundError(
-            f"No NWB files found in {nwb_dir}. "
-            "Please run figure_1_somatic_experiments.py first to generate NWB files."
-        )
+        raise FileNotFoundError(f"No NWB files found in {nwb_dir}. " "Please check that the NWB files exist.")
 
     all_data = []
     print(f"Loading data from {len(nwb_files)} NWB files...")
@@ -229,39 +230,34 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
         with NWBHDF5IO(str(nwb_file), "r") as io:
             nwb = io.read()
 
-            # Extract condition from filename (order matters - most specific first!)
-            condition = "unknown"
-            if "LID_off-state" in nwb_file.name:
-                condition = "LID off-state"
-            elif "LID_on-state_with_SCH" in nwb_file.name:
-                condition = "LID on-state with SCH"
-            elif "LID_on-state" in nwb_file.name:
-                condition = "LID on-state"
-
             # Get session info
             session_id = nwb.session_id
             subject_id = nwb.subject.subject_id
 
-            # Access intracellular recordings table
-            icephys_table = nwb.get_intracellular_recordings()
+            # Extract condition from session ID using conversion utils
+            condition = extract_condition_from_session_id(session_id)
+
+            # Access intracellular recordings table directly
+            recordings_df = nwb.intracellular_recordings.to_dataframe()
 
             cell_data = []
-            for idx in range(len(icephys_table.id)):
+            for _, row in recordings_df.iterrows():
                 # Get recording info
-                row = icephys_table[idx]
-                current_pA = row[("intracellular_recordings", "stimulus_current_pA")].iloc[0]
-                protocol_step = row[("intracellular_recordings", "protocol_step")].iloc[0]
-                recording_id = row[("intracellular_recordings", "recording_id")].iloc[0]
+                current_pA = row[("intracellular_recordings", "stimulus_current_pA")]
+                protocol_step = row[("intracellular_recordings", "protocol_step")]
 
-                # Get the current clamp series
-                response_ref = row[("responses", "response")].iloc[0]
-                ts = response_ref.timeseries
-                voltage_trace = (
-                    ts.data[response_ref.idx_start : response_ref.idx_start + response_ref.count] * 1000
-                )  # Convert to mV
-                timestamps = ts.timestamps[response_ref.idx_start : response_ref.idx_start + response_ref.count]
+                # Get the current clamp series directly from acquisition
+                series_name = f"CurrentClampSeries{protocol_step}"
+                if series_name not in nwb.acquisition:
+                    continue  # Skip missing recordings
 
-                # Count action potentials (during stimulus period 0.5-1.0s)
+                series = nwb.acquisition[series_name]
+                voltage_trace = series.data[:] * 1000  # Convert to mV
+
+                # Get timestamps using the built-in method
+                timestamps = series.get_timestamps()
+
+                # Count action potentials (during stimulus period)
                 spike_count = count_action_potentials(voltage_trace, timestamps)
 
                 # Calculate membrane properties for hyperpolarizing steps
@@ -276,7 +272,7 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
                         "condition": condition,
                         "current_pA": current_pA,
                         "protocol_step": protocol_step,
-                        "recording_id": recording_id,
+                        "recording_id": f"{session_id}_{protocol_step}",
                         "spike_count": spike_count,
                         "vm_mv": mem_props["vm_mv"],
                         "rm_mohm": mem_props["rm_mohm"],
@@ -630,7 +626,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_1" / "somatic_excitability"
+    nwb_dir = base_dir / "nwb_files" / "somatic_excitability" / "figure_1"
     output_dir = base_dir / "analysis_outputs" / "figure_1e"
 
     # Ensure output directory exists

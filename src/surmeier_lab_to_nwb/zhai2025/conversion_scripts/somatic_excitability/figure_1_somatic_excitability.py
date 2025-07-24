@@ -21,7 +21,7 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    get_condition_mapping,
+    format_condition,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
     build_somatic_icephys_table_structure,
@@ -142,9 +142,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
     # Parse session information from first recording folder (all should have same session info)
     first_recording_info = parse_session_info_from_folder_name(recording_folders[0])
-    session_info = {
-        "cell_number": first_recording_info["cell_number"],
-    }
 
     # Calculate recording IDs, session start times, and create interface mappings
     session_start_times = []  # (timestamp, recording_folder, recording_id)
@@ -192,7 +189,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Create session ID with ++ separators (no dashes or underscores)
     cell_type = "dSPN"  # Direct pathway SPN
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = get_condition_mapping(condition, "camel_case")
+    clean_condition = format_condition[condition]["CamelCase"]  # Use centralized mapping
     base_session_id = f"Figure1++SomaticExcitability++{clean_condition}++{timestamp}"
     script_specific_id = f"{cell_type}"
     session_id = f"{base_session_id}++{script_specific_id}"
@@ -205,16 +202,19 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     session_metadata_template = load_dict_from_file(session_metadata_path)
     session_metadata = session_metadata_template["figure_1_somatic_excitability"]
 
-    # Handle conditional pharmacology based on condition
+    # Handle conditional pharmacology based on condition using centralized mapping
     pharmacology_addition = ""
-    if "SCH" in condition and "pharmacology_conditions" in session_metadata:
+    condition_underscore = format_condition[condition]["underscore"]
+    if "sch" in condition_underscore and "pharmacology_conditions" in session_metadata:
         if "SCH" in session_metadata["pharmacology_conditions"]:
             pharmacology_addition = " " + session_metadata["pharmacology_conditions"]["SCH"]
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": session_metadata["session_description"].format(condition=condition),
+            "session_description": session_metadata["session_description"].format(
+                condition=format_condition[condition]["human_readable"]
+            ),
             "session_start_time": session_start_time,
             "session_id": session_id,
             "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
