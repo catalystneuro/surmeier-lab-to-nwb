@@ -28,6 +28,7 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.util
     build_dendritic_icephys_table_structure,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
+    DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
     PrairieViewLineScanInterface,
 )
@@ -429,13 +430,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous "
                     f"two-photon line scan imaging of calcium transients"
                 ),
-                "cell_id": recording_info["cell_number"],
+                "cell_id": f"Cell{recording_info['cell_number']}Timestamp{timestamp}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
-                "seal": "Gigaohm seal (whole-cell configuration) (Paper Methods: patch clamp methodology, whole-cell configuration implied)",
-                "resistance": "3-5 MΩ (borosilicate glass pipette) (Protocol: Ex_vivo_mouse_brain_patch_clamp_recordings: 'Pipette resistance must be of 3 to 5 megaohms')",
-                "filtering": "2 kHz low-pass filter (Paper Methods: 'signals were filtered at 2 kHz and digitized at 10 kHz')",
-                "initial_access_resistance": "<20 MΩ (typical for whole-cell recordings) (Standard electrophysiology practice for healthy whole-cell recordings)",
             }
         )
 
@@ -564,7 +561,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         nwbfile=nwbfile,
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
-        session_info=session_info,
+        session_info={"cell_number": first_recording_info["cell_number"]},
         condition=condition,
         stimulus_type="dendritic_excitability_current_injection",
         verbose=verbose,

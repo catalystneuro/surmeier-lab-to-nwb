@@ -322,7 +322,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         )
 
         # Update current clamp series metadata
-        series_name = f"CurrentClamp{recording_info['protocol_step']}Series"
+        series_name = f"CurrentClampSeries{recording_info['protocol_step']}"
         interface_metadata["Icephys"]["CurrentClampSeries"][icephys_metadata_key].update(
             {
                 "name": series_name,

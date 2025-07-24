@@ -22,7 +22,7 @@ from pynwb import NWBFile
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.utils import (
-    build_icephys_table_structure,
+    build_somatic_icephys_table_structure,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
@@ -230,7 +230,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_mouse_{session_info['session_id']}",
+            "subject_id": f"iSPN_mouse_{session_id}",
             "description": script_template["Subject"]["description"].format(cell_number=session_info["cell_number"]),
             "genotype": script_template["Subject"]["genotype"],
         },
@@ -345,7 +345,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         recording_indices.append(recording_index)
 
     # Build icephys table hierarchical structure using shared utility function
-    build_icephys_table_structure(
+    build_somatic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
         session_info=session_info,

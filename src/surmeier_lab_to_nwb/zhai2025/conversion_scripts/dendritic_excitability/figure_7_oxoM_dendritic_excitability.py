@@ -452,9 +452,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
                     f"Cell {session_info['cell_number']} - Location {recording_info['location_id']} "
                     f"(~{recording_info['approximate_distance_um']}μm from soma) - oxotremorine-M protocol"
                 ),
-                "cell_id": session_info["cell_number"],
+                "cell_id": f"Cell{session_info['cell_number']}Timestamp{timestamp}",
                 "location": f"dendrite (~{recording_info['approximate_distance_um']}μm from soma)",
-                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
+                "slice": general_metadata["NWBFile"]["slices"],
             }
         )
 

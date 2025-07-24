@@ -490,13 +490,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"two-photon line scan imaging of calcium transients. "
                     f"M1R treatment: {'THP + VU 0255035' if 'antagonist' in condition else 'Control'}"
                 ),
-                "cell_id": recording_info["cell_number"],
+                "cell_id": f"Cell{recording_info['cell_number']}Timestamp{timestamp}",
                 "location": recording_info["location_description"],
-                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
-                "seal": "Gigaohm seal (whole-cell configuration) (Paper Methods: patch clamp methodology, whole-cell configuration implied)",
-                "resistance": "3-5 MΩ (borosilicate glass pipette) (Protocol: Ex_vivo_mouse_brain_patch_clamp_recordings: 'Pipette resistance must be of 3 to 5 megaohms')",
-                "filtering": "2 kHz low-pass filter (Paper Methods: 'signals were filtered at 2 kHz and digitized at 10 kHz')",
-                "initial_access_resistance": "<20 MΩ (typical for whole-cell recordings) (Standard electrophysiology practice for healthy whole-cell recordings)",
+                "slice": general_metadata["NWBFile"]["slices"],
             }
         )
 
