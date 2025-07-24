@@ -199,7 +199,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
     clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
-    base_session_id = f"Figure6SomaticExcitability{clean_condition}Timestamps{timestamp}"
+    base_session_id = f"Figure6SomaticExcitability{clean_condition}Timestamp{timestamp}"
     script_specific_id = f"Animal{session_info['animal_letter']}Cell{session_info['cell_number']}"
     session_id = f"{base_session_id}{script_specific_id}"
 
@@ -428,9 +428,8 @@ if __name__ == "__main__":
                 condition=condition,
             )
 
-            # Create output filename
-            condition_safe = condition.replace(" ", "_").replace("-", "_")
-            nwbfile_path = nwb_files_dir / f"figure6_somatic_excitability_{condition_safe}_{session_folder.name}.nwb"
+            # Create output filename using session_id
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

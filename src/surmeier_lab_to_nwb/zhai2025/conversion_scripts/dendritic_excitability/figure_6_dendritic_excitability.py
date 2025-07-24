@@ -322,17 +322,22 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     script_template = session_metadata_template["figure_6_dendritic_excitability"]
 
     # Create session-specific metadata using session start time from XML
-    session_date_str = session_start_time.strftime("%Y-%m-%d")
 
     # Create BIDS-style base session ID with detailed timestamp when available
     if hasattr(session_start_time, "hour"):
         timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
-    else:
-        timestamp = session_start_time.strftime("%Y%m%d")
+    # Create session ID following pattern from somatic excitability scripts
+    condition_to_camel_case = {
+        "LID off-state": "LIDOffState",
+        "LID on-state": "LIDOnState",
+        "LID on-state with antagonist": "LIDOnStateWithAntagonist",
+    }
 
-    base_session_id = f"figure6_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure6DendriticExcitability{clean_condition}Timestamp{timestamp}"
     script_specific_id = f"Sub{session_folder_path.name}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     # Handle conditional pharmacology based on condition
     pharmacology_addition = ""
@@ -344,7 +349,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, date_str=session_date_str, num_recordings=len(all_recording_folders)
+                condition=condition, num_recordings=len(all_recording_folders)
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
@@ -357,7 +362,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "description": script_template["Subject"]["description"].format(
                 session_id=session_id,
                 animal_id=session_folder_path.name,
-                date_str=session_date_str,
                 treatment="THP (3 mg/kg, i.p.) + VU 0255035 (5 μM)" if "antagonist" in condition else "Saline control",
             ),
             "genotype": script_template["Subject"]["genotype"],
@@ -759,7 +763,7 @@ if __name__ == "__main__":
 
             # Create output filename
             condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
-            nwbfile_path = nwb_files_dir / f"figure6_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

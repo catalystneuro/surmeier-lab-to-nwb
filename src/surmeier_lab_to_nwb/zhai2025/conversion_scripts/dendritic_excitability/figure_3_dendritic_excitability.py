@@ -273,16 +273,23 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     script_template = session_metadata_template["figure_3_dendritic_excitability"]
 
     # Create session-specific metadata using session start time from XML
-    session_date_str = session_start_time.strftime("%Y-%m-%d")
 
     # Get first recording info for session description, all of them are equal
     first_recording_folder = next(iter(recording_id_to_folder.values()))
     first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
 
-    # Create session ID following new pattern
-    base_session_id = f"figure3_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
-    script_specific_id = f"Cell{first_recording_info['cell_number']}_{session_folder_path.name}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    # Create session ID following pattern from somatic excitability scripts
+    condition_to_camel_case = {
+        "LID off-state": "LIDOffState",
+        "LID on-state": "LIDOnState",
+        "LID on-state with sul (iSPN)": "LIDOnStateWithSulpiride",
+    }
+
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure3DendriticExcitability{clean_condition}Timestamp{timestamp}"
+    script_specific_id = f"Cell{first_recording_info['cell_number']}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     # Handle pharmacology conditions dynamically
     pharmacology_text = general_metadata["NWBFile"]["pharmacology"]
@@ -296,7 +303,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "session_description": script_template["NWBFile"]["session_description"].format(
                 condition=condition,
                 cell_number=first_recording_info["cell_number"],
-                date_str=first_recording_info["date"].strftime("%Y-%m-%d"),
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
@@ -308,7 +314,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
         "Subject": {
             "subject_id": f"iSPN_mouse_{session_folder_path.name}",
             "description": script_template["Subject"]["description"].format(
-                cell_number=first_recording_info["cell_number"], date_str=session_date_str
+                cell_number=first_recording_info["cell_number"]
             ),
             "genotype": script_template["Subject"]["genotype"],
         },
@@ -690,7 +696,7 @@ if __name__ == "__main__":
 
             # Create output filename
             condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
-            nwbfile_path = nwb_files_dir / f"figure3_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

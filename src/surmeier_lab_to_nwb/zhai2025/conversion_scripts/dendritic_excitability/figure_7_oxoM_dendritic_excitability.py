@@ -286,17 +286,20 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
             "line_scan_calcium_channel": ophys_t_start,  # Ch2/Fluo4 line scan uses ophys timing
         }
 
-    # Extract date from actual session start time and update session info
-    session_date_str = session_start_time.strftime("%Y-%m-%d")
+    # Create session ID following pattern from somatic excitability scripts
+    genotype_to_camel_case = {
+        "WT": "WT",
+        "CDGI KO": "CDGIKO",
+    }
 
-    # Create session ID following new pattern
-    base_session_id = f"figure7_DendriticExcitability_oxoM_{genotype}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
-    script_specific_id = f"Animal{session_info['animal_id']}_Cell{session_info['cell_number']}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
+    clean_genotype = genotype_to_camel_case.get(genotype, genotype.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure7DendriticExcitabilityOxoM{clean_genotype}Timestamp{timestamp}"
+    script_specific_id = f"Animal{session_info['animal_id']}Cell{session_info['cell_number']}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     session_info.update(
         {
-            "date_str": session_date_str,
             "session_id": session_id,
         }
     )
@@ -688,7 +691,7 @@ if __name__ == "__main__":
             )
 
             # Create output filename
-            nwbfile_path = nwb_files_dir / f"figure7E_oxoM_dendritic_excitability_{genotype}_{session_folder.name}.nwb"
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

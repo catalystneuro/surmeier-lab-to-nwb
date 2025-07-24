@@ -277,13 +277,17 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_7_dendritic_excitability"]
 
-    # Create session-specific metadata using session start time from XML
-    session_date_str = session_start_time.strftime("%Y-%m-%d")
+    # Create session ID following pattern from somatic excitability scripts
+    condition_to_camel_case = {
+        "LID off-state": "LIDOffState",
+        "LID on-state": "LIDOnState",
+    }
 
-    # Create session ID following new pattern
-    base_session_id = f"figure7_DendriticExcitability_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
-    script_specific_id = f"Cell{first_recording_info['cell_number']}_{session_folder_path.name}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure7DendriticExcitability{clean_condition}Timestamp{timestamp}"
+    script_specific_id = f"Cell{first_recording_info['cell_number']}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
@@ -695,7 +699,7 @@ if __name__ == "__main__":
 
             # Create output filename
             condition_safe = condition.replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
-            nwbfile_path = nwb_files_dir / f"figure7_dendritic_excitability_{condition_safe}_{session_folder.name}.nwb"
+            nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
             # Write NWB file
             configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
