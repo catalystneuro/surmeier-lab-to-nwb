@@ -28,6 +28,9 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb.device import Device
 from pynwb.epoch import TimeIntervals
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewFluorescenceInterface,
 )
@@ -235,12 +238,18 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         )
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    # Create session ID following standard pattern used in other conversion scripts
-    condition_to_camel_case = {"UL control": "ULControl", "PD": "PD", "LID off": "LIDOff"}
-    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    # Map Figure 5 specific conditions to centralized format_condition dictionary
+    condition_mapping = {"UL control": "control", "PD": "6-OHDA", "LID off": "off-state"}
+
+    # Get the standardized condition name
+    standardized_condition = condition_mapping.get(condition, condition)
+
+    # Use centralized format_condition dictionary
+    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
+    condition_human_readable = format_condition[standardized_condition]["human_readable"]
 
     # Create session ID with ++ separators (no dashes or underscores)
-    base_session_id = f"Figure5++AcetylcholineGRAB++{clean_condition}++{timestamp}"
+    base_session_id = f"Figure5++AcetylcholineGRAB++{condition_camel_case}++{timestamp}"
     script_specific_id = f"Sub++{session_info['slice_folder_name']}"
     session_id = f"{base_session_id}++{script_specific_id}"
 

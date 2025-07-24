@@ -232,15 +232,20 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     # Use current date as session start time (OIF files don't contain reliable timestamps)
     session_start_time = datetime.now().astimezone()
 
+    # Create session ID using centralized format_condition dictionary
+    # This script processes methodological validation data (no experimental conditions)
+    condition = "methodological validation"
+    condition_camel_case = "MethodologicalValidation"  # Manual since not in format_condition dict
+    condition_human_readable = "methodological validation"
+
     # Create BIDS-style base session ID with detailed timestamp when available
     if hasattr(session_start_time, "hour"):
         timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    base_session_id = f"figure4h_ConfocalSpineDensityOlympus_methodological_validation_{timestamp}"
-    script_specific_id = f"Sub{animal_id}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    base_session_id = f"Figure4H++ConfocalSpineDensityOlympus++{condition_camel_case}++{timestamp}++Sub{animal_id}"
+    session_id = base_session_id
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"

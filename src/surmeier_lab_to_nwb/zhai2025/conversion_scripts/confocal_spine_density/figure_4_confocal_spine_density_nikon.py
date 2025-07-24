@@ -21,6 +21,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    format_condition,
+)
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
     NikonImageStackInterface,
 )
@@ -123,13 +126,17 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     # Get session start time from ND2 metadata
     session_start_time = interface.get_session_start_time()
 
+    # Create session ID using centralized format_condition dictionary
+    condition_camel_case = format_condition[condition]["CamelCase"]
+    condition_human_readable = format_condition[condition]["human_readable"]
+
     # Create BIDS-style base session ID with detailed timestamp when available
     if hasattr(session_start_time, "hour"):
         timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    base_session_id = f"figure4_ConfocalSpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}_Sub{file_info['animal_id']}"
+    base_session_id = f"Figure4++ConfocalSpineDensity++{condition_camel_case}++{timestamp}++Sub{file_info['animal_id']}"
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -143,7 +150,9 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition, animal_id=file_info["animal_id"], cell_number=file_info["cell_number"]
+                condition=condition_human_readable,
+                animal_id=file_info["animal_id"],
+                cell_number=file_info["cell_number"],
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
