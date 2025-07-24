@@ -632,9 +632,9 @@ if __name__ == "__main__":
         session_folders = [f for f in genotype_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
-        # # Apply stub_test filtering if enabled
-        # if stub_test:
-        #     session_folders = session_folders[:2]
+        # Apply stub_test filtering if enabled
+        if stub_test:
+            session_folders = session_folders[:2]
 
         if not session_folders:
             raise ValueError(f"No session folders found for genotype: {genotype}")
