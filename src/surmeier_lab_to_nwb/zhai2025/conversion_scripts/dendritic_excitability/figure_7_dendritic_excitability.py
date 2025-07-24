@@ -22,7 +22,7 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
-from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.utils import (
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
     build_dendritic_icephys_table_structure,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
@@ -585,8 +585,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     stub_test = args.stub_test
 
-    verbose = False
-
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
@@ -625,7 +623,6 @@ if __name__ == "__main__":
         session_iterator = tqdm(
             session_folders,
             desc=f"Converting Figure7 DendriticExcitability {condition}",
-            disable=verbose,
             unit=" session",
         )
 

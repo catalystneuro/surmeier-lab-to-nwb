@@ -21,6 +21,9 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
+    build_dendritic_icephys_table_structure,
+)
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
@@ -372,7 +375,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     recording_indices = []  # Store all intracellular recording indices
     recording_to_metadata = {}  # Map recording index to metadata for table building
     location_to_recording_indices = {}  # Group recordings by location for repetitions table
-    sequential_recording_indices = []  # Store sequential recording indices
 
     # Process each recording using the calculated recording IDs and temporal alignment
     for recording_id, recording_folder in recording_id_to_folder.items():
@@ -551,43 +553,16 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         # Add calcium data to NWB file
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-    # Build icephys table hierarchical structure following PyNWB best practices
-
-    # Step 1: Build simultaneous recordings (each location/trial is its own simultaneous group)
-    simultaneous_recording_indices = []
-    for recording_index in recording_indices:
-        simultaneous_index = nwbfile.add_icephys_simultaneous_recording(
-            recordings=[recording_index]  # Each dendritic recording is its own simultaneous group
-        )
-        simultaneous_recording_indices.append(simultaneous_index)
-
-    # Step 2: Build sequential recording (group all dendritic recordings for this cell)
-    sequential_index = nwbfile.add_icephys_sequential_recording(
-        simultaneous_recordings=simultaneous_recording_indices,
-        stimulus_type="dendritic_excitability_oxotremorine_M_protocol_CDGI",
+    # Build icephys table hierarchical structure using shared utility function
+    build_dendritic_icephys_table_structure(
+        nwbfile=nwbfile,
+        recording_indices=recording_indices,
+        recording_to_metadata=recording_to_metadata,
+        session_info=session_info,
+        condition=condition,
+        stimulus_type="dendritic_excitability_oxotremorine_M_protocol",
+        verbose=verbose,
     )
-    sequential_recording_indices.append(sequential_index)
-
-    # Step 3: Build repetitions table (for this single cell, it's just one repetition)
-    repetitions_table = nwbfile.get_icephys_repetitions()
-    repetitions_table.add_column(name="cell_number", description="Cell number identifier for this recording session")
-    repetitions_table.add_column(name="animal_id", description="Animal identifier for this experimental session")
-
-    repetition_index = nwbfile.add_icephys_repetition(
-        sequential_recordings=sequential_recording_indices,
-        cell_number=int(session_info["cell_number"]),
-        animal_id=session_info["animal_id"],
-    )
-
-    # Step 4: Build experimental conditions table (group by genotype)
-    experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
-    experimental_conditions_table.add_column(name="genotype", description="Mouse genotype for CDGI knockout study")
-
-    experimental_condition_index = nwbfile.add_icephys_experimental_condition(
-        repetitions=[repetition_index], genotype=genotype
-    )
-
-    # Use utility function to add trials table with proper chronological ordering
     # Add trials table using interface
     trials_interface = DendriticTrialsInterface(
         recording_indices=recording_indices, recording_to_metadata=recording_to_metadata, t_starts=t_starts

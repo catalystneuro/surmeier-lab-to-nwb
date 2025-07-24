@@ -22,7 +22,7 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
-from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.utils import (
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
     TiffImageStackInterface,
 )
 

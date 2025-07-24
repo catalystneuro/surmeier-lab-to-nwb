@@ -23,7 +23,7 @@ from pynwb import NWBFile
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     get_condition_mapping,
 )
-from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.utils import (
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
     build_somatic_icephys_table_structure,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
