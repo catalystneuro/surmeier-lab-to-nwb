@@ -201,13 +201,19 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     # Parse session information
     session_info = parse_session_info(session_folder_path)
 
-    # Create session ID following new pattern
-    clean_condition = condition.replace(" ", "_").replace("-", "_")
-    base_session_id = (
-        f"figure4_SpineDensity_{clean_condition}_{session_info['session_start_time'].strftime('%Y%m%d_%H%M%S')}"
-    )
+    # Create session ID following somatic_excitability pattern
+    condition_to_camel_case = {
+        "control iSPN": "ControlISPN",
+        "LID off-state iSPN": "LIDOffStateISPN",
+        "LID on-state iSPN": "LIDOnStateISPN",
+        "PD iSPN": "PDISPN",
+    }
+
+    timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure4SpineDensity{clean_condition}Timestamp{timestamp}"
     script_specific_id = f"Animal{session_info['animal_id']}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     # Add session_id to session_info
     session_info["session_id"] = session_id

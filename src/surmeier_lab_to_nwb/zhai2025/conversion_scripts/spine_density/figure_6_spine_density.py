@@ -252,9 +252,17 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    base_session_id = f"figure6_SpineDensity_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
+    # Create session ID following somatic_excitability pattern
+    condition_to_camel_case = {
+        "control": "Control",
+        "M1R antagonist": "M1RAntagonist",
+    }
+
+    timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
+    clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
+    base_session_id = f"Figure6SpineDensity{clean_condition}Timestamp{timestamp}"
     script_specific_id = f"Sub{session_info['animal_id']}"
-    session_id = f"{base_session_id}_{script_specific_id}"
+    session_id = f"{base_session_id}{script_specific_id}"
 
     # Handle conditional pharmacology based on condition
     pharmacology_addition = ""

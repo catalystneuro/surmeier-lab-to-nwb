@@ -24,7 +24,6 @@ from pynwb import NWBFile
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
-    DendriticTrialsInterface,
     PrairieViewCurrentClampInterface,
     PrairieViewLineScanInterface,
 )

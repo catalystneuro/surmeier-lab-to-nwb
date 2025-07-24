@@ -9,16 +9,11 @@ from typing import Any, Dict, List
 
 from pynwb import NWBFile
 
-from surmeier_lab_to_nwb.zhai2025.interfaces.trials_interface import (
-    DendriticTrialsInterface,
-)
-
 
 def build_icephys_table_structure(
     nwbfile: NWBFile,
     recording_indices: List[int],
     recording_to_metadata: Dict[int, Dict[str, Any]],
-    t_starts: Dict[str, Dict[str, float]],
     session_info: Dict[str, Any],
     condition: str,
     stimulus_type: str = "dendritic_excitability_current_injection",
@@ -26,14 +21,13 @@ def build_icephys_table_structure(
     **extra_condition_kwargs: Any,
 ) -> int:
     """
-    Build icephys table hierarchical structure and trials table for dendritic excitability experiments.
+    Build icephys table hierarchical structure for dendritic excitability experiments.
 
-    This function creates the complete icephys table hierarchy and a trials table:
+    This function creates the complete icephys table hierarchy:
     1. Simultaneous recordings (each dendritic trial is its own simultaneous group)
     2. Sequential recordings (each trial is its own sequence as per existing implementation)
     3. Repetitions table (group trials by dendritic location)
     4. Experimental conditions table (group by experimental condition)
-    5. Trials table (detailed trial-by-trial information for dendritic protocol)
 
     Parameters
     ----------
@@ -43,8 +37,6 @@ def build_icephys_table_structure(
         List of intracellular recording indices from nwbfile.add_intracellular_recording calls
     recording_to_metadata : Dict[int, Dict[str, Any]]
         Dictionary mapping recording index to metadata (recording_id, recording_info, series_name)
-    t_starts : Dict[str, Dict[str, float]]
-        Dictionary mapping recording_id to timing information with keys like 'intracellular'
     session_info : Dict[str, Any]
         Session information dictionary containing cell_number and optionally animal identifiers
     condition : str
@@ -156,16 +148,7 @@ def build_icephys_table_structure(
         repetitions=repetition_indices, condition=condition, **extra_condition_kwargs
     )
 
-    # Step 6: Add trials table using DendriticTrialsInterface
     if verbose:
-        print(f"  Building trials table for {len(recording_indices)} trials...")
-
-    trials_interface = DendriticTrialsInterface(
-        recording_indices=recording_indices, recording_to_metadata=recording_to_metadata, t_starts=t_starts
-    )
-    trials_interface.add_to_nwbfile(nwbfile, verbose=verbose)
-
-    if verbose:
-        print(f"    Completed icephys table structure and trials table")
+        print(f"    Completed icephys table structure with {len(repetition_indices)} repetitions")
 
     return experimental_condition_index
