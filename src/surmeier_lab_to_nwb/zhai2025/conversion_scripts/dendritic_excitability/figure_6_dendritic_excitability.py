@@ -490,7 +490,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"two-photon line scan imaging of calcium transients. "
                     f"M1R treatment: {'THP + VU 0255035' if 'antagonist' in condition else 'Control'}"
                 ),
-                "cell_id": f"Cell{recording_info['cell_number']}Timestamp{timestamp}",
+                "cell_id": f"Cell{recording_info['cell_number']}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
             }

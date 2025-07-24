@@ -22,6 +22,9 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.file import Subject
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.optical_stimulation.utils import (
+    build_optical_icephys_table_structure,
+)
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewOptogeneticsInterface,
     PrairieViewVoltageClampInterface,
@@ -181,9 +184,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
 
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
+    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
 
     # Create session ID following new pattern
-    base_session_id = f"figure2_OpticalStimuli_{condition.replace(' ', '_').replace('-', '_')}_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
+    base_session_id = f"figure2_OpticalStimuli_{condition.replace(' ', '_').replace('-', '_')}_{timestamp}"
     script_specific_id = f"Session{session_info['session_letter']}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
@@ -314,10 +318,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"{condition} - Session {session_info['session_letter']} - "
                     f"Sr²⁺-oEPSC protocol with LED {recording_info['led_intensity']} intensity"
                 ),
-                "cell_id": recording_info["cell_number"],
+                "cell_id": f"Cell{recording_info['cell_number']}",
                 "session_id": session_info["session_letter"],
                 "location": "soma - dorsolateral striatum",
-                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
+                "slice": general_metadata["NWBFile"]["slices"],
             }
         )
 
@@ -426,40 +430,14 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
             "recording_info": recording_info,
         }
 
-    # Build icephys table hierarchical structure following PyNWB best practices
-
-    # Step 1: Build simultaneous recordings (each sweep is its own simultaneous group)
-    simultaneous_recording_indices = []
-    for recording_index in recording_indices:
-        simultaneous_index = nwbfile.add_icephys_simultaneous_recording(
-            recordings=[recording_index]  # Each sweep is its own simultaneous group
-        )
-        simultaneous_recording_indices.append(simultaneous_index)
-
-    # Step 2: Build sequential recording (group all sweeps for this session)
-    sequential_index = nwbfile.add_icephys_sequential_recording(
-        simultaneous_recordings=simultaneous_recording_indices,
+    # Build icephys table hierarchical structure using shared utility function
+    build_optical_icephys_table_structure(
+        nwbfile=nwbfile,
+        recording_indices=recording_indices,
+        session_info=session_info,
+        condition=condition,
         stimulus_type="Sr2+_oEPSC_optogenetic_protocol",
     )
-
-    # Step 3: Build repetitions table (for this session, it's one repetition)
-    repetitions_table = nwbfile.get_icephys_repetitions()
-    repetitions_table.add_column(
-        name="session_letter", description="Session identifier letter for this experimental day"
-    )
-
-    repetition_index = nwbfile.add_icephys_repetition(
-        sequential_recordings=[sequential_index],
-        session_letter=session_info["session_letter"],
-    )
-
-    # Step 4: Build experimental conditions table (group by LID condition)
-    experimental_conditions_table = nwbfile.get_icephys_experimental_conditions()
-    experimental_conditions_table.add_column(
-        name="condition", description="Experimental condition for Sr²⁺-oEPSC study"
-    )
-
-    nwbfile.add_icephys_experimental_condition(repetitions=[repetition_index], condition=condition)
 
     return nwbfile
 

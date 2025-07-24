@@ -431,7 +431,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
                     f"two-photon line scan imaging of calcium transients. "
                     f"CDGI genotype: Conditional knockout (Camk2g-flox/flox; Dlx5/6-Cre)"
                 ),
-                "cell_id": f"Cell{recording_info['cell_number']}Timestamp{timestamp}",
+                "cell_id": f"Cell{recording_info['cell_number']}",
                 "location": recording_info["location_description"],
                 "slice": general_metadata["NWBFile"]["slices"],
             }

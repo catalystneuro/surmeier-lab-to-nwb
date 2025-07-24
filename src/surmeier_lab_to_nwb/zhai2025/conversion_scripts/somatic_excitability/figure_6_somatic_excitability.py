@@ -22,7 +22,7 @@ from pynwb import NWBFile
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.utils import (
-    build_icephys_table_structure,
+    build_somatic_icephys_table_structure,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
@@ -231,12 +231,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "experiment_description": script_template["NWBFile"]["experiment_description"],
-            "session_id": session_info["session_id"],
+            "session_id": session_id,
             "pharmacology": pharmacology_text,
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"M1R_antagonist_mouse_{session_info['session_id']}",
+            "subject_id": f"M1R_antagonist_mouse_{session_id}",
             "description": script_template["Subject"]["description"].format(cell_number=session_info["cell_number"]),
             "genotype": script_template["Subject"]["genotype"],
         },
@@ -317,10 +317,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
                     f"{condition} - Animal {session_info['animal_letter']}, Cell {session_info['cell_number']} - "
                     f"F-I protocol with {len(recording_folders)} current steps"
                 ),
-                "cell_id": session_info["cell_number"],
+                "cell_id": f"Cell{session_info['cell_number']}",
                 "animal_id": session_info["animal_letter"],
                 "location": "soma - dorsolateral striatum",
-                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
+                "slice": general_metadata["NWBFile"]["slices"],
             }
         )
 
@@ -359,7 +359,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
     # Build icephys table hierarchical structure using shared utility function
 
-    build_icephys_table_structure(
+    build_somatic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
         session_info=session_info,

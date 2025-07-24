@@ -311,7 +311,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
                     f"Whole-cell patch clamp electrode recording from dSPN soma in the dorsolateral striatum - "
                     f"{condition} - Cell {session_info['cell_number']} - F-I protocol with {len(recording_folders)} current steps"
                 ),
-                "cell_id": f"Cell{session_info['cell_number']}Timestamp{timestamp}",
+                "cell_id": f"Cell{session_info['cell_number']}",
                 "location": "soma - dorsolateral striatum",
                 "slice": general_metadata["NWBFile"]["slices"],
             }

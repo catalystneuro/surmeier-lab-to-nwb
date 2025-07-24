@@ -22,7 +22,7 @@ from pynwb import NWBFile
 from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.utils import (
-    build_icephys_table_structure,
+    build_somatic_icephys_table_structure,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
@@ -198,12 +198,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     script_specific_id = f"Cell{session_info['cell_number']}Animal{session_info['animal_id']}"
     session_id = f"{base_session_id}{script_specific_id}"
 
-    session_info.update(
-        {
-            "session_id": session_id,
-        }
-    )
-
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
     general_metadata = load_dict_from_file(general_metadata_path)
@@ -229,12 +223,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             "experiment_description": script_template["NWBFile"]["experiment_description"].format(
                 cell_type=cell_type, condition=condition, num_current_steps=len(recording_folders)
             ),
-            "session_id": session_info["session_id"],
+            "session_id": session_id,
             "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"{cell_type}_M1R_CRISPR_mouse_{session_info['session_id']}",
+            "subject_id": f"{cell_type}_M1R_CRISPR_mouse_{session_id}",
             "description": script_template["Subject"]["description"].format(cell_number=session_info["cell_number"]),
             "genotype": script_template["Subject"]["genotype"],
         },
@@ -315,9 +309,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
                     f"{condition} - Cell {session_info['cell_number']} from animal {session_info['animal_id']} - "
                     f"F-I protocol with {len(recording_folders)} current steps"
                 ),
-                "cell_id": session_info["cell_number"],
+                "cell_id": f"Cell{session_info['cell_number']}",
                 "location": "soma - dorsolateral striatum",
-                "slice": "280 μm sagittal brain slice from dorsolateral striatum (Paper Methods: 'Sagittal sections (280 μm thick) were cut using a Leica VT1200 vibratome')",
+                "slice": general_metadata["NWBFile"]["slices"],
             }
         )
 
@@ -355,7 +349,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         recording_indices.append(recording_index)
 
     # Build icephys table hierarchical structure using shared utility function
-    build_icephys_table_structure(
+    build_somatic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
         session_info=session_info,

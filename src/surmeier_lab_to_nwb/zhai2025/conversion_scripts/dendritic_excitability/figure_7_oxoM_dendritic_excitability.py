@@ -452,7 +452,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
                     f"Cell {session_info['cell_number']} - Location {recording_info['location_id']} "
                     f"(~{recording_info['approximate_distance_um']}μm from soma) - oxotremorine-M protocol"
                 ),
-                "cell_id": f"Cell{session_info['cell_number']}Timestamp{timestamp}",
+                "cell_id": f"Cell{session_info['cell_number']}",
                 "location": f"dendrite (~{recording_info['approximate_distance_um']}μm from soma)",
                 "slice": general_metadata["NWBFile"]["slices"],
             }
