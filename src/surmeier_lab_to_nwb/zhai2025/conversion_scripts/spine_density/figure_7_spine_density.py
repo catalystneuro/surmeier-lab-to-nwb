@@ -19,9 +19,9 @@ from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
-from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.utils import (
     TiffImageStackInterface,
@@ -252,33 +252,8 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     # Merge paper metadata with session-specific metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
-    # Create NWB file with explicit arguments
-    nwbfile = NWBFile(
-        session_description=merged_metadata["NWBFile"]["session_description"],
-        identifier=merged_metadata["NWBFile"]["identifier"],
-        session_start_time=merged_metadata["NWBFile"]["session_start_time"],
-        experimenter=merged_metadata["NWBFile"]["experimenter"],
-        lab=merged_metadata["NWBFile"]["lab"],
-        institution=merged_metadata["NWBFile"]["institution"],
-        experiment_description=merged_metadata["NWBFile"]["experiment_description"],
-        session_id=merged_metadata["NWBFile"]["session_id"],
-        surgery=merged_metadata["NWBFile"]["surgery"],
-        pharmacology=merged_metadata["NWBFile"]["pharmacology"],
-        slices=merged_metadata["NWBFile"]["slices"],
-        keywords=merged_metadata["NWBFile"]["keywords"],
-    )
-
-    # Create subject using merged metadata
-    subject = Subject(
-        subject_id=merged_metadata["Subject"]["subject_id"],
-        species=merged_metadata["Subject"]["species"],
-        strain=merged_metadata["Subject"]["strain"],
-        description=merged_metadata["Subject"]["description"],
-        genotype=merged_metadata["Subject"]["genotype"],
-        sex=merged_metadata["Subject"]["sex"],
-        age=merged_metadata["Subject"]["age"],
-    )
-    nwbfile.subject = subject
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(merged_metadata)
 
     # Process each image stack using TiffImageStackInterface
     subfolders = [f for f in session_folder_path.iterdir() if f.is_dir()]
@@ -303,10 +278,20 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
+    def str_to_bool(v):
+        if isinstance(v, bool):
+            return v
+        if v.lower() in ("yes", "true", "t", "y", "1"):
+            return True
+        elif v.lower() in ("no", "false", "f", "n", "0"):
+            return False
+        else:
+            raise argparse.ArgumentTypeError("Boolean value expected.")
+
     parser = argparse.ArgumentParser(description="Convert Figure 7 spine density data to NWB format")
     parser.add_argument(
         "--stub-test",
-        type=bool,
+        type=str_to_bool,
         default=True,
         help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
     )

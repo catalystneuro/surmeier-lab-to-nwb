@@ -19,10 +19,10 @@ from zoneinfo import ZoneInfo
 
 from neuroconv.datainterfaces import ExternalVideoInterface
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.epoch import TimeIntervals
-from pynwb.file import Subject
 from tqdm import tqdm
 
 
@@ -231,31 +231,8 @@ def convert_session_to_nwbfile(
     # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, conversion_specific_metadata)
 
-    # Create NWB file with merged metadata
-    nwbfile = NWBFile(
-        session_description=metadata["NWBFile"]["session_description"],
-        identifier=metadata["NWBFile"]["identifier"],
-        session_start_time=metadata["NWBFile"]["session_start_time"],
-        experimenter=metadata["NWBFile"]["experimenter"],
-        lab=metadata["NWBFile"]["lab"],
-        institution=metadata["NWBFile"]["institution"],
-        experiment_description=metadata["NWBFile"]["experiment_description"],
-        session_id=metadata["NWBFile"]["session_id"],
-        surgery=metadata["NWBFile"]["surgery"],
-        pharmacology=metadata["NWBFile"]["pharmacology"],
-        keywords=metadata["NWBFile"]["keywords"],
-    )
-
-    # Add subject information
-    nwbfile.subject = Subject(
-        subject_id=metadata["Subject"]["subject_id"],
-        species=metadata["Subject"]["species"],
-        strain=metadata["Subject"]["strain"],
-        genotype=metadata["Subject"]["genotype"],
-        sex=metadata["Subject"]["sex"],
-        age=metadata["Subject"]["age"],
-        description=metadata["Subject"]["description"],
-    )
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(metadata)
 
     # Sort videos by time point for proper temporal organization
     video_metadata_list = [(vid, extract_video_metadata_figure7(vid)) for vid in video_files]

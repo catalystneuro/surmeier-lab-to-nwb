@@ -18,10 +18,10 @@ from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.epoch import TimeIntervals
-from pynwb.file import Subject
 from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
@@ -113,12 +113,10 @@ def convert_session_to_nwbfile(
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"],
-            "identifier": f"figure8_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
             "session_id": session_id,
             "session_start_time": session_info["session_start_time"],
             "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
             "keywords": script_template["NWBFile"]["keywords"],
-            "experiment_description": script_template["NWBFile"]["experiment_description"],
         },
         "Subject": {
             "subject_id": session_info["original_animal_id"],
@@ -129,31 +127,8 @@ def convert_session_to_nwbfile(
 
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
-    # Create NWBFile
-    nwbfile = NWBFile(
-        session_description=metadata["NWBFile"]["session_description"],
-        identifier=metadata["NWBFile"]["identifier"],
-        session_start_time=metadata["NWBFile"]["session_start_time"],
-        experimenter=metadata["NWBFile"]["experimenter"],
-        lab=metadata["NWBFile"]["lab"],
-        institution=metadata["NWBFile"]["institution"],
-        experiment_description=metadata["NWBFile"]["experiment_description"],
-        session_id=metadata["NWBFile"]["session_id"],
-        surgery=metadata["NWBFile"]["surgery"],
-        pharmacology=metadata["NWBFile"]["pharmacology"],
-        keywords=metadata["NWBFile"]["keywords"],
-    )
-
-    # Add subject information
-    nwbfile.subject = Subject(
-        subject_id=metadata["Subject"]["subject_id"],
-        species=metadata["Subject"]["species"],
-        strain=metadata["Subject"]["strain"],
-        genotype=metadata["Subject"]["genotype"],
-        sex=metadata["Subject"]["sex"],
-        age=metadata["Subject"]["age"],
-        description=metadata["Subject"]["description"],
-    )
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(metadata)
 
     # Create and use AIM Behavioral DynamicTable Interface
     aim_interface = AIMBehavioralDynamicTableInterface(
@@ -200,6 +175,16 @@ if __name__ == "__main__":
     import argparse
 
     # Set up argument parser
+    def str_to_bool(v):
+        if isinstance(v, bool):
+            return v
+        if v.lower() in ("yes", "true", "t", "y", "1"):
+            return True
+        elif v.lower() in ("no", "false", "f", "n", "0"):
+            return False
+        else:
+            raise argparse.ArgumentTypeError("Boolean value expected.")
+
     parser = argparse.ArgumentParser(
         description="Convert Figure 8 M1R CRISPR AIM behavioral data to NWB format with optimized DynamicTable structure"
     )
@@ -208,7 +193,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--stub-test",
-        type=bool,
+        type=str_to_bool,
         default=True,
         help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
     )

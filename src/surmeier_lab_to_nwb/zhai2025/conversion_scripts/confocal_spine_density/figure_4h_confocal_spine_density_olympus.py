@@ -19,6 +19,7 @@ from typing import Any, Dict
 
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.device import Device
@@ -271,21 +272,8 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     # Merge general metadata with session-specific metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
-    # Create NWB file
-    nwbfile = NWBFile(
-        session_description=merged_metadata["NWBFile"]["session_description"],
-        identifier=merged_metadata["NWBFile"]["identifier"],
-        session_start_time=merged_metadata["NWBFile"]["session_start_time"],
-        experimenter=merged_metadata["NWBFile"]["experimenter"],
-        lab=merged_metadata["NWBFile"]["lab"],
-        institution=merged_metadata["NWBFile"]["institution"],
-        experiment_description=merged_metadata["NWBFile"]["experiment_description"],
-        session_id=merged_metadata["NWBFile"]["session_id"],
-        surgery=merged_metadata["NWBFile"]["surgery"],
-        pharmacology=merged_metadata["NWBFile"]["pharmacology"],
-        slices=merged_metadata["NWBFile"]["slices"],
-        keywords=merged_metadata["NWBFile"]["keywords"],
-    )
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(merged_metadata)
 
     # Process each OIF file
     device_created = False

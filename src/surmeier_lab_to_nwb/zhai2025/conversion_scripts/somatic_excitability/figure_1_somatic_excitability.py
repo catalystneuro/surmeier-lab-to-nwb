@@ -12,15 +12,17 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_1_conversi
 """
 
 import re
-import uuid
 from pathlib import Path
 from typing import Any, Dict
 
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
-from pynwb.file import Subject
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    get_condition_mapping,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.utils import (
     build_somatic_icephys_table_structure,
 )
@@ -144,12 +146,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
         "cell_number": first_recording_info["cell_number"],
     }
 
-    # Parse session information from first recording folder (all should have same session info)
-    first_recording_info = parse_session_info_from_folder_name(recording_folders[0])
-    session_info = {
-        "cell_number": first_recording_info["cell_number"],
-    }
-
     # Calculate recording IDs, session start times, and create interface mappings
     session_start_times = []  # (timestamp, recording_folder, recording_id)
     recording_id_to_info = {}
@@ -183,7 +179,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
 
     # Find the earliest session start time across all recordings
     earliest_time = min(session_start_times, key=lambda x: x[0])[0]
-    earliest_folder = next(folder for start_time, folder, _ in session_start_times if start_time == earliest_time)
 
     # Calculate t_start offsets for temporal alignment
     for start_time, folder, recording_id in session_start_times:
@@ -195,48 +190,39 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     session_start_time = earliest_time
 
     # Create session ID with ++ separators (no dashes or underscores)
-    condition_to_clean = {
-        "LID off-state": "LIDOffState",
-        "LID on-state": "LIDOnState",
-        "LID on-state with SCH": "LIDOnStateWithSchD1Antagonist",
-    }
-
+    cell_type = "dSPN"  # Direct pathway SPN
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    clean_condition = condition_to_clean.get(condition, condition.replace(" ", "").replace("-", ""))
+    clean_condition = get_condition_mapping(condition, "camel_case")
     base_session_id = f"Figure1++SomaticExcitability++{clean_condition}++{timestamp}"
-    script_specific_id = f"Cell++{session_info['cell_number']}"
+    script_specific_id = f"{cell_type}"
     session_id = f"{base_session_id}++{script_specific_id}"
 
     # Load general and session-specific metadata from YAML files
-    conversion_folder_path = Path(__file__).parent.parent.parent
-    general_metadata_path = conversion_folder_path / "general_metadata.yaml"
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
     general_metadata = load_dict_from_file(general_metadata_path)
 
-    session_metadata_path = conversion_folder_path / "session_specific_metadata.yaml"
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     session_metadata = session_metadata_template["figure_1_somatic_excitability"]
 
     # Handle conditional pharmacology based on condition
     pharmacology_addition = ""
-    if "SCH" in condition and "pharmacology_conditions" in session_metadata["NWBFile"]:
-        if "SCH" in session_metadata["NWBFile"]["pharmacology_conditions"]:
-            pharmacology_addition = " " + session_metadata["NWBFile"]["pharmacology_conditions"]["SCH"]
+    if "SCH" in condition and "pharmacology_conditions" in session_metadata:
+        if "SCH" in session_metadata["pharmacology_conditions"]:
+            pharmacology_addition = " " + session_metadata["pharmacology_conditions"]["SCH"]
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": session_metadata["NWBFile"]["session_description"].format(
-                condition=condition, cell_number=session_info["cell_number"]
-            ),
-            "identifier": str(uuid.uuid4()),
+            "session_description": session_metadata["session_description"].format(condition=condition),
             "session_start_time": session_start_time,
             "session_id": session_id,
             "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
-            "keywords": session_metadata["NWBFile"]["keywords"],
+            "keywords": session_metadata["keywords"],
         },
         "Subject": {
-            "subject_id": f"dSPN_mouse_{session_info['cell_number']}",
-            "description": session_metadata["Subject"]["description"].format(cell_number=session_info["cell_number"]),
+            "subject_id": f"SubjectRecordedAt{timestamp}",
+            "description": session_metadata["Subject"]["description"],
             "genotype": session_metadata["Subject"]["genotype"],
         },
     }
@@ -244,32 +230,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
-    # Create NWB file with merged metadata
-    nwbfile = NWBFile(
-        session_description=metadata["NWBFile"]["session_description"],
-        identifier=metadata["NWBFile"]["identifier"],
-        session_start_time=metadata["NWBFile"]["session_start_time"],
-        experimenter=metadata["NWBFile"]["experimenter"],
-        lab=metadata["NWBFile"]["lab"],
-        institution=metadata["NWBFile"]["institution"],
-        session_id=metadata["NWBFile"]["session_id"],
-        surgery=metadata["NWBFile"]["surgery"],
-        pharmacology=metadata["NWBFile"]["pharmacology"],
-        slices=metadata["NWBFile"]["slices"],
-        keywords=metadata["NWBFile"]["keywords"],
-    )
-
-    # Create subject using merged metadata
-    subject = Subject(
-        subject_id=metadata["Subject"]["subject_id"],
-        species=metadata["Subject"]["species"],
-        strain=metadata["Subject"]["strain"],
-        description=metadata["Subject"]["description"],
-        genotype=metadata["Subject"]["genotype"],
-        sex=metadata["Subject"]["sex"],
-        age=metadata["Subject"]["age"],
-    )
-    nwbfile.subject = subject
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(metadata)
 
     # Add custom columns to intracellular recording table for somatic experiment annotations
     intracellular_recording_table = nwbfile.get_intracellular_recordings()
@@ -279,9 +241,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     )
     intracellular_recording_table.add_column(
         name="protocol_step", description="Protocol step number (e.g., '001', '002', etc.)"
-    )
-    intracellular_recording_table.add_column(
-        name="recording_id", description="Full recording identifier containing step and current information"
     )
 
     # Data structures for tracking icephys table indices
@@ -308,10 +267,10 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             {
                 "name": electrode_name,
                 "description": (
-                    f"Whole-cell patch clamp electrode recording from dSPN soma in the dorsolateral striatum - "
-                    f"{condition} - Cell {session_info['cell_number']} - F-I protocol with {len(recording_folders)} current steps"
+                    f"Whole-cell patch clamp electrode recording from {cell_type} soma in the dorsolateral striatum - "
+                    f"{condition} - F-I protocol with {len(recording_folders)} current steps"
                 ),
-                "cell_id": f"Cell{session_info['cell_number']}",
+                "cell_id": f"CellRecordedAt{timestamp}",
                 "location": "soma - dorsolateral striatum",
                 "slice": general_metadata["NWBFile"]["slices"],
             }
@@ -323,8 +282,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             {
                 "name": series_name,
                 "description": (
-                    f"Current clamp recording from dSPN cell in condition {condition} - "
-                    f"Cell {session_info['cell_number']} - {recording_info['current_formatted']} current injection - "
+                    f"Current clamp recording from {cell_type} in condition {condition} - "
+                    f"{recording_info['current_formatted']} current injection - "
                     f"F-I protocol step {recording_info['protocol_step']}"
                 ),
             }
@@ -342,7 +301,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
             response=current_clamp_series,
             stimulus_current_pA=recording_info["current_pA"],
             protocol_step=recording_info["protocol_step"],
-            recording_id=recording_id,
         )
 
         # Track recording index for table building
@@ -352,10 +310,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     build_somatic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
-        session_info=session_info,
         condition=condition,
-        stimulus_type="F-I_protocol_somatic_excitability",
-        include_animal_letter=False,
     )
 
     return nwbfile
@@ -370,9 +325,20 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Convert Figure 1 somatic excitability data to NWB format")
+
+    def str_to_bool(v):
+        if isinstance(v, bool):
+            return v
+        if v.lower() in ("yes", "true", "t", "y", "1"):
+            return True
+        elif v.lower() in ("no", "false", "f", "n", "0"):
+            return False
+        else:
+            raise argparse.ArgumentTypeError("Boolean value expected.")
+
     parser.add_argument(
         "--stub-test",
-        type=bool,
+        type=str_to_bool,
         default=True,
         help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
     )

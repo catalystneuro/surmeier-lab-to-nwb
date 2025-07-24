@@ -12,15 +12,14 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_7_conversi
 """
 
 import re
-import uuid
 import warnings
 from pathlib import Path
 from typing import Any, Dict
 
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
-from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     DendriticTrialsInterface,
@@ -328,7 +327,6 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
                 condition=condition,
                 cell_number=session_info["cell_number"],
             ),
-            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_info["session_id"],
             "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
@@ -344,33 +342,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     # Merge general metadata with session-specific metadata
     metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
-    # Create NWB file with merged metadata
-    nwbfile = NWBFile(
-        session_description=metadata["NWBFile"]["session_description"],
-        identifier=metadata["NWBFile"]["identifier"],
-        session_start_time=metadata["NWBFile"]["session_start_time"],
-        experimenter=metadata["NWBFile"]["experimenter"],
-        lab=metadata["NWBFile"]["lab"],
-        institution=metadata["NWBFile"]["institution"],
-        experiment_description=metadata["NWBFile"]["experiment_description"],
-        session_id=metadata["NWBFile"]["session_id"],
-        surgery=metadata["NWBFile"]["surgery"],
-        pharmacology=metadata["NWBFile"]["pharmacology"],
-        slices=metadata["NWBFile"]["slices"],
-        keywords=metadata["NWBFile"]["keywords"],
-    )
-
-    # Create subject using merged metadata
-    subject = Subject(
-        subject_id=metadata["Subject"]["subject_id"],
-        species=metadata["Subject"]["species"],
-        strain=metadata["Subject"]["strain"],
-        description=metadata["Subject"]["description"],
-        genotype=metadata["Subject"]["genotype"],
-        sex=metadata["Subject"]["sex"],
-        age=metadata["Subject"]["age"],
-    )
-    nwbfile.subject = subject
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(metadata)
 
     # Add custom columns to intracellular recording table for dendritic experiment annotations
     intracellular_recording_table = nwbfile.get_intracellular_recordings()
@@ -453,7 +426,7 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
                     f"(~{recording_info['approximate_distance_um']}μm from soma) - oxotremorine-M protocol"
                 ),
                 "cell_id": f"Cell{session_info['cell_number']}",
-                "location": f"dendrite (~{recording_info['approximate_distance_um']}μm from soma)",
+                "location": f"dendrite ({recording_info['approximate_distance_um']}μm from soma)",
                 "slice": general_metadata["NWBFile"]["slices"],
             }
         )
@@ -632,10 +605,20 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     # Parse command line arguments
+    def str_to_bool(v):
+        if isinstance(v, bool):
+            return v
+        if v.lower() in ("yes", "true", "t", "y", "1"):
+            return True
+        elif v.lower() in ("no", "false", "f", "n", "0"):
+            return False
+        else:
+            raise argparse.ArgumentTypeError("Boolean value expected.")
+
     parser = argparse.ArgumentParser(description="Convert Figure 7 oxoM dendritic excitability data to NWB format")
     parser.add_argument(
         "--stub-test",
-        type=bool,
+        type=str_to_bool,
         default=True,
         help="Process only first 2 files per condition for testing (default: True). Use --stub-test=False for full processing.",
     )

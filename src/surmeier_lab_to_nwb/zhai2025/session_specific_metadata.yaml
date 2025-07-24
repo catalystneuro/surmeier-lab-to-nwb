@@ -6,14 +6,14 @@ figure_1_somatic_excitability:
   session_description:
     "Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'.
     Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each).
-    Cell {cell_number}."
+    "
   keywords:
     - "somatic excitability"
     - "F-I relationship"
     - "rheobase"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection). Cell {cell_number}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection)."
 
 figure_1_dendritic_excitability:
   NWBFile:
@@ -25,7 +25,7 @@ figure_1_dendritic_excitability:
       - "back-propagating action potentials"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection). Cell {cell_number}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. dSPNs identified by Drd1-Tdtomato expression (positive selection)."
 
 # Figure 2 Scripts
 figure_2_spine_density:
@@ -62,7 +62,7 @@ figure_2_optical_stimuli:
 # Figure 3 Scripts
 figure_3_somatic_excitability:
   NWBFile:
-    session_description: "Somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number}."
+    session_description: "Somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
     pharmacology_conditions:
       sulpiride: "Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced somatic excitability changes in iSPNs."
     keywords:
@@ -71,7 +71,7 @@ figure_3_somatic_excitability:
       - "rheobase"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection)."
 
 figure_3_dendritic_excitability:
   NWBFile:
@@ -85,7 +85,7 @@ figure_3_dendritic_excitability:
       - "back-propagating action potentials"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection)."
 
 # Figure 4 Scripts
 figure_4_spine_density:
@@ -187,7 +187,7 @@ figure_6_dendritic_excitability:
 
 figure_6_somatic_excitability:
   NWBFile:
-    session_description: "Figure 6 somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Testing M1R contribution to LID-induced somatic excitability changes. Cell {cell_number}."
+    session_description: "Figure 6 somatic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Testing M1R contribution to LID-induced somatic excitability changes."
     pharmacology_conditions:
       antagonist: "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced somatic excitability changes."
     keywords:
@@ -198,7 +198,7 @@ figure_6_somatic_excitability:
       - "muscarinic"
   Subject:
     genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
-    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection). Cell {cell_number}."
+    description: "Experimental mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. iSPNs identified by Drd2-eGFP expression (positive selection)."
 
 figure_6_spine_density:
   NWBFile:
@@ -249,7 +249,7 @@ figure_7_oxoM_dendritic_excitability:
 
 figure_7_somatic_excitability:
   NWBFile:
-    session_description: "Figure 7 somatic excitability assessment in CDGI knockout mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Animal {animal_letter}, Cell {cell_number}."
+    session_description: "Figure 7 somatic excitability assessment in CDGI knockout mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
     keywords:
       - "somatic excitability"
       - "F-I relationship"
@@ -258,7 +258,7 @@ figure_7_somatic_excitability:
       - "knockout"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_letter}, Cell {cell_number}."
+    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology."
 
 figure_7_spine_density:
   NWBFile:
@@ -302,7 +302,7 @@ figure_7_behavioral_videos:
 # Figure 8 Scripts (M1R CRISPR)
 figure_8_somatic_excitability:
   NWBFile:
-    session_description: "Figure 8 somatic excitability assessment in M1R CRISPR mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each). Cell {cell_number}."
+    session_description: "Figure 8 somatic excitability assessment in M1R CRISPR mice for condition '{condition}'. Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
     surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
     keywords:
       - "somatic excitability"
@@ -313,7 +313,7 @@ figure_8_somatic_excitability:
       - "gene editing"
   Subject:
     genotype: "M1R CRISPR knockout"
-    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing. Cell {cell_number}."
+    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing."
 
 figure_8_spine_density:
   NWBFile:

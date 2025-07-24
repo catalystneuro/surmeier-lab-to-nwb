@@ -17,9 +17,9 @@ from pathlib import Path
 from typing import Any, Dict
 
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
-from pynwb.file import Subject
 
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
     NikonImageStackInterface,
@@ -162,38 +162,8 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     # Merge general metadata with session-specific metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
-    # Create NWB file
-    nwbfile = NWBFile(
-        session_description=merged_metadata["NWBFile"]["session_description"],
-        identifier=merged_metadata["NWBFile"]["identifier"],
-        session_start_time=merged_metadata["NWBFile"]["session_start_time"],
-        experimenter=merged_metadata["NWBFile"]["experimenter"],
-        lab=merged_metadata["NWBFile"]["lab"],
-        institution=merged_metadata["NWBFile"]["institution"],
-        experiment_description=merged_metadata["NWBFile"]["experiment_description"],
-        session_id=merged_metadata["NWBFile"]["session_id"],
-        surgery=merged_metadata["NWBFile"]["surgery"],
-        pharmacology=merged_metadata["NWBFile"]["pharmacology"],
-        slices=merged_metadata["NWBFile"]["slices"],
-        keywords=merged_metadata["NWBFile"]["keywords"],
-    )
-
-    # Create subject metadata for Figure 4 confocal spine density experiments
-    subject = Subject(
-        subject_id=f"confocal_mouse_{file_info['animal_id']}",
-        species="Mus musculus",
-        strain="Drd1-Tdtomato transgenic",
-        description=(
-            f"Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) "
-            f"modeling Parkinson's disease. dSPNs identified by Drd1-Tdtomato expression. "
-            f"Confocal microscopy spine density analysis from {file_info['location']} dendrite "
-            f"of cell {file_info['cell_number']} on slide {file_info['slide_number']}, slice {file_info['slice_number']}."
-        ),
-        genotype="Drd1-Tdtomato+",
-        sex="M",
-        age="P8W/P12W",  # Adult mice, 8-12 weeks in ISO 8601 format
-    )
-    nwbfile.subject = subject
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(merged_metadata)
 
     # Create metadata for the interface with custom container information
     # Following the same pattern as NeuroConv's ImageInterface
