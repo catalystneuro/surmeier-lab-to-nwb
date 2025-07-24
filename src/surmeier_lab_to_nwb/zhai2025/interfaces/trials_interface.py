@@ -69,7 +69,6 @@ class DendriticTrialsInterface(BaseDataInterface):
         nwbfile.add_trial_column(
             name="recording_id", description="Full recording identifier containing location and trial information"
         )
-        nwbfile.add_trial_column(name="cell_number", description="Cell number identifier")
 
         # Collect trial data and sort by start_time to ensure chronological order
         trial_data_list = []
@@ -104,7 +103,6 @@ class DendriticTrialsInterface(BaseDataInterface):
                 "dendrite_distance_um": dendrite_distance_um,
                 "trial_number": int(recording_info["trial_number"]),
                 "recording_id": recording_id,
-                "cell_number": recording_info["cell_number"],
             }
             trial_data_list.append(trial_data)
 

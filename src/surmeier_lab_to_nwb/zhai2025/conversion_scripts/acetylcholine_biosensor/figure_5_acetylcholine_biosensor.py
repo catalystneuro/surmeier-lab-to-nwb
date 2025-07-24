@@ -25,6 +25,7 @@ from neuroconv.converters import BrukerTiffSinglePlaneConverter
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
+from pynwb import NWBFile
 from pynwb.device import Device
 from pynwb.epoch import TimeIntervals
 
@@ -33,6 +34,9 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewFluorescenceInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
+    BrukerReferenceImagesInterface,
 )
 
 
@@ -81,7 +85,7 @@ def parse_slice_session_info(slice_folder: Path) -> dict[str, Any]:
         "session_date": session_date,
         "date_str": session_date.strftime("%Y-%m-%d"),
         "slice_info": full_slice_info,
-        "subject_id": f"mouse_{date_str}",  # Use date as animal proxy
+        "subject_id": f"SubjectRecordedAt{date_str.replace('-', '')}",  # Use SubjectRecordedAt pattern
     }
 
 
@@ -431,6 +435,16 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
                 series_metadata["name"] = f"TwoPhotonSeries{base_name}{channel_name}Trial{trial_index:03d}"
 
         bruker_converter.add_to_nwbfile(nwbfile=nwbfile, metadata=bruker_metadata)
+
+        # Add reference images if they exist for this trial
+        references_folder = bot_trial_folder / "References"
+        if references_folder.exists():
+            # Create container name specific to this trial
+            ref_container_name = f"BackgroundReferences{base_name}Trial{trial_index:03d}"
+            reference_interface = BrukerReferenceImagesInterface(
+                references_folder_path=references_folder, container_name=ref_container_name
+            )
+            reference_interface.add_to_nwbfile(nwbfile=nwbfile)
 
         # Update cumulative time for next trial
         cumulative_time = trial_start_shifted + trial_duration + 1.0  # 1s gap between trials

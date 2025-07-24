@@ -38,7 +38,7 @@ def build_dendritic_icephys_table_structure(
     recording_to_metadata : Dict[int, Dict[str, Any]]
         Dictionary mapping recording index to metadata (recording_id, recording_info, series_name)
     session_info : Dict[str, Any]
-        Session information dictionary containing cell_number and optionally animal identifiers
+        Session information dictionary (currently unused but maintained for API compatibility)
     condition : str
         Experimental condition (e.g., "LID off-state", "LID on-state", etc.)
     stimulus_type : str, default="dendritic_excitability_current_injection"

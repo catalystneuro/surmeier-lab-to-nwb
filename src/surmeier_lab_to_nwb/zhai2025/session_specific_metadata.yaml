@@ -22,7 +22,7 @@ figure_1_dendritic_excitability:
     session_description: >
       "Dendritic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'.
       Combined patch clamp electrophysiology and two-photon laser scanning microscopy.
-      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
+      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging."
     keywords:
       - "calcium imaging"
       - "dendritic excitability"
@@ -102,7 +102,7 @@ figure_3_dendritic_excitability:
     session_description: >
       "Dendritic excitability assessment in indirect pathway spiny projection neurons (iSPNs) for condition '{condition}'.
       Combined patch clamp electrophysiology and two-photon laser scanning microscopy.
-      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
+      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging."
     pharmacology_conditions:
       sulpiride: "Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced dendritic excitability changes in iSPNs."
     keywords:
@@ -301,7 +301,7 @@ figure_7_dendritic_excitability:
     session_description: >
       "Figure 7 dendritic excitability assessment in CDGI knockout mice for condition '{condition}'.
       Combined patch clamp electrophysiology and two-photon laser scanning microscopy.
-      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging. Cell {cell_number}."
+      Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with Ca2+ imaging."
     keywords:
       - "calcium imaging"
       - "dendritic excitability"
@@ -311,14 +311,14 @@ figure_7_dendritic_excitability:
       - "knockout"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology. Cell {cell_number}."
+    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology."
 
 figure_7_oxoM_dendritic_excitability:
   NWBFile:
     session_description: >
       "Figure 7 oxoM-stimulated dendritic excitability assessment in CDGI knockout mice for condition '{condition}'.
       Combined patch clamp electrophysiology and two-photon laser scanning microscopy with muscarinic agonist stimulation.
-      Brief current steps with Ca2+ imaging following oxoM treatment. Cell {cell_number}."
+      Brief current steps with Ca2+ imaging following oxoM treatment."
     keywords:
       - "calcium imaging"
       - "dendritic excitability"
@@ -330,7 +330,7 @@ figure_7_oxoM_dendritic_excitability:
       - "muscarinic agonist"
   Subject:
     genotype: "CDGI knockout"
-    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology with muscarinic agonist treatment. Cell {cell_number}."
+    description: "CDGI knockout mouse with unilateral 6-OHDA lesion in the medial forebrain bundle. Global CDGI deletion to investigate role in LID pathophysiology with muscarinic agonist treatment."
 
 figure_7_somatic_excitability:
   NWBFile:
