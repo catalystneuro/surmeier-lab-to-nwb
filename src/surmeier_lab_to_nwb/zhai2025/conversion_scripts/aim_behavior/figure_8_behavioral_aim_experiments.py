@@ -109,44 +109,25 @@ def convert_session_to_nwbfile(
     script_specific_id = f"Animal{animal_id}_Session{session_number}"
     session_id = f"{base_session_id}_{script_specific_id}"
 
-    # Update metadata for behavioral experiment
+    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": "Figure 8 Behavioral Assessment - AIM scoring for dyskinesia analysis in M1R CRISPR study",
+            "session_description": script_template["NWBFile"]["session_description"],
             "identifier": f"figure8_behavioral_{session_info['animal_id']}_{session_date.replace('-', '')}_s{session_number}",
             "session_id": session_id,
             "session_start_time": session_info["session_start_time"],
-            "surgery": metadata["NWBFile"]["surgery"]
-            + " M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs.",
-            "keywords": ["AIM", "Abnormal Involuntary Movement", "CDGI", "dyskinesia", "L-DOPA"],
-            "experiment_description": (
-                "Behavioral assessment of M1R CRISPR knockout mice using AIM scoring to evaluate "
-                "dyskinesia severity following L-DOPA treatment. Data corresponds to Figure 8 from "
-                "Zhai et al. 2025. M1R CRISPR uses CRISPR-Cas9 gene editing to delete M1 muscarinic "
-                "receptors specifically from iSPNs. Uses optimized DynamicTable for figure analysis."
-            ),
+            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
+            "keywords": script_template["NWBFile"]["keywords"],
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
         },
         "Subject": {
             "subject_id": session_info["original_animal_id"],
-            "genotype": session_info["genotype"],
-            "description": f"M1R CRISPR study animal - {session_info['genotype']}",
-            "species": "Mus musculus",
-            "strain": "C57BL/6J",
-            "sex": "M",
-            "age": "P7W/P12W",  # 7-12 weeks old
-            "genotype_description": (
-                "Hemizygous for BAC transgene (Drd1a-tdTomato or Drd2-eGFP reporter) "
-                "back-crossed to C57BL/6 background. "
-                + (
-                    "M1R CRISPR: AAV-Cas9 + AAV-gRNA-FusionRed for M1R deletion in iSPNs."
-                    if "CRISPR" in session_info["genotype"]
-                    else "Control: Saline + AAV-gRNA-FusionRed (no M1R deletion)."
-                )
-            ),
+            "genotype": script_template["Subject"]["genotype"] if "CRISPR" in session_info["genotype"] else "Control",
+            "description": script_template["Subject"]["description"].format(animal_id=session_info["animal_id"]),
         },
     }
 
-    metadata = dict_deep_update(metadata, session_specific_metadata)
+    metadata = dict_deep_update(general_metadata, session_specific_metadata)
 
     # Create NWBFile
     nwbfile = NWBFile(
