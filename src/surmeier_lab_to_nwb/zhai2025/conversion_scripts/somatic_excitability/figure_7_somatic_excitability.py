@@ -110,27 +110,12 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
-# Configuration for Figure 7 somatic excitability experiments
-FIGURE_7_CONFIG = {
-    "parse_function": parse_session_info_from_folder_name,
-    "cell_type": "iSPN",
-    "figure_number": "F7",
-    "spn_type": "ispn",
-    "condition_mappings": {
-        "KO off-state": {"state": "OFF", "pharmacology": "none", "genotype": "CDGIKO"},
-        "KO on-state": {"state": "ON", "pharmacology": "none", "genotype": "CDGIKO"},
-    },
-    "metadata_key": "figure_7_somatic_excitability",
-    "pharmacology_key_mapping": {},
-}
-
-
 def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWBFile:
     """
     Convert a single session of Figure 7 CDGI knockout somatic excitability data to NWB format.
 
     This is a wrapper function that calls the shared conversion function with
-    Figure 7-specific configuration.
+    Figure 7-specific configuration and session ID parameters.
 
     Parameters
     ----------
@@ -144,10 +129,36 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     NWBFile
         NWB file with the converted data
     """
+    # Configuration for Figure 7 somatic excitability experiments
+    figure_7_config = {
+        "parse_function": parse_session_info_from_folder_name,
+        "metadata_key": "figure_7_somatic_excitability",
+    }
+
+    # Local mapping for Figure 7 conditions to revised schema tokens
+    figure_7_mappings = {
+        "KO off-state": {"state": "OffState", "pharm": "none"},
+        "KO on-state": {"state": "OnState", "pharm": "none"},
+    }
+
+    state = figure_7_mappings[condition]["state"]
+    pharmacology = figure_7_mappings[condition]["pharm"]
+
+    # Build session ID parameters using revised schema
+    session_id_parameters = {
+        "fig": "F7",
+        "meas_comp": "SomExc",  # Somatic excitability
+        "cell_type": "iSPN",  # Indirect pathway SPN
+        "state": state,
+        "pharm": pharmacology,
+        "geno": "CDGIKO",  # CalDAG-GEFI knockout for all Figure 7
+    }
+
     return convert_somatic_excitability_session_to_nwbfile(
         session_folder_path=session_folder_path,
         condition=condition,
-        figure_config=FIGURE_7_CONFIG,
+        figure_config=figure_7_config,
+        session_id_parameters=session_id_parameters,
     )
 
 

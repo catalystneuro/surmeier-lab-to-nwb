@@ -104,27 +104,12 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
-# Configuration for Figure 8 somatic excitability experiments
-FIGURE_8_CONFIG = {
-    "parse_function": parse_session_info_from_folder_name,
-    "cell_type": "iSPN",
-    "figure_number": "F8",
-    "spn_type": "ispn",
-    "condition_mappings": {
-        "M1R CRISPR": {"state": "OFF", "pharmacology": "none", "genotype": "M1RCRISPR"},
-        "interleaved control": {"state": "OFF", "pharmacology": "none", "genotype": "WT"},
-    },
-    "metadata_key": "figure_8_somatic_excitability",
-    "pharmacology_key_mapping": {},
-}
-
-
 def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWBFile:
     """
     Convert a single session of Figure 8 M1R CRISPR somatic excitability data to NWB format.
 
     This is a wrapper function that calls the shared conversion function with
-    Figure 8-specific configuration.
+    Figure 8-specific configuration and session ID parameters.
 
     Parameters
     ----------
@@ -138,10 +123,37 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     NWBFile
         NWB file with the converted data
     """
+    # Configuration for Figure 8 somatic excitability experiments
+    figure_8_config = {
+        "parse_function": parse_session_info_from_folder_name,
+        "metadata_key": "figure_8_somatic_excitability",
+    }
+
+    # Local mapping for Figure 8 conditions to revised schema tokens
+    figure_8_mappings = {
+        "M1R CRISPR": {"state": "OffState", "pharm": "none", "geno": "iSPNM1RKO"},
+        "interleaved control": {"state": "OffState", "pharm": "none", "geno": "WT"},
+    }
+
+    state = figure_8_mappings[condition]["state"]
+    pharmacology = figure_8_mappings[condition]["pharm"]
+    genotype = figure_8_mappings[condition]["geno"]
+
+    # Build session ID parameters using revised schema
+    session_id_parameters = {
+        "fig": "F8",
+        "meas_comp": "SomExc",  # Somatic excitability
+        "cell_type": "iSPN",  # Indirect pathway SPN
+        "state": state,
+        "pharm": pharmacology,
+        "geno": genotype,
+    }
+
     return convert_somatic_excitability_session_to_nwbfile(
         session_folder_path=session_folder_path,
         condition=condition,
-        figure_config=FIGURE_8_CONFIG,
+        figure_config=figure_8_config,
+        session_id_parameters=session_id_parameters,
     )
 
 

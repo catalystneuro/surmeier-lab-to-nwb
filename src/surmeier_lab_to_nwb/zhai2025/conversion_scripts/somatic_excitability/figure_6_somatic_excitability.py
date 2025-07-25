@@ -110,27 +110,12 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
-# Configuration for Figure 6 somatic excitability experiments
-FIGURE_6_CONFIG = {
-    "parse_function": parse_session_info_from_folder_name,
-    "cell_type": "iSPN",
-    "figure_number": "F6",
-    "spn_type": "ispn",
-    "condition_mappings": {
-        "control": {"state": "OFF", "pharmacology": "none", "genotype": "WT"},
-        "M1R antagonist": {"state": "OFF", "pharmacology": "M1RA", "genotype": "WT"},
-    },
-    "metadata_key": "figure_6_somatic_excitability",
-    "pharmacology_key_mapping": {"m1r_antagonist": "antagonist"},
-}
-
-
 def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWBFile:
     """
     Convert a single session of Figure 6 M1R antagonist somatic excitability data to NWB format.
 
     This is a wrapper function that calls the shared conversion function with
-    Figure 6-specific configuration.
+    Figure 6-specific configuration and session ID parameters.
 
     Parameters
     ----------
@@ -144,10 +129,36 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     NWBFile
         NWB file with the converted data
     """
+    # Configuration for Figure 6 somatic excitability experiments
+    figure_6_config = {
+        "parse_function": parse_session_info_from_folder_name,
+        "metadata_key": "figure_6_somatic_excitability",
+    }
+
+    # Local mapping for Figure 6 conditions to revised schema tokens
+    figure_6_mappings = {
+        "control": {"state": "LesionedControl", "pharm": "none"},
+        "M1R antagonist": {"state": "LesionedControl", "pharm": "M1RaTri"},
+    }
+
+    state = figure_6_mappings[condition]["state"]
+    pharmacology = figure_6_mappings[condition]["pharm"]
+
+    # Build session ID parameters using revised schema
+    session_id_parameters = {
+        "fig": "F6",
+        "meas_comp": "SomExc",  # Somatic excitability
+        "cell_type": "iSPN",  # Indirect pathway SPN
+        "state": state,
+        "pharm": pharmacology,
+        "geno": "WT",  # Wild-type for all Figure 6
+    }
+
     return convert_somatic_excitability_session_to_nwbfile(
         session_folder_path=session_folder_path,
         condition=condition,
-        figure_config=FIGURE_6_CONFIG,
+        figure_config=figure_6_config,
+        session_id_parameters=session_id_parameters,
     )
 
 

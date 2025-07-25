@@ -218,7 +218,7 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
     pd.DataFrame
         Combined dataframe with all recordings and analyses
     """
-    nwb_files = list(nwb_dir.glob("Figure1++SomaticExcitability++*.nwb"))
+    nwb_files = list(nwb_dir.glob("F1++SomExc++dSPN++*.nwb"))
 
     if not nwb_files:
         raise FileNotFoundError(f"No NWB files found in {nwb_dir}. " "Please check that the NWB files exist.")

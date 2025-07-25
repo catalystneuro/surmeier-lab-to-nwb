@@ -13,6 +13,8 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    GENOTYPE_DESCRIPTION_MAPPING,
+    PHARMACOLOGY_ADDITIONS,
     format_condition,
     generate_canonical_session_id,
 )
@@ -88,6 +90,7 @@ def convert_somatic_excitability_session_to_nwbfile(
     session_folder_path: Path,
     condition: str,
     figure_config: Dict[str, Any],
+    session_id_parameters: Dict[str, Any],
 ) -> NWBFile:
     """
     Convert a single session of somatic excitability data to NWB format with time alignment.
@@ -105,12 +108,15 @@ def convert_somatic_excitability_session_to_nwbfile(
     figure_config : Dict[str, Any]
         Figure-specific configuration containing:
         - parse_function: Callable to parse folder names
-        - cell_type: str, either "dSPN" or "iSPN"
-        - figure_number: str, e.g., "F1", "F3", etc.
-        - spn_type: str, either "dspn" or "ispn"
-        - condition_mappings: Dict mapping conditions to state/pharmacology/genotype
         - metadata_key: str, key for session_specific_metadata.yaml
-        - pharmacology_key_mapping: Optional Dict for pharmacology condition keys
+    session_id_parameters : Dict[str, Any]
+        Session ID parameters using revised schema (excluding timestamp which is determined here):
+        - fig: str, figure number (e.g., "F1", "F3")
+        - meas_comp: str, measurement + compartment (e.g., "SomExc", "DendExc")
+        - cell_type: str, cell type (e.g., "dSPN", "iSPN")
+        - state: str, experimental state (e.g., "OffState", "OnState")
+        - pharm: str, pharmacology condition (e.g., "none", "D1RaSch")
+        - geno: str, genotype (e.g., "WT", "CDGIKO")
 
     Returns
     -------
@@ -124,12 +130,10 @@ def convert_somatic_excitability_session_to_nwbfile(
     """
     # Extract configuration
     parse_function = figure_config["parse_function"]
-    cell_type = figure_config["cell_type"]
-    figure_number = figure_config["figure_number"]
-    spn_type = figure_config["spn_type"]
-    condition_mappings = figure_config["condition_mappings"]
     metadata_key = figure_config["metadata_key"]
-    pharmacology_key_mapping = figure_config.get("pharmacology_key_mapping", {})
+
+    # Get cell type from session ID parameters
+    cell_type = session_id_parameters["cell_type"]
 
     # Find all recording folders (current steps) for this cell
     recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
@@ -186,23 +190,14 @@ def convert_somatic_excitability_session_to_nwbfile(
     # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
 
-    # Map condition to explicit state, pharmacology, and genotype
-    if condition not in condition_mappings:
-        raise ValueError(f"Unknown condition: {condition}")
-
-    condition_params = condition_mappings[condition]
-    state = condition_params["state"]
-    pharmacology = condition_params["pharmacology"]
-    genotype = condition_params["genotype"]
-
+    # Use session ID parameters passed by the calling script (revised schema)
     session_id = generate_canonical_session_id(
-        fig=figure_number,
-        compartment="som",
-        measurement="None",  # intrinsic excitability
-        spn_type=spn_type,
-        state=state,
-        pharmacology=pharmacology,
-        genotype=genotype,
+        fig=session_id_parameters["fig"],
+        meas_comp=session_id_parameters["meas_comp"],
+        cell_type=session_id_parameters["cell_type"],
+        state=session_id_parameters["state"],
+        pharm=session_id_parameters["pharm"],
+        geno=session_id_parameters["geno"],
         timestamp=timestamp,
     )
 
@@ -214,19 +209,18 @@ def convert_somatic_excitability_session_to_nwbfile(
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template[metadata_key]
 
-    # Handle conditional pharmacology based on condition using centralized mapping
-    pharmacology_addition = ""
+    # Get condition formatting for underscore version
     condition_underscore = format_condition[condition]["underscore"]
 
-    # Check for pharmacology additions in the template
-    if "pharmacology_conditions" in script_template["NWBFile"]:
-        for pharma_key, template_key in pharmacology_key_mapping.items():
-            if (
-                pharma_key in condition_underscore
-                and template_key in script_template["NWBFile"]["pharmacology_conditions"]
-            ):
-                pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"][template_key]
-                break
+    # Build pharmacology description using centralized mapping
+    pharmacology_base = general_metadata["NWBFile"]["pharmacology"]
+    pharm_token = session_id_parameters["pharm"]
+
+    # Add pharmacology-specific text if applicable
+    if pharm_token != "none" and pharm_token in PHARMACOLOGY_ADDITIONS:
+        pharmacology_text = pharmacology_base + " " + PHARMACOLOGY_ADDITIONS[pharm_token]
+    else:
+        pharmacology_text = pharmacology_base
 
     # Handle special metadata fields (like surgery for Figure 8)
     surgery_text = general_metadata["NWBFile"]["surgery"]
@@ -242,7 +236,7 @@ def convert_somatic_excitability_session_to_nwbfile(
             ),
             "session_start_time": session_start_time,
             "session_id": session_id,
-            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
+            "pharmacology": pharmacology_text,
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
@@ -290,13 +284,9 @@ def convert_somatic_excitability_session_to_nwbfile(
         # Get and update interface metadata
         interface_metadata = interface.get_metadata()
 
-        # Build description based on figure-specific context
-        genotype_description = ""
-        if genotype != "WT":
-            if genotype == "CDGIKO":
-                genotype_description = "CDGI knockout "
-            elif genotype == "M1RCRISPR":
-                genotype_description = ""  # Already in condition description
+        # Build description based on figure-specific context using centralized mapping
+        genotype = session_id_parameters["geno"]
+        genotype_description = GENOTYPE_DESCRIPTION_MAPPING.get(genotype, "")
 
         # Update electrode description for somatic recording (consistent name for all recordings)
         electrode_name = "IntracellularElectrode"
