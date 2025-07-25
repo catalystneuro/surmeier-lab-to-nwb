@@ -388,15 +388,10 @@ if __name__ == "__main__":
         session_folders = session_folders[:2]
 
     # Process each session folder
-    session_iterator = (
-        tqdm(
-            session_folders,
-            desc="Converting Figure4H ConfocalSpineDensity",
-            disable=verbose,
-            unit=" session",
-        )
-        if not verbose
-        else session_folders
+    session_iterator = tqdm(
+        session_folders,
+        desc="Converting Figure4H ConfocalSpineDensity",
+        unit=" session",
     )
 
     for session_folder in session_iterator:

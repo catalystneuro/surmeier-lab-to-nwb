@@ -15,7 +15,6 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_5_conversi
 """
 
 import re
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -282,7 +281,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     session_specific_metadata = {
         "NWBFile": {
             "session_description": f"Acetylcholine GRAB biosensor session for {condition} condition in slice {session_info['slice_info']}. Contains multiple trials with different treatments and stimulation protocols.",
-            "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_id,
             "surgery": surgery_text,
@@ -458,13 +456,12 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
         # Add reference images if they exist for this trial
         references_folder = bot_trial_folder / "References"
-        if references_folder.exists():
-            # Create container name specific to this trial
-            ref_container_name = f"BackgroundReferences{base_name}Trial{trial_index:03d}"
-            reference_interface = BrukerReferenceImagesInterface(
-                references_folder_path=references_folder, container_name=ref_container_name
-            )
-            reference_interface.add_to_nwbfile(nwbfile=nwbfile)
+        # Create container name specific to this trial
+        ref_container_name = f"BackgroundReferences{base_name}Trial{trial_index:03d}"
+        reference_interface = BrukerReferenceImagesInterface(
+            references_folder_path=references_folder, container_name=ref_container_name
+        )
+        reference_interface.add_to_nwbfile(nwbfile=nwbfile)
 
         # Update cumulative time for next trial
         cumulative_time = trial_start_shifted + trial_duration + 1.0  # 1s gap between trials
