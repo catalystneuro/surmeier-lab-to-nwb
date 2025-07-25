@@ -7,10 +7,10 @@ figure_1_somatic_excitability:
     session_description: >
       "Somatic excitability assessment in direct pathway spiny projection neurons (dSPNs) for condition '{condition}'.
       Whole-cell patch clamp recording in current clamp mode with current injection steps from -120 pA to +300 pA (500 ms duration each)."
-  keywords:
-    - "somatic excitability"
-    - "F-I relationship"
-    - "rheobase"
+    keywords:
+      - "somatic excitability"
+      - "F-I relationship"
+      - "rheobase"
   Subject:
     genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
     description: >
