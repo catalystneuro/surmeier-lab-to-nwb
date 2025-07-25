@@ -408,7 +408,7 @@ if __name__ == "__main__":
 
         # Create output filename
         session_safe = session_folder.name.replace(" ", "_").replace("-", "_")
-        nwbfile_path = nwb_files_dir / f"figure4h_olympus_confocal_{session_safe}.nwb"
+        nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
         # Write NWB file
         configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

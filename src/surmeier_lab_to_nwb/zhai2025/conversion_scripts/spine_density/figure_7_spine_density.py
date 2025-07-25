@@ -227,9 +227,9 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
     condition_human_readable = format_condition[condition]["human_readable"]
 
     # Map condition to explicit state (Figure 7 tests CDGI KO)
-    if condition == "KO off-state":
+    if condition == "KO off-state" or condition == "KO off":
         state = "OFF"
-    elif condition == "KO on-state":
+    elif condition == "KO on-state" or condition == "KO on":
         state = "ON"
     else:
         raise ValueError(f"Unknown condition: {condition}")

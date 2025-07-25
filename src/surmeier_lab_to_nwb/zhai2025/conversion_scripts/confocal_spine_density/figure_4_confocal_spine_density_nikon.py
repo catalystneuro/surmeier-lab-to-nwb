@@ -21,7 +21,6 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    format_condition,
     generate_canonical_session_id,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
@@ -127,7 +126,9 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     session_start_time = interface.get_session_start_time()
 
     # Create canonical session ID with explicit parameters
-    condition_human_readable = format_condition[condition]["human_readable"]
+    # Map simple condition names to human readable format
+    condition_mapping = {"control": "control", "6-OHDA": "PD", "off-state": "LID off-state", "on-state": "LID on-state"}
+    condition_human_readable = condition_mapping.get(condition, condition)
 
     # Create timestamp with detailed format when available
     if hasattr(session_start_time, "hour"):
@@ -136,13 +137,13 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
         timestamp = session_start_time.strftime("%Y%m%d")
 
     # Map condition to explicit state
-    if condition == "LID off-state iSPN":
+    if condition == "LID off-state iSPN" or condition == "off-state":
         state = "OFF"
-    elif condition == "LID on-state iSPN":
+    elif condition == "LID on-state iSPN" or condition == "on-state":
         state = "ON"
-    elif condition == "control iSPN":
+    elif condition == "control iSPN" or condition == "control":
         state = "CTRL"
-    elif condition == "PD iSPN":
+    elif condition == "PD iSPN" or condition == "6-OHDA":
         state = "PD"
     else:
         raise ValueError(f"Unknown condition: {condition}")
@@ -272,9 +273,7 @@ if __name__ == "__main__":
                 # Create safe filename
                 nd2_name = nd2_file.stem.replace(" ", "_").replace("-", "_")
                 condition_safe = condition.replace("-", "_")
-                nwbfile_path = (
-                    nwb_files_dir / f"figure4_confocal_{dataset['name'].lower()}_{condition_safe}_{nd2_name}.nwb"
-                )
+                nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
                 # Write NWB file
                 configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)

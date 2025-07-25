@@ -25,7 +25,6 @@ from pynwb.epoch import TimeIntervals
 from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    format_condition,
     generate_canonical_session_id,
 )
 
@@ -227,9 +226,9 @@ def convert_session_to_nwbfile(
     # Get standardized condition from genotype
     standardized_condition = genotype_to_condition.get(genotype, "knockout")
 
-    # Use centralized format_condition dictionary
-    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
-    condition_human_readable = format_condition[standardized_condition]["human_readable"]
+    # For M1R CRISPR videos, we don't need format_condition lookup
+    condition_camel_case = "M1RCRISPR" if standardized_condition == "knockout" else "Control"
+    condition_human_readable = "M1R CRISPR" if standardized_condition == "knockout" else "control"
 
     # Create canonical session ID with explicit parameters
     timestamp = session_start_time.strftime("%Y%m%d")
@@ -389,10 +388,11 @@ if __name__ == "__main__":
         sessions_items = list(sessions.items())[:2]
         sessions = dict(sessions_items)
 
+    iterator = tqdm(
+        sessions.items(), desc="Finding Supplementary Figure 3 Videos", disable=not args.verbose, unit=" session"
+    )
     # Process each session
-    for session_date, session_path in tqdm(
-        sessions.items(), desc="Converting Supplementary Figure3 Videos", unit=" session"
-    ):
+    for session_date, session_path in iterator:
 
         # Group videos by animal
         animals = group_videos_by_animal_supfig3(session_path)
@@ -404,11 +404,6 @@ if __name__ == "__main__":
             first_video_metadata = extract_video_metadata_supfig3(video_files[0])
             genotype = first_video_metadata["genotype"]
 
-            # Create output filename
-            genotype_safe = genotype.replace(" ", "_").replace("-", "_")
-            output_filename = f"zhai2025_supfig3_videos_{animal_id}_{session_date.replace('-', '')}_{genotype_safe}.nwb"
-            output_path = output_base_path / output_filename
-
             # Create NWB file
             nwbfile = convert_session_to_nwbfile(
                 session_date=session_date,
@@ -418,5 +413,7 @@ if __name__ == "__main__":
                 verbose=verbose,
             )
 
+            nwbfile_path = output_base_path / f"{nwbfile.session_id}.nwb"
+
             # Write the NWB file
-            configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path)
+            configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=nwbfile_path)

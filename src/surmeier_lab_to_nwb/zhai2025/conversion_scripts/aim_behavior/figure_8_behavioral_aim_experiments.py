@@ -25,7 +25,6 @@ from pynwb.epoch import TimeIntervals
 from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    format_condition,
     generate_canonical_session_id,
     str_to_bool,
 )
@@ -114,9 +113,13 @@ def convert_session_to_nwbfile(
     # Get standardized condition from genotype
     standardized_condition = genotype_to_condition.get(genotype, "control")
 
-    # Use centralized format_condition dictionary
-    condition_camel_case = format_condition[standardized_condition]["CamelCase"]
-    condition_human_readable = format_condition[standardized_condition]["human_readable"]
+    # For M1R CRISPR AIM experiments, handle condition names directly
+    if standardized_condition == "knockout":
+        condition_camel_case = "M1RCRISPR"
+        condition_human_readable = "M1R CRISPR"
+    else:
+        condition_camel_case = "Control"
+        condition_human_readable = "control"
 
     # Create canonical session ID with explicit parameters
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")

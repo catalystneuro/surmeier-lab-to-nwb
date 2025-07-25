@@ -198,8 +198,8 @@ FIG_MAPPING = {
     "Figure6": "F6",  # M1R antagonist in iSPNs
     "Figure7": "F7",  # CDGI knock-out
     "Figure8": "F8",  # iSPN-specific M1R KO
-    "SupplementaryFigure3": "Fconf",  # High-res confocal spines
-    "SupplementaryFigure": "Fconf",  # Alternative naming
+    "SupplementaryFigure3": "FSup3",  # High-res confocal spines
+    "SupplementaryFigure": "FSup",  # Alternative naming
 }
 
 COMPARTMENT_MAPPING = {
@@ -228,8 +228,8 @@ MEASUREMENT_MAPPING = {
 SPN_MAPPING = {
     "dSPN": "dspn",  # Direct pathway
     "iSPN": "ispn",  # Indirect pathway
-    "pan": "pan",  # Non cell-specific
-    None: "pan",  # Default to pan if not specified
+    "pan": "whole",  # Non cell-specific
+    None: "NA",  # NA
 }
 
 STATE_MAPPING = {

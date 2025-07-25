@@ -250,7 +250,6 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
             ),
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
-            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_id": session_info["session_id"],
             "keywords": script_template["NWBFile"]["keywords"],
         },
