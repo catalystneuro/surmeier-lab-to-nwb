@@ -135,7 +135,7 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
-def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose: bool = False) -> NWBFile:
+def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
     """
     Convert a single session of Figure 7E oxotremorine-M dendritic excitability data to NWB format with time alignment.
 
@@ -146,8 +146,8 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
     ----------
     session_folder_path : Path
         Path to the session folder containing recordings (both baseline and post-oxoM)
-    genotype : str
-        Mouse genotype ("WT" for wild-type, "CDGI KO" for CDGI knockout)
+    condition : str
+        Experimental condition (e.g., "WT oxoM treatment", "CDGI KO oxoM treatment")
     verbose : bool, default=False
         Enable verbose output
 
@@ -167,15 +167,16 @@ def convert_session_to_nwbfile(session_folder_path: Path, genotype: str, verbose
         "metadata_key": "figure_7_oxoM_dendritic_excitability",
     }
 
-    # Map genotype to appropriate oxoM condition and schema tokens
-    if genotype == "WT":
-        condition = "WT oxoM treatment"
-        geno_token = "WT"
-    elif genotype == "KO":
-        condition = "CDGI KO oxoM treatment"
-        geno_token = "CDGIKO"  # KO refers to CDGI knockout
-    else:
-        raise ValueError(f"Unknown genotype: {genotype}")
+    # Map condition to appropriate schema tokens
+    condition_mappings = {
+        "WT oxoM treatment": {"geno": "WT"},
+        "CDGI KO oxoM treatment": {"geno": "CDGIKO"},
+    }
+
+    if condition not in condition_mappings:
+        raise ValueError(f"Unknown condition: {condition}")
+
+    geno_token = condition_mappings[condition]["geno"]
 
     # Build session ID parameters using revised schema
     session_id_parameters = {
@@ -231,18 +232,21 @@ if __name__ == "__main__":
     nwb_files_dir = root_dir / "nwb_files" / "dendritic_excitability" / "figure_7_oxoM"
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    # Figure 7E oxoM genotypes
-    genotypes = ["WT", "KO"]
+    # Figure 7E oxoM folder-to-condition mapping
+    folder_to_condition = {
+        "WT": "WT oxoM treatment",
+        "KO": "CDGI KO oxoM treatment",
+    }
 
-    for genotype in genotypes:
-        genotype_path = base_path / genotype
+    for folder_name, condition in folder_to_condition.items():
+        folder_path = base_path / folder_name
 
-        if not genotype_path.exists():
-            raise FileNotFoundError(f"Expected genotype path does not exist: {genotype_path}")
+        if not folder_path.exists():
+            raise FileNotFoundError(f"Expected folder path does not exist: {folder_path}")
 
         # Get all session folders (e.g., 0301a, 0301b, 0302a)
         # Each session folder contains recordings for both baseline and post-oxoM phases
-        session_folders = [f for f in genotype_path.iterdir() if f.is_dir()]
+        session_folders = [f for f in folder_path.iterdir() if f.is_dir()]
         session_folders.sort()
 
         # Apply stub_test filtering if enabled
@@ -252,7 +256,7 @@ if __name__ == "__main__":
         # Use tqdm for progress bar
         session_iterator = tqdm(
             session_folders,
-            desc=f"Converting Figure7E OxoM DendriticExcitability {genotype}",
+            desc=f"Converting Figure7E OxoM DendriticExcitability {folder_name}",
             unit=" session",
         )
 
@@ -261,7 +265,7 @@ if __name__ == "__main__":
             # Convert all recordings from this session to NWB format
             nwbfile = convert_session_to_nwbfile(
                 session_folder_path=session_folder,
-                genotype=genotype,
+                condition=condition,
                 verbose=verbose,
             )
 

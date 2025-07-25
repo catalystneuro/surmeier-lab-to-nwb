@@ -180,7 +180,7 @@ def load_dendritic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
     pd.DataFrame
         Combined dataframe with dendritic excitability indices per session/condition
     """
-    nwb_files = list(nwb_dir.glob("figure1_dendritic_excitability_*.nwb"))
+    nwb_files = list(nwb_dir.glob("F1++DendExc++dSPN++*.nwb"))
 
     if not nwb_files:
         raise FileNotFoundError(
@@ -195,14 +195,21 @@ def load_dendritic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
         with NWBHDF5IO(str(nwb_file), "r") as io:
             nwb = io.read()
 
-            # Extract condition from filename
+            # Extract condition from session_id using canonical format
+            # Format: F1++DendExc++dSPN++{state}++{pharm}++{geno}++{timestamp}
+            session_id_parts = nwb.session_id.split("++")
             condition = "unknown"
-            if "LID_off-state" in nwb_file.name:
-                condition = "LID off-state"
-            elif "LID_on-state_with_SCH" in nwb_file.name:
-                condition = "LID on-state with SCH"
-            elif "LID_on-state" in nwb_file.name:
-                condition = "LID on-state"
+
+            if len(session_id_parts) >= 6:
+                state = session_id_parts[3]  # OffState or OnState
+                pharm = session_id_parts[4]  # none, D1RaSch, etc.
+
+                if state == "OffState" and pharm == "none":
+                    condition = "LID off-state"
+                elif state == "OnState" and pharm == "none":
+                    condition = "LID on-state"
+                elif state == "OnState" and pharm == "D1RaSch":
+                    condition = "LID on-state with SCH"
 
             # Get session info
             session_id = nwb.session_id
@@ -476,7 +483,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_1" / "dendritic_excitability"
+    nwb_dir = base_dir / "nwb_files" / "dendritic_excitability" / "figure_1"
     output_dir = base_dir / "analysis_outputs" / "figure_1i"
 
     # Ensure output directory exists
