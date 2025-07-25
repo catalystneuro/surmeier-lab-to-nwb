@@ -350,7 +350,7 @@ def generate_canonical_session_id(
         Biological compartment from allowed values:
         - "som": Whole-cell recording at soma – intrinsic excitability
         - "dend": Dendritic patch or imaging in slice
-        - "stri": In-vivo bulk striatal signal (fiber-photometry)
+        - "stri": In-vivo bulk striatal signal
         - "behav": Whole-animal behaviour / video recording
 
     measurement : str

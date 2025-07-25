@@ -16,21 +16,16 @@ from pathlib import Path
 from typing import Any, Dict
 
 from neuroconv.tools import configure_and_write_nwbfile
-from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
-from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    format_condition,
-    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.somatic_excitability.somatic_excitability_utils import (
-    build_somatic_icephys_table_structure,
+    convert_somatic_excitability_session_to_nwbfile,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PROTOCOL_STEP_TO_CURRENT,
-    PrairieViewCurrentClampInterface,
 )
 
 
@@ -109,9 +104,27 @@ def parse_session_info_from_folder_name(recording_folder: Path) -> Dict[str, Any
     }
 
 
+# Configuration for Figure 8 somatic excitability experiments
+FIGURE_8_CONFIG = {
+    "parse_function": parse_session_info_from_folder_name,
+    "cell_type": "iSPN",
+    "figure_number": "F8",
+    "spn_type": "ispn",
+    "condition_mappings": {
+        "M1R CRISPR": {"state": "OFF", "pharmacology": "none", "genotype": "M1RCRISPR"},
+        "interleaved control": {"state": "OFF", "pharmacology": "none", "genotype": "WT"},
+    },
+    "metadata_key": "figure_8_somatic_excitability",
+    "pharmacology_key_mapping": {},
+}
+
+
 def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWBFile:
     """
-    Convert a single session of Figure 8 M1R CRISPR somatic excitability data to NWB format with time alignment.
+    Convert a single session of Figure 8 M1R CRISPR somatic excitability data to NWB format.
+
+    This is a wrapper function that calls the shared conversion function with
+    Figure 8-specific configuration.
 
     Parameters
     ----------
@@ -124,217 +137,12 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str) -> NWB
     -------
     NWBFile
         NWB file with the converted data
-
-    Notes
-    -----
-    This function implements temporal alignment by extracting precise timestamps from XML files
-    and calculating t_start offsets for each recording relative to the earliest recording.
     """
-
-    # Find all recording folders (current steps) for this cell
-    recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
-    recording_folders.sort()
-
-    if not recording_folders:
-        raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
-
-    # Parse session information from first recording folder (all should have same session info)
-    first_recording_info = parse_session_info_from_folder_name(recording_folders[0])
-    session_info = {
-        "cell_number": first_recording_info["cell_number"],
-        "animal_id": first_recording_info["animal_id"],
-        "date_part": first_recording_info["date_part"],
-    }
-
-    # Calculate recording IDs, session start times, and create interface mappings
-    session_start_times = []  # (timestamp, recording_folder, recording_id)
-    recording_id_to_info = {}
-    recording_id_to_folder = {}
-    t_starts = {}  # t_starts[recording_id] = t_start_offset
-
-    for recording_folder in recording_folders:
-        # Parse recording information using unified function
-        recording_info = parse_session_info_from_folder_name(recording_folder)
-
-        # Create unique recording ID
-        recording_id = f"Cell{recording_info['cell_number']}{recording_info['current_formatted']}"
-
-        # Find XML file for this recording
-        xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
-        if not xml_file.exists():
-            raise FileNotFoundError(f"Expected XML file does not exist: {xml_file}")
-
-        # Get session start time from XML metadata
-        session_start_time = PrairieViewCurrentClampInterface.get_session_start_time_from_file(xml_file)
-        if session_start_time is None:
-            raise ValueError(f"Could not extract session start time from {xml_file}")
-
-        # Store mappings
-        recording_id_to_info[recording_id] = recording_info
-        recording_id_to_folder[recording_id] = recording_folder
-        session_start_times.append((session_start_time, recording_folder, recording_id))
-
-    if not session_start_times:
-        raise ValueError(f"No valid recordings found in session folder: {session_folder_path}")
-
-    # Find the earliest session start time across all recordings
-    earliest_time = min(session_start_times, key=lambda x: x[0])[0]
-
-    # Calculate t_start offsets for temporal alignment
-    for start_time, _, recording_id in session_start_times:
-        # Calculate offset relative to overall session start time
-        t_start_offset = (start_time - earliest_time).total_seconds()
-        t_starts[recording_id] = t_start_offset
-
-    # Use earliest time as session start time for NWB file
-    session_start_time = earliest_time
-
-    # Create canonical session ID with explicit parameters
-    cell_type = "iSPN"
-    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-
-    # Map condition to explicit state (Figure 8 tests M1R CRISPR)
-    # The conditions in the data are "M1R CRISPR" and "interleaved control"
-    # Both are tested in OFF and ON states, but we need to determine state from context
-    # For now, assume these are OFF state recordings (can be updated based on actual data)
-    if condition == "M1R CRISPR":
-        state = "OFF"  # Default to OFF state
-        genotype = "M1RCRISPR"
-    elif condition == "interleaved control":
-        state = "OFF"  # Default to OFF state
-        genotype = "WT"
-    else:
-        raise ValueError(f"Unknown condition: {condition}")
-
-    session_id = generate_canonical_session_id(
-        fig="F8",
-        compartment="som",  # somatic recording
-        measurement="None",  # intrinsic excitability
-        spn_type="ispn",  # Indirect pathway SPN
-        state=state,
-        pharmacology="none",  # No pharmacology
-        genotype=genotype,  # M1R CRISPR
-        timestamp=timestamp,
+    return convert_somatic_excitability_session_to_nwbfile(
+        session_folder_path=session_folder_path,
+        condition=condition,
+        figure_config=FIGURE_8_CONFIG,
     )
-
-    # Load general and session-specific metadata from YAML files
-    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
-    general_metadata = load_dict_from_file(general_metadata_path)
-
-    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
-    session_metadata_template = load_dict_from_file(session_metadata_path)
-    script_template = session_metadata_template["figure_8_somatic_excitability"]
-
-    # Get condition in underscore format for table building
-    condition_underscore = format_condition[condition]["underscore"]
-
-    # Determine cell type based on condition
-    condition_human_readable = format_condition[condition]["human_readable"]
-    # Create session-specific metadata from template with runtime substitutions
-    session_specific_metadata = {
-        "NWBFile": {
-            "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition_human_readable
-            ),
-            "session_start_time": session_start_time,
-            "session_id": session_id,
-            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
-            "keywords": script_template["NWBFile"]["keywords"],
-        },
-        "Subject": {
-            "subject_id": f"SubjectRecordedAt{timestamp}",
-            "description": script_template["Subject"]["description"],
-            "genotype": script_template["Subject"]["genotype"],
-        },
-    }
-
-    # Deep merge with general metadata
-    metadata = dict_deep_update(general_metadata, session_specific_metadata)
-
-    # Create NWB file using neuroconv helper function
-    nwbfile = make_nwbfile_from_metadata(metadata)
-
-    # Add custom columns to intracellular recording table for M1R CRISPR somatic experiment annotations
-    intracellular_recording_table = nwbfile.get_intracellular_recordings()
-    intracellular_recording_table.add_column(
-        name="stimulus_current_pA",
-        description="The current stimulus applied during the recording in picoamps",
-    )
-    intracellular_recording_table.add_column(
-        name="protocol_step", description="Protocol step number (e.g., '001', '002', etc.)"
-    )
-
-    # Data structures for tracking icephys table indices
-    recording_indices = []  # Store all intracellular recording indices
-
-    # Process each recording using the calculated recording IDs and temporal alignment
-    for recording_id, recording_folder in recording_id_to_folder.items():
-        recording_info = recording_id_to_info[recording_id]
-        xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
-
-        # Create interface for this recording
-        icephys_metadata_key = f"PrairieView{recording_id}"
-        interface = PrairieViewCurrentClampInterface(file_path=xml_file, icephys_metadata_key=icephys_metadata_key)
-
-        # Apply temporal alignment offset
-        interface.set_aligned_starting_time(t_starts[recording_id])
-
-        # Get and update interface metadata
-        interface_metadata = interface.get_metadata()
-
-        # Update electrode description for M1R CRISPR somatic recording (consistent name for all recordings)
-        electrode_name = "IntracellularElectrode"
-        interface_metadata["Icephys"]["IntracellularElectrodes"][icephys_metadata_key].update(
-            {
-                "name": electrode_name,
-                "description": (
-                    f"Whole-cell patch clamp electrode recording from {cell_type} soma in the dorsolateral striatum - "
-                    f"{condition_human_readable} - F-I protocol with {len(recording_folders)} current steps"
-                ),
-                "cell_id": f"CellRecordedAt{timestamp}",
-                "location": "soma - dorsolateral striatum",
-                "slice": general_metadata["NWBFile"]["slices"],
-            }
-        )
-
-        # Update current clamp series metadata
-        series_name = f"CurrentClampSeries{recording_info['protocol_step']}"
-        interface_metadata["Icephys"]["CurrentClampSeries"][icephys_metadata_key].update(
-            {
-                "name": series_name,
-                "description": (
-                    f"Current clamp recording from {cell_type} - {condition_human_readable} - "
-                    f"{recording_info['current_formatted']} current injection - "
-                    f"F-I protocol step {recording_info['protocol_step']}"
-                ),
-            }
-        )
-
-        # Add intracellular data to NWB file
-        interface.add_to_nwbfile(nwbfile=nwbfile, metadata=interface_metadata)
-
-        # Add intracellular recording to icephys table with custom annotations
-        current_clamp_series = nwbfile.acquisition[series_name]
-
-        # Add intracellular recording entry with enhanced metadata
-        recording_index = nwbfile.add_intracellular_recording(
-            electrode=current_clamp_series.electrode,
-            response=current_clamp_series,
-            stimulus_current_pA=recording_info["current_pA"],
-            protocol_step=recording_info["protocol_step"],
-        )
-
-        # Track recording index for table building
-        recording_indices.append(recording_index)
-
-    # Build icephys table hierarchical structure using shared utility function
-    build_somatic_icephys_table_structure(
-        nwbfile=nwbfile,
-        recording_indices=recording_indices,
-        condition=condition_underscore,
-    )
-
-    return nwbfile
 
 
 if __name__ == "__main__":
