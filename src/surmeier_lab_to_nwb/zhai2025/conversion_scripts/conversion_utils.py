@@ -282,21 +282,119 @@ GENO_MAPPING = {
     "interleaved control": "WT",
 }
 
+# Token descriptions for revised session ID schema
+TOKEN_DESCRIPTIONS = {
+    # Figure descriptions
+    "fig": {
+        "F1": "Figure 1 - dSPN excitability",
+        "F2": "Figure 2 - dSPN spines & oEPSCs",
+        "F3": "Figure 3 - iSPN excitability",
+        "F4": "Figure 4 - iSPN spines & oEPSCs",
+        "F5": "Figure 5 - GRAB-ACh photometry + behaviour",
+        "F6": "Figure 6 - M1R antagonist in iSPNs",
+        "F7": "Figure 7 - CDGI knock-out",
+        "F8": "Figure 8 - iSPN-specific M1R KO",
+        "Fconf": "Supplementary confocal spines",
+    },
+    # Measurement + Compartment descriptions (CamelCase merged tokens)
+    "meas_comp": {
+        "SomExc": "somatic excitability",
+        "DendExc": "dendritic excitability",
+        "DendSpine": "dendritic spine density",
+        "DendConfSpine": "dendritic confocal spine density",
+        "DendOEPSC": "dendritic optically-evoked EPSC",
+        "StriAChFP": "striatal acetylcholine fluorescence photometry",
+        "BehavAIMs": "behavioral abnormal involuntary movements",
+        "BehavRot": "behavioral rotation",
+        "BehavVideo": "behavioral video recording",
+    },
+    # Cell type descriptions
+    "cell_type": {
+        "dSPN": "direct pathway spiny projection neuron",
+        "iSPN": "indirect pathway spiny projection neuron",
+        "WholeStriatum": "whole striatum bulk signal",
+        "NonCell": "non-cellular (behavioral)",
+    },
+    # State descriptions (CamelCase)
+    "state": {
+        "OnState": "dyskinetic on-state",
+        "OffState": "parkinsonian off-state",
+        "LesionedControl": "lesioned control",
+        "UnlesionedControl": "unlesioned control",
+    },
+    # Pharmacology descriptions (CamelCase with drug tags)
+    "pharm": {
+        "none": "no pharmacological intervention",
+        "D1RaSch": "D1 receptor antagonist (SCH-23390)",
+        "D2RaSul": "D2 receptor antagonist (sulpiride)",
+        "M1RaTri": "M1 muscarinic receptor antagonist (trihexyphenidyl)",
+    },
+    # Genotype descriptions (CamelCase, no separators)
+    "geno": {
+        "WT": "wild-type",
+        "CDGIKO": "CalDAG-GEFI knockout",
+        "iSPNM1RKO": "iSPN-specific M1 receptor knockout",
+    },
+}
+
+# Legacy genotype prefix mapping for electrode descriptions (backward compatibility)
+GENOTYPE_DESCRIPTION_MAPPING = {
+    "WT": "Wild Type",  # No prefix for wild-type background
+    "CDGIKO": "CDGI knockout ",  # Global CalDAG-GEFI knock-out – removes M1R effector
+    "iSPN-M1RKO": "",  # iSPN-restricted M1R CRISPR knock-out – already described in condition
+    "M1RCRISPR": "",  # Alternative naming for M1R CRISPR
+}
+
+# Pharmacology additions mapping - keys match session ID pharm tokens
+PHARMACOLOGY_ADDITIONS = {
+    "D1RaSch": "SCH-23390: D1 receptor antagonist (bath application) to block direct pathway during LID on-state.",
+    "D2RaSul": "Sulpiride: D2 receptor antagonist (bath application) to investigate the role of D2 receptor signaling in LID-induced excitability changes in iSPNs.",
+    "M1RaTri": "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced changes.",
+}
+
 
 def extract_condition_from_session_id(session_id: str) -> Optional[str]:
     """
     Extract experimental condition from NWB session ID.
 
+    Supports both legacy and revised session ID formats:
+    - Legacy: "Figure1++SomaticExcitability++LIDOffState++20170202153933"
+    - Revised: "F1++SomExc++dSPN++OnState++D1RaSch++WT++20170202153933"
+
     Parameters
     ----------
     session_id : str
-        Session ID from NWB file (e.g., "Figure1++SomaticExcitability++LIDOffState++20170202153933")
+        Session ID from NWB file
 
-    Returnsm
+    Returns
     -------
     Optional[str]
         Paper condition name (e.g., "LID off-state"), or None if not found
     """
+    # Try revised schema first: fig++measComp++cellType++state++pharm++geno++timestamp
+    revised_pattern = r"F\d\+\+\w+\+\+\w+\+\+(\w+)\+\+(\w+)\+\+\w+\+\+\d{14}"
+    match = re.search(revised_pattern, session_id)
+
+    if match:
+        state_token = match.group(1)  # OnState, OffState, etc.
+        pharm_token = match.group(2)  # none, D1RaSch, etc.
+
+        # Map state + pharm combination to paper condition
+        condition_mapping = {
+            ("OffState", "none"): "LID off-state",
+            ("OnState", "none"): "LID on-state",
+            ("OnState", "D1RaSch"): "LID on-state with SCH",
+            ("OnState", "D2RaSul"): "LID on-state with sul (iSPN)",
+            ("LesionedControl", "none"): "control",
+            ("LesionedControl", "M1RaTri"): "M1R antagonist",
+            # Add more mappings as needed for other figures
+        }
+
+        condition_key = (state_token, pharm_token)
+        if condition_key in condition_mapping:
+            return condition_mapping[condition_key]
+
+    # Fallback to legacy pattern matching
     # Pattern 1: Figure[N]++ExperimentType++Condition++Timestamp (somatic/dendritic excitability)
     pattern1 = r"Figure\d\+\+\w+\+\+(\w+)\+\+\d{14}"
     match = re.search(pattern1, session_id)
@@ -316,116 +414,51 @@ def extract_condition_from_session_id(session_id: str) -> Optional[str]:
 
 def generate_canonical_session_id(
     fig: str,
-    compartment: str,
-    measurement: str,
-    spn_type: str,
+    meas_comp: str,
+    cell_type: str,
     state: str,
-    pharmacology: str,
-    genotype: str,
+    pharm: str,
+    geno: str,
     timestamp: str,
 ) -> str:
     """
-    Generate a canonical session ID following the 6-token format plus timestamp.
+    Generate a canonical session ID following the revised 6-token format plus timestamp.
 
-    This function creates a standardized session ID that encodes all experimental
-    parameters in a machine-parsable format. Each token represents a specific
-    experimental dimension, allowing for systematic organization and retrieval
-    of data across the entire dataset.
+    Revised schema: fig++measComp++cellType++state++pharm++geno++timestamp
 
     Parameters
     ----------
     fig : str
-        Figure code from allowed values:
-        - "F1": Fig 1 – dSPN excitability
-        - "F2": Fig 2 – dSPN spines & oEPSCs
-        - "F3": Fig 3 – iSPN excitability
-        - "F4": Fig 4 – iSPN spines & oEPSCs
-        - "F5": Fig 5 – GRAB-ACh photometry + behaviour
-        - "F6": Fig 6 – M1R antagonist in iSPNs
-        - "F7": Fig 7 – CDGI knock-out
-        - "F8": Fig 8 – iSPN-specific M1R KO
-        - "Fconf": Suppl. high-res confocal spines
-
-    compartment : str
-        Biological compartment from allowed values:
-        - "som": Whole-cell recording at soma – intrinsic excitability
-        - "dend": Dendritic patch or imaging in slice
-        - "stri": In-vivo bulk striatal signal
-        - "behav": Whole-animal behaviour / video recording
-
-    measurement : str
-        Measurement type from allowed values:
-        - "None": Default for intrinsic excitability
-        - "spine": Spine density from two-photon stacks
-        - "confSpine": Spine density from fixed-tissue confocal stacks
-        - "oEPSC": Sr²⁺-evoked asynchronous EPSCs – synaptic strength
-        - "AChFP": ΔF/F trace from GRAB-ACh fiber-photometry
-        - "AIMs": Abnormal Involuntary Movement score – dyskinesia severity
-        - "Rot": Ipsilateral rotation count – motor asymmetry
-        - "video": Raw behaviour video (unscored)
-
-    spn_type : str
-        SPN pathway type from allowed values:
-        - "dspn": Direct-pathway SPN (D1-positive)
-        - "ispn": Indirect-pathway SPN (D2-positive)
-        - "pan": Non cell-specific / bulk signal
-
+        Figure code: F1, F2, F3, F4, F5, F6, F7, F8, Fconf
+    meas_comp : str
+        Measurement + Compartment (CamelCase): SomExc, DendExc, DendSpine,
+        DendConfSpine, DendOEPSC, StriAChFP, BehavAIMs, BehavRot, BehavVideo
+    cell_type : str
+        Cell type: dSPN, iSPN, WholeStriatum, NonCell
     state : str
-        Levodopa/disease state from allowed values:
-        - "ON": 30 min post-levodopa (hyper-dopaminergic on-state)
-        - "OFF": 24–48 h post-levodopa (hypo-dopaminergic off-state)
-        - "CTRL": Unlesioned control – never received levodopa
-        - "PD": Parkinsonian baseline (6-OHDA lesion, pre-levodopa)
-
-    pharmacology : str
-        Acute pharmacology from allowed values:
-        - "none": No acute drug relevant to the assay
-        - "D1RA": Bath SCH-23390 – isolates D1-signalling
-        - "D2RA": Bath sulpiride – isolates D2-signalling
-        - "M1RA": Systemic M1-receptor antagonist during off-state
-
-    genotype : str
-        Genetic background from allowed values:
-        - "WT": Wild-type background
-        - "CDGIKO": Global CalDAG-GEFI knock-out – removes M1R effector
-        - "iSPN-M1RKO": iSPN-restricted M1R CRISPR knock-out – tests cell-autonomous M1 role
-
+        Levodopa/disease state: OnState, OffState, LesionedControl, UnlesionedControl
+    pharm : str
+        Pharmacology (CamelCase): none, D1RaSch, D2RaSul, M1RaTri
+    geno : str
+        Genotype (CamelCase): WT, CDGIKO, iSPNM1RKO
     timestamp : str
-        Session timestamp (typically YYYYMMDDHHMMSS format)
+        Session timestamp (YYYYMMDDHHMMSS format)
 
     Returns
     -------
     str
-        Canonical session ID with format: fig++compartment++measurement++spn_type++state++pharmacology++genotype++timestamp
+        Canonical session ID with format: fig++measComp++cellType++state++pharm++geno++timestamp
 
     Examples
     --------
-    >>> generate_canonical_session_id("F1", "som", "None", "dspn", "OFF", "none", "WT", "20240115143022")
-    'F1++som++None++dspn++OFF++none++WT++20240115143022'
+    >>> generate_canonical_session_id("F1", "SomExc", "dSPN", "OnState", "D1RaSch", "WT", "20250730142740")
+    'F1++SomExc++dSPN++OnState++D1RaSch++WT++20250730142740'
 
-    >>> generate_canonical_session_id("F7", "behav", "AIMs", "pan", "OFF", "none", "CDGIKO", "20240115143022")
-    'F7++behav++AIMs++pan++OFF++none++CDGIKO++20240115143022'
-
-    Notes
-    -----
-    - Use "None" for any token that is not applicable (e.g., measurement="None" for intrinsic excitability)
-    - All tokens are required and must be from the allowed values listed above
-    - The session ID uses "++" as delimiter with no underscores or dashes
-    - This format enables systematic queries across experimental dimensions
+    >>> generate_canonical_session_id("F5", "StriAChFP", "WholeStriatum", "OffState", "none", "WT", "20250730153000")
+    'F5++StriAChFP++WholeStriatum++OffState++none++WT++20250730153000'
     """
-    # Validate inputs match expected values (optional but helpful for debugging)
-    valid_figs = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "Fconf"}
-    valid_compartments = {"som", "dend", "stri", "behav"}
-    valid_measurements = {"None", "spine", "confSpine", "oEPSC", "AChFP", "AIMs", "Rot", "video"}
-    valid_spn_types = {"dspn", "ispn", "pan"}
-    valid_states = {"ON", "OFF", "CTRL", "PD"}
-    valid_pharmacology = {"none", "D1RA", "D2RA", "M1RA"}
-    valid_genotypes = {"WT", "CDGIKO", "iSPN-M1RKO"}
-
-    # Note: We don't enforce validation to allow flexibility, but these are the expected values
-
-    # Build the canonical session ID
-    session_id = f"{fig}++{compartment}++{measurement}++{spn_type}++{state}++{pharmacology}++{genotype}++{timestamp}"
+    # Build the canonical session ID with revised token order
+    session_id = f"{fig}++{meas_comp}++{cell_type}++{state}++{pharm}++{geno}++{timestamp}"
 
     return session_id
 
