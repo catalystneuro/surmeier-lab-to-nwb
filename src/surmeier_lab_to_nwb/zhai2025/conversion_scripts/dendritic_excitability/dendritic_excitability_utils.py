@@ -28,7 +28,6 @@ def build_dendritic_icephys_table_structure(
     nwbfile: NWBFile,
     recording_indices: List[int],
     recording_to_metadata: Dict[int, Dict[str, Any]],
-    session_info: Dict[str, Any],
     condition: str,
     stimulus_type: str = "dendritic_excitability_current_injection",
     verbose: bool = False,
@@ -413,7 +412,6 @@ def convert_dendritic_excitability_session_to_nwbfile(
     recording_indices = []  # Store all intracellular recording indices
     recording_to_metadata = {}  # Map recording index to metadata for table building
     location_to_recording_indices = {}  # Group recordings by location for repetitions table
-    sequential_recording_indices = []  # Store sequential recording indices
 
     # Process each recording using the calculated recording IDs
     for recording_id, recording_folder in recording_id_to_folder.items():
@@ -545,6 +543,36 @@ def convert_dendritic_excitability_session_to_nwbfile(
         ] = f"Line scan imaging plane for {location_id} using Alexa Fluor 568 structural dye. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
         structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["indicator"] = "Alexa Fluor 568"
 
+        # Update PlaneSegmentation metadata for structural channel
+        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
+            "name"
+        ] = f"PlaneSegmentation{recording_id}"
+        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
+            "description"
+        ] = f"Line scan ROI segmentation for {location_id} structural imaging. Detected by Hamamatsu R3982 side-on PMT (580-620 nm)."
+
+        # Update RoiResponseSeries metadata for structural channel
+        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
+            "name"
+        ] = f"RoiResponseSeriesAlexa568{recording_id}"
+        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
+            "description"
+        ] = f"Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM) - {location_id}. Ca2+-insensitive dye to visualize dendrites."
+
+        # Update SourceImages metadata for structural channel
+        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
+            "name"
+        ] = f"ImageAlexa568{recording_id}"
+        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
+            "description"
+        ] = f"Source image for Alexa Fluor 568 structural reference - {location_id}. Field of view with scan line overlay."
+
+        # Update TimeSeries metadata for structural channel
+        structural_metadata["TimeSeries"][structural_ophys_key]["name"] = f"TimeSeriesLineScanRawAlexa568{recording_id}"
+        structural_metadata["TimeSeries"][structural_ophys_key][
+            "description"
+        ] = f"Line scan raw data for Alexa Fluor 568 structural reference - {location_id}. Typical acquisition: 2500 lines (time points)."
+
         # Update TwoPhotonSeries metadata for structural channel
         structural_metadata["Ophys"]["TwoPhotonSeries"][structural_ophys_key][
             "name"
@@ -566,6 +594,32 @@ def convert_dendritic_excitability_session_to_nwbfile(
         ] = f"Line scan imaging plane for {location_id} using Fluo-4 calcium indicator. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
         calcium_metadata["Ophys"]["ImagingPlanes"][calcium_ophys_key]["indicator"] = "Fluo-4"
 
+        # Update PlaneSegmentation metadata for calcium channel
+        calcium_metadata["Ophys"]["PlaneSegmentation"][calcium_ophys_key]["name"] = f"PlaneSegmentation{recording_id}"
+        calcium_metadata["Ophys"]["PlaneSegmentation"][calcium_ophys_key][
+            "description"
+        ] = f"Line scan ROI segmentation for {location_id} calcium imaging. Detected by Hamamatsu H7422P-40 GaAsP PMT (490-560 nm)."
+
+        # Update RoiResponseSeries metadata for calcium channel
+        calcium_metadata["Ophys"]["RoiResponseSeries"][calcium_ophys_key][
+            "name"
+        ] = f"RoiResponseSeriesFluo4{recording_id}"
+        calcium_metadata["Ophys"]["RoiResponseSeries"][calcium_ophys_key][
+            "description"
+        ] = f"Calcium fluorescence from Fluo-4 (100 μM) - {location_id}. Ca2+-sensitive dye for measuring back-propagating action potential-evoked calcium transients. Magnitude serves as surrogate estimate of dendritic depolarization extent."
+
+        # Update SourceImages metadata for calcium channel
+        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key]["name"] = f"ImageFluo4{recording_id}"
+        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key][
+            "description"
+        ] = f"Source image for Fluo-4 calcium indicator - {location_id}. Field of view with scan line overlay."
+
+        # Update TimeSeries metadata for calcium channel
+        calcium_metadata["TimeSeries"][calcium_ophys_key]["name"] = f"TimeSeriesLineScanRawFluo4{recording_id}"
+        calcium_metadata["TimeSeries"][calcium_ophys_key][
+            "description"
+        ] = f"Line scan raw data for Fluo-4 calcium indicator - {location_id}. Typical acquisition: 2500 lines (time points). Kymograph structure: (C, T, X) where C=channels, T=time/lines, X=pixels along scan line."
+
         # Update TwoPhotonSeries metadata for calcium channel
         calcium_metadata["Ophys"]["TwoPhotonSeries"][calcium_ophys_key]["name"] = f"TwoPhotonSeries{recording_id}Fluo4"
         calcium_metadata["Ophys"]["TwoPhotonSeries"][calcium_ophys_key][
@@ -576,15 +630,11 @@ def convert_dendritic_excitability_session_to_nwbfile(
         structural_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=structural_metadata)
         calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
 
-        if verbose:
-            print(f"Added recording {recording_id} from {recording_folder.name}")
-
     # Build icephys table hierarchical structure using shared utility function
     build_dendritic_icephys_table_structure(
         nwbfile=nwbfile,
         recording_indices=recording_indices,
         recording_to_metadata=recording_to_metadata,
-        session_info={},  # Not used but kept for API compatibility
         condition=condition_underscore,
         verbose=verbose,
     )

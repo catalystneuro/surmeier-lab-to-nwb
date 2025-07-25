@@ -18,25 +18,14 @@ from pathlib import Path
 from typing import Any, Dict
 
 from neuroconv.tools import configure_and_write_nwbfile
-from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
-from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
-    generate_canonical_session_id,
     str_to_bool,
 )
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.dendritic_excitability.dendritic_excitability_utils import (
-    build_dendritic_icephys_table_structure,
-)
-from surmeier_lab_to_nwb.zhai2025.interfaces import (
-    DendriticTrialsInterface,
-    PrairieViewCurrentClampInterface,
-    PrairieViewLineScanInterface,
-)
-from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
-    BrukerReferenceImagesInterface,
+    convert_dendritic_excitability_session_to_nwbfile,
 )
 
 
@@ -163,6 +152,9 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     """
     Convert all Figure 7 dendritic excitability recordings from a session folder to a single NWB format file.
 
+    This is a wrapper function that calls the shared conversion function with
+    Figure 7-specific configuration and session ID parameters.
+
     Parameters
     ----------
     session_folder_path : Path
@@ -183,397 +175,43 @@ def convert_session_to_nwbfile(session_folder_path: Path, condition: str, verbos
     session_folder/recording_folder/files
     where recording_folder represents different recordings from the same animal.
     """
-
-    # Get all recording folders within the session folder
-    all_recording_folders = [f for f in session_folder_path.iterdir() if f.is_dir()]
-    all_recording_folders.sort()
-
-    if not all_recording_folders:
-        raise ValueError(f"No recording folders found in session folder: {session_folder_path}")
-
-    # Calculate recording IDs, session start times, and create interface mappings
-    ophys_session_start_times = []  # (ophys_time, recording_folder, recording_id)
-    intracellular_session_start_times = []  # (intracellular_time, recording_folder, recording_id)
-    recording_id_to_location_id = {}
-    recording_id_to_folder = {}
-    t_starts = {}  # t_starts[recording_id][interface] = t_start_offset
-
-    for recording_folder in all_recording_folders:
-        # Find main experiment XML file (ophys)
-        main_xml_file = recording_folder / f"{recording_folder.name}.xml"
-        if not main_xml_file.exists():
-            raise FileNotFoundError(f"Expected main XML file does not exist: {main_xml_file}")
-
-        # Find electrophysiology XML file (intracellular)
-        electrophysiology_xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
-        if not electrophysiology_xml_file.exists():
-            raise FileNotFoundError(f"Expected electrophysiology XML file does not exist: {electrophysiology_xml_file}")
-
-        # Get session start times from both sources
-        ophys_session_start_time = PrairieViewLineScanInterface.get_session_start_time_from_file(main_xml_file)
-        if ophys_session_start_time is None:
-            raise ValueError(f"Could not extract ophys session start time from {main_xml_file}")
-
-        intracellular_session_start_time = PrairieViewCurrentClampInterface.get_session_start_time_from_file(
-            electrophysiology_xml_file
-        )
-        if intracellular_session_start_time is None:
-            raise ValueError(f"Could not extract intracellular session start time from {electrophysiology_xml_file}")
-
-        # Compare session start times
-        time_diff = abs((ophys_session_start_time - intracellular_session_start_time).total_seconds())
-
-        # Get unique identifiers for recording to name objects
-        recording_info = parse_session_info_from_folder_name(recording_folder)
-        repetition_id = f"{recording_info['base_line_experiment_type']}Trial{recording_info['trial_number']}{recording_info['variant']}"
-        location_id = f"{recording_info['location_full']}Dendrite{recording_info['location_number']}"
-        recording_id = f"{location_id}{repetition_id}"
-
-        # Store mappings
-        recording_id_to_location_id[recording_id] = location_id
-        recording_id_to_folder[recording_id] = recording_folder
-
-        # Store session start times separately by interface type
-        ophys_session_start_times.append((ophys_session_start_time, recording_folder, recording_id))
-        intracellular_session_start_times.append((intracellular_session_start_time, recording_folder, recording_id))
-
-    if not ophys_session_start_times or not intracellular_session_start_times:
-        raise ValueError(f"No valid recordings found in session folder: {session_folder_path}")
-
-    # Find the earliest session start time from each interface type
-    earliest_ophys_time = min(ophys_session_start_times, key=lambda x: x[0])[0]
-    earliest_intracellular_time = min(intracellular_session_start_times, key=lambda x: x[0])[0]
-
-    # Overall session start time is the earliest across all interfaces
-    session_start_time = min(earliest_ophys_time, earliest_intracellular_time)
-    # Calculate t_start offsets for temporal alignment with interface-specific timing
-    for ophys_time, folder, recording_id in ophys_session_start_times:
-        intracellular_time = next(time for time, _, rid in intracellular_session_start_times if rid == recording_id)
-
-        # Calculate offsets relative to overall session start time
-        ophys_t_start = (ophys_time - session_start_time).total_seconds()
-        intracellular_t_start = (intracellular_time - session_start_time).total_seconds()
-
-        # Initialize t_starts for this recording_id with interface-specific timing
-        # Use descriptive names for clarity about which channel/interface this refers to
-        t_starts[recording_id] = {
-            "intracellular": intracellular_t_start,
-            "line_scan_structural_channel": ophys_t_start,  # Ch1/Alexa568 line scan uses ophys timing
-            "line_scan_calcium_channel": ophys_t_start,  # Ch2/Fluo4 line scan uses ophys timing
-        }
-
-    # Get first recording info for session description
-    first_recording_folder = next(iter(recording_id_to_folder.values()))
-    first_recording_info = parse_session_info_from_folder_name(first_recording_folder)
-
-    # Load general and session-specific metadata from YAML files
-    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
-    general_metadata = load_dict_from_file(general_metadata_path)
-
-    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
-    session_metadata_template = load_dict_from_file(session_metadata_path)
-    script_template = session_metadata_template["figure_7_dendritic_excitability"]
-
-    # Create canonical session ID with explicit parameters
-    cell_type = "CDGI KO iSPN"  # CDGI knockout indirect pathway SPN
-    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-
-    # Map condition to explicit state (Figure 7 tests CDGI KO)
-    if condition == "KO off-state":
-        state = "OFF"
-    elif condition == "KO on-state":
-        state = "ON"
-    else:
-        raise ValueError(f"Unknown condition: {condition}")
-
-    session_id = generate_canonical_session_id(
-        fig="F7",
-        compartment="dend",  # dendritic recording
-        measurement="None",  # intrinsic excitability
-        spn_type="ispn",  # Indirect pathway SPN
-        state=state,
-        pharmacology="none",  # No pharmacology
-        genotype="CDGIKO",  # CDGI knock-out
-        timestamp=timestamp,
-    )
-
-    # Create session-specific metadata from template with runtime substitutions
-    condition_underscore = format_condition[condition]["underscore"]
-    condition_human_readable = format_condition[condition]["human_readable"]
-    session_specific_metadata = {
-        "NWBFile": {
-            "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition_human_readable
-            ),
-            "session_start_time": session_start_time,
-            "session_id": session_id,
-            "keywords": script_template["NWBFile"]["keywords"],
-        },
-        "Subject": {
-            "subject_id": f"SubjectRecordedAt{timestamp}",
-            "description": script_template["Subject"]["description"],
-            "genotype": script_template["Subject"]["genotype"],
-        },
+    # Configuration for Figure 7 dendritic excitability experiments
+    figure_7_config = {
+        "parse_function": parse_session_info_from_folder_name,
+        "metadata_key": "figure_7_dendritic_excitability",
     }
 
-    # Merge general metadata with session-specific metadata
-    metadata = dict_deep_update(general_metadata, session_specific_metadata)
+    # Local mapping for Figure 7 conditions to revised schema tokens
+    figure_7_mappings = {
+        "KO off-state": {"state": "OffState", "pharm": "none"},
+        "KO on-state": {"state": "OnState", "pharm": "none"},
+    }
 
-    # Create NWB file using neuroconv helper function
-    nwbfile = make_nwbfile_from_metadata(metadata)
+    state = figure_7_mappings[condition]["state"]
+    pharmacology = figure_7_mappings[condition]["pharm"]
 
-    # Add custom columns to intracellular recording table for dendritic experiment annotations
-    intracellular_recording_table = nwbfile.get_intracellular_recordings()
-    intracellular_recording_table.add_column(
-        name="stimulus_protocol", description="Current injection protocol used for dendritic excitability testing"
-    )
-    intracellular_recording_table.add_column(
-        name="dendrite_distance_um", description="Approximate distance from soma in micrometers"
-    )
-    intracellular_recording_table.add_column(
-        name="dendrite_type", description="Type of dendritic location: Distal or Proximal"
-    )
-    intracellular_recording_table.add_column(
-        name="dendrite_number", description="Number identifier for the specific dendritic location (1, 2, etc.)"
-    )
-    intracellular_recording_table.add_column(
-        name="trial_number", description="Trial number for this dendritic location (1, 2, 3)"
-    )
-    intracellular_recording_table.add_column(
-        name="recording_id", description="Full recording identifier containing location and trial information"
-    )
-    intracellular_recording_table.add_column(
-        name="cdgi_genotype", description="CDGI knockout genotype status for this recording"
-    )
+    # Build session ID parameters using revised schema
+    session_id_parameters = {
+        "fig": "F7",
+        "meas_comp": "DendExc",  # Dendritic excitability
+        "cell_type": "iSPN",  # Indirect pathway SPN
+        "state": state,
+        "pharm": pharmacology,
+        "geno": "CDGIKO",  # CDGI knockout for Figure 7
+    }
 
-    # Data structures for tracking icephys table indices
-    recording_indices = []  # Store all intracellular recording indices
-    recording_to_metadata = {}  # Map recording index to metadata for table building
-    location_to_recording_indices = {}  # Group recordings by location for repetitions table
-    sequential_recording_indices = []  # Store sequential recording indices
-
-    # Process each recording using the calculated recording IDs
-    for recording_id, recording_folder in recording_id_to_folder.items():
-        location_id = recording_id_to_location_id[recording_id]
-        recording_info = parse_session_info_from_folder_name(recording_folder)
-        main_xml_file = recording_folder / f"{recording_folder.name}.xml"
-
-        # Create interfaces for the two known channels
-        structural_ophys_key = f"PrairieViewLineScan{recording_id}Alexa568"
-        calcium_ophys_key = f"PrairieViewLineScan{recording_id}Fluo4"
-
-        structural_interface = PrairieViewLineScanInterface(
-            file_path=main_xml_file,
-            channel_name="Ch1",
-            ophys_metadata_key=structural_ophys_key,
-        )
-
-        calcium_interface = PrairieViewLineScanInterface(
-            file_path=main_xml_file,
-            channel_name="Ch2",
-            ophys_metadata_key=calcium_ophys_key,
-        )
-
-        # Apply temporal alignment offsets using precise mapping with descriptive interface names
-        structural_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_structural_channel"])
-        calcium_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_calcium_channel"])
-
-        # Find electrophysiology XML file (exact name from Figure 7 notes)
-        electrophysiology_xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
-
-        if not electrophysiology_xml_file.exists():
-            raise FileNotFoundError(f"Expected electrophysiology XML file does not exist: {electrophysiology_xml_file}")
-
-        # Create intracellular recording interface
-        icephys_metadata_key = f"PrairieView{recording_id}"
-        intracellular_interface = PrairieViewCurrentClampInterface(
-            file_path=electrophysiology_xml_file,
-            icephys_metadata_key=icephys_metadata_key,
-        )
-
-        # Apply temporal alignment offset
-        intracellular_interface.set_aligned_starting_time(t_starts[recording_id]["intracellular"])
-
-        # Get and update intracellular metadata
-        intracellular_metadata = intracellular_interface.get_metadata()
-
-        # Update electrode description for CDGI knockout dendritic recording (Figure 7)
-        # One electrode per cell and location combination
-        electrode_name = f"IntracellularElectrode{location_id}"
-        intracellular_metadata["Icephys"]["IntracellularElectrodes"][icephys_metadata_key].update(
-            {
-                "name": electrode_name,
-                "description": (
-                    f"Recording from CDGI knockout mouse {recording_info['location_description']} - {condition} - "
-                    f"Trial {recording_info['trial_number']} - "
-                    f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous "
-                    f"two-photon line scan imaging of calcium transients. "
-                    f"CDGI genotype: Conditional knockout (Camk2g-flox/flox; Dlx5/6-Cre)"
-                ),
-                "cell_id": f"CellRecordedAt{timestamp}",
-                "location": recording_info["location_description"],
-                "slice": general_metadata["NWBFile"]["slices"],
-            }
-        )
-
-        # Update current clamp series metadata
-        series_name = f"CurrentClampSeries{recording_id}"
-        intracellular_metadata["Icephys"]["CurrentClampSeries"][icephys_metadata_key].update(
-            {
-                "name": series_name,
-                "description": (
-                    f"Current clamp recording from CDGI knockout mouse {recording_info['location_description']} - "
-                    f"{condition} - Trial {recording_info['trial_number']} - "
-                    f"Three 2 nA current injections, 2 ms each, at 50 Hz. Stimulus protocol: "
-                    f"PulseCount=3, PulseWidth=2ms, PulseSpacing=18ms (50Hz), FirstPulseDelay=900ms. "
-                    f"CDGI knockout disrupts M1R-mediated adenylyl cyclase inhibition pathway."
-                ),
-            }
-        )
-
-        # Add intracellular data to NWB file
-        intracellular_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=intracellular_metadata)
-
-        # Add intracellular recording to icephys table with custom annotations
-        current_clamp_series = nwbfile.acquisition[series_name]
-
-        # Calculate dendrite distance based on location type (approximate values from literature)
-        dendrite_distance_um = 90 if recording_info["location"] == "dist" else 40  # distal ~90μm, proximal ~40μm
-
-        # Determine CDGI genotype status
-        cdgi_genotype = "CDGI KO (Camk2g-flox/flox; Dlx5/6-Cre)"
-
-        # Add intracellular recording entry with essential metadata annotations
-        recording_index = nwbfile.add_intracellular_recording(
-            electrode=current_clamp_series.electrode,
-            response=current_clamp_series,
-            stimulus_protocol="3x2nA_2ms_50Hz_dendritic_excitability",
-            dendrite_distance_um=dendrite_distance_um,
-            dendrite_type=recording_info["location_full"],  # "Distal" or "Proximal"
-            dendrite_number=int(recording_info["location_number"]),
-            trial_number=int(recording_info["trial_number"]),
-            recording_id=recording_id,
-            cdgi_genotype=cdgi_genotype,
-        )
-
-        # Track recording index and metadata for table building
-        recording_indices.append(recording_index)
-        recording_to_metadata[recording_index] = {
-            "recording_id": recording_id,
-            "location_id": location_id,
-            "recording_info": recording_info,
-            "series_name": series_name,
-        }
-
-        # Group recordings by location for repetitions table
-        if location_id not in location_to_recording_indices:
-            location_to_recording_indices[location_id] = []
-        location_to_recording_indices[location_id].append(recording_index)
-
-        # Process structural channel (Ch1/Alexa568)
-        structural_metadata = structural_interface.get_metadata()
-        # Apply fluorophore-specific metadata based on experimental knowledge
-        structural_metadata["Devices"][structural_ophys_key]["name"] = "BrukerUltima"
-        structural_metadata["Devices"][structural_ophys_key][
-            "description"
-        ] = "Bruker Ultima two-photon microscope for line scan imaging. 810 nm excitation laser (Chameleon Ultra II, Coherent). Signals filtered at 2 kHz and digitized at 10 kHz."
-        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["name"] = f"ImagingPlane{location_id}"
-        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key][
-            "description"
-        ] = f"Line scan imaging plane for {location_id} using Alexa Fluor 568 structural dye. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
-        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["indicator"] = "Alexa Fluor 568"
-        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
-            "name"
-        ] = f"PlaneSegmentation{recording_id}"
-        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
-            "description"
-        ] = f"Line scan ROI segmentation for {location_id} structural imaging. Detected by Hamamatsu R3982 side-on PMT (580-620 nm)."
-        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
-            "name"
-        ] = f"RoiResponseSeriesAlexa568{recording_id}"
-        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
-            "description"
-        ] = f"Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM) - {location_id}. Ca2+-insensitive dye to visualize dendrites."
-        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
-            "name"
-        ] = f"ImageAlexa568{recording_id}"
-        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
-            "description"
-        ] = f"Source image for Alexa Fluor 568 structural reference - {location_id}. Field of view with scan line overlay."
-        structural_metadata["TimeSeries"][structural_ophys_key]["name"] = f"TimeSeriesLineScanRawAlexa568{recording_id}"
-        structural_metadata["TimeSeries"][structural_ophys_key][
-            "description"
-        ] = f"Line scan raw data for Alexa Fluor 568 structural reference - {location_id}. Typical acquisition: 2500 lines (time points)."
-
-        # Add structural data to NWB file
-        structural_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=structural_metadata)
-
-        # Process calcium channel (Ch2/Fluo4)
-        calcium_metadata = calcium_interface.get_metadata()
-        # Apply fluorophore-specific metadata based on experimental knowledge
-        calcium_metadata["Devices"][calcium_ophys_key]["name"] = "BrukerUltima"
-        calcium_metadata["Devices"][calcium_ophys_key][
-            "description"
-        ] = "Bruker Ultima two-photon microscope for line scan imaging. 810 nm excitation laser (Chameleon Ultra II, Coherent). Signals filtered at 2 kHz and digitized at 10 kHz."
-        ophys_metadata = calcium_metadata["Ophys"]
-        ophys_metadata["ImagingPlanes"][calcium_ophys_key]["name"] = f"ImagingPlane{location_id}"
-        ophys_metadata["ImagingPlanes"][calcium_ophys_key][
-            "description"
-        ] = f"Line scan imaging plane for {location_id} using Fluo-4 calcium indicator. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line. Temporal resolution: ~1.6 seconds for 2500 lines."
-        ophys_metadata["ImagingPlanes"][calcium_ophys_key]["indicator"] = "Fluo-4"
-        ophys_metadata["PlaneSegmentation"][calcium_ophys_key]["name"] = f"PlaneSegmentation{recording_id}"
-        ophys_metadata["PlaneSegmentation"][calcium_ophys_key][
-            "description"
-        ] = f"Line scan ROI segmentation for {location_id} calcium imaging. Detected by Hamamatsu H7422P-40 GaAsP PMT (490-560 nm)."
-        ophys_metadata["RoiResponseSeries"][calcium_ophys_key]["name"] = f"RoiResponseSeriesFluo4{recording_id}"
-        ophys_metadata["RoiResponseSeries"][calcium_ophys_key][
-            "description"
-        ] = f"Calcium fluorescence from Fluo-4 (100 μM) - {location_id}. Ca2+-sensitive dye for measuring back-propagating action potential-evoked calcium transients. Magnitude serves as surrogate estimate of dendritic depolarization extent."
-        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key]["name"] = f"ImageFluo4{recording_id}"
-        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key][
-            "description"
-        ] = f"Source image for Fluo-4 calcium indicator - {location_id}. Field of view with scan line overlay."
-        calcium_metadata["TimeSeries"][calcium_ophys_key]["name"] = f"TimeSeriesLineScanRawFluo4{recording_id}"
-        calcium_metadata["TimeSeries"][calcium_ophys_key][
-            "description"
-        ] = f"Line scan raw data for Fluo-4 calcium indicator - {location_id}. Typical acquisition: 2500 lines (time points). Kymograph structure: (C, T, X) where C=channels, T=time/lines, X=pixels along scan line."
-
-        # Add calcium data to NWB file
-        calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
-
-        # Add reference images for this recording
-        references_folder = recording_folder / "References"
-        ref_container_name = f"ImagesBackground{recording_id}"
-        reference_interface = BrukerReferenceImagesInterface(
-            references_folder_path=references_folder, container_name=ref_container_name
-        )
-        reference_interface.add_to_nwbfile(nwbfile=nwbfile)
-
-    # Build icephys table hierarchical structure using shared utility function
-    cdgi_genotype = "CDGI KO (Camk2g-flox/flox; Dlx5/6-Cre)"
-    build_dendritic_icephys_table_structure(
-        nwbfile=nwbfile,
-        recording_indices=recording_indices,
-        recording_to_metadata=recording_to_metadata,
-        session_info={},
-        condition=condition_underscore,
-        stimulus_type="dendritic_excitability_current_injection",
+    return convert_dendritic_excitability_session_to_nwbfile(
+        session_folder_path=session_folder_path,
+        condition=condition,
+        figure_config=figure_7_config,
+        session_id_parameters=session_id_parameters,
         verbose=verbose,
-        cdgi_genotype=cdgi_genotype,
     )
-    # Add trials table using interface
-    trials_interface = DendriticTrialsInterface(
-        recording_indices=recording_indices, recording_to_metadata=recording_to_metadata, t_starts=t_starts
-    )
-    trials_interface.add_to_nwbfile(nwbfile, verbose=verbose)
-
-    return nwbfile
 
 
 if __name__ == "__main__":
     import argparse
     import logging
-    import warnings
 
     from tqdm import tqdm
 
@@ -590,6 +228,7 @@ if __name__ == "__main__":
     stub_test = args.stub_test
 
     verbose = False
+
     # Suppress tifffile warnings
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
@@ -614,7 +253,7 @@ if __name__ == "__main__":
         if not condition_path.exists():
             raise FileNotFoundError(f"Expected condition path does not exist: {condition_path}")
 
-        # Get all session folders (e.g., 0525a, 0525b, etc.)
+        # Get all session folders (e.g., 0526a, 0526b, etc.)
         # Note: Each session folder corresponds to a single animal
         session_folders = [f for f in condition_path.iterdir() if f.is_dir()]
         session_folders.sort()
@@ -623,11 +262,11 @@ if __name__ == "__main__":
         if stub_test:
             session_folders = session_folders[:2]
 
-        # Process each session folder with progress bar
         # Use tqdm for progress bar when verbose is disabled
         session_iterator = tqdm(
             session_folders,
             desc=f"Converting Figure7 DendriticExcitability {format_condition[condition]['human_readable']}",
+            disable=verbose,
             unit=" session",
         )
 
