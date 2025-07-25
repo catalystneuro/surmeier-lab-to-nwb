@@ -28,6 +28,7 @@ dependencies = [
   "opencv-python-headless>=4.12.0.88",
   "tqdm>=4.67.1",
   "imagecodecs>=2025.3.30",
+  "dandi>=0.69.3",
 ]
 # Astropy I use for the date
 

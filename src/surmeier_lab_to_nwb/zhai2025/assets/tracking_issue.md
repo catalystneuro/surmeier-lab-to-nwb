@@ -240,9 +240,10 @@ First ensure that the raw data is available and on dandi and then we can do thes
 - [x] use ndx-optogenetics
 
 # Data uploading and conversion packaging
-- [ ] Create Dandiset(s):
-- [ ] Add protocols.io to dandiset
-- [ ] Add metadata to Dandiset
+- [x] Create Dandiset(s): [Link](https://dandiarchive.org/dandiset/001538)
+- [x]  Add protocols.io to dandiset
+- [x] Add anatomy metadata to Dandiset
+- [x] Add disease metadata to Dandiset
 - [ ] README/Documentation here in the repo.
 - [ ] Example Notebooks:
 - [ ] Middle Meeting
