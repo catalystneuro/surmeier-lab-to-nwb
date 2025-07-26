@@ -248,12 +248,11 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     # For methodological validation, we use control state
     session_id = generate_canonical_session_id(
         fig="F4",
-        compartment="dend",  # dendritic imaging
-        measurement="confSpine",  # confocal spine density
-        spn_type="ispn",  # Indirect pathway SPN
+        meas_comp="ConfSpine",  # confocal spine density
+        cell_type="iSPN",  # Indirect pathway SPN
         state="CTRL",  # Control for methodological validation
-        pharmacology="none",  # No pharmacology
-        genotype="WT",  # Wild-type
+        pharm="none",  # No pharmacology
+        geno="WT",  # Wild-type
         timestamp=timestamp,
     )
 

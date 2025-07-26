@@ -150,12 +150,11 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
 
     session_id = generate_canonical_session_id(
         fig="F4",
-        compartment="dend",  # dendritic imaging
-        measurement="confSpine",  # confocal spine density
-        spn_type="ispn",  # Indirect pathway SPN
+        meas_comp="ConfSpine",  # confocal spine density
+        cell_type="iSPN",  # Indirect pathway SPN
         state=state,
-        pharmacology="none",  # No pharmacology
-        genotype="WT",  # Wild-type
+        pharm="none",  # No pharmacology
+        geno="WT",  # Wild-type
         timestamp=timestamp,
     )
 

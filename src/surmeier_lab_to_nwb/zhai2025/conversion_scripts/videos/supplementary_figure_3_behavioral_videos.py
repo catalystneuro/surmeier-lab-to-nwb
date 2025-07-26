@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
+    str_to_bool,
 )
 
 
@@ -236,12 +237,11 @@ def convert_session_to_nwbfile(
     # All supplementary figure 3 videos are M1R CRISPR animals during L-DOPA treatment (ON state)
     session_id = generate_canonical_session_id(
         fig="SF3",  # Supplementary Figure 3
-        compartment="behav",  # Whole-animal behaviour
-        measurement="video",  # Raw video
-        spn_type="pan",  # Non cell-specific
+        meas_comp="video",  # Raw video
+        cell_type="pan",  # Non cell-specific
         state="ON",  # All videos are during L-DOPA treatment
-        pharmacology="none",  # No pharmacology
-        genotype="M1RCRISPR",  # M1R CRISPR
+        pharm="none",  # No pharmacology
+        geno="M1RCRISPR",  # M1R CRISPR
         timestamp=timestamp,
     )
 
@@ -360,6 +360,12 @@ if __name__ == "__main__":
         description="Convert Supplementary Figure 3 M1R CRISPR behavioral videos to NWB format"
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+    parser.add_argument(
+        "--stub-test",
+        type=str_to_bool,
+        default=True,
+        help="Process only first 2 sessions for testing (default: True). Use --stub-test=False for full processing.",
+    )
     args = parser.parse_args()
 
     # Set up paths
@@ -378,8 +384,8 @@ if __name__ == "__main__":
         metadata = load_dict_from_file(metadata_path)
 
     # Control test execution
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
-    verbose = False
+    stub_test = args.stub_test
+    verbose = args.verbose
     # Find all video sessions
     sessions = find_video_sessions_supfig3(video_base_path)
 
@@ -388,9 +394,7 @@ if __name__ == "__main__":
         sessions_items = list(sessions.items())[:2]
         sessions = dict(sessions_items)
 
-    iterator = tqdm(
-        sessions.items(), desc="Finding Supplementary Figure 3 Videos", disable=not args.verbose, unit=" session"
-    )
+    iterator = tqdm(sessions.items(), desc="Finding Supplementary Figure 3 Videos", unit=" session")
     # Process each session
     for session_date, session_path in iterator:
 

@@ -27,6 +27,7 @@ from tqdm import tqdm
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
+    str_to_bool,
 )
 
 
@@ -220,12 +221,11 @@ def convert_session_to_nwbfile(
 
     session_id = generate_canonical_session_id(
         fig="F7",
-        compartment="behav",  # Whole-animal behaviour
-        measurement="video",  # Raw video
-        spn_type="pan",  # Non cell-specific
+        meas_comp="video",  # Raw video
+        cell_type="pan",  # Non cell-specific
         state=state,
-        pharmacology="none",  # No pharmacology
-        genotype="CDGIKO",  # CDGI knock-out
+        pharm="none",  # No pharmacology
+        geno="CDGIKO",  # CDGI knock-out
         timestamp=timestamp,
     )
 
@@ -356,6 +356,12 @@ if __name__ == "__main__":
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Convert Figure 7 behavioral videos to NWB format")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+    parser.add_argument(
+        "--stub-test",
+        type=str_to_bool,
+        default=True,
+        help="Process only first 2 sessions for testing (default: True). Use --stub-test=False for full processing.",
+    )
     args = parser.parse_args()
 
     # Set up paths
@@ -368,8 +374,8 @@ if __name__ == "__main__":
     output_base_path.mkdir(parents=True, exist_ok=True)
 
     # Setup logging
-    verbose = False
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
+    verbose = args.verbose
+    stub_test = args.stub_test
     # Find all video sessions
     sessions = find_video_sessions(video_base_path)
 

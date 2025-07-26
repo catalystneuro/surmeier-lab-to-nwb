@@ -11,285 +11,77 @@ For detailed experimental context, protocols, data structure, and analysis metho
 see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_6_conversion_notes.md
 """
 
-import re
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
-from zoneinfo import ZoneInfo
 
 from neuroconv.tools import configure_and_write_nwbfile
-from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
-from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 
-from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    format_condition,
-    generate_canonical_session_id,
-    str_to_bool,
-)
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import str_to_bool
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density_utils import (
-    TiffImageStackInterface,
+    convert_spine_density_session_to_nwbfile,
 )
-
-
-def extract_date_from_tiff_filename(tiff_file: Path) -> datetime:
-    """
-    Extract date from TIFF filename.
-
-    Example filenames:
-    - "20_ZSeries-20170707_Cell2_prox12-001_Cycle00001_Ch1_#.ome_Z026.tif"
-    - "20_ZSeries-20190411_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z01.tif"
-
-    Parameters
-    ----------
-    tiff_file : Path
-        Path to TIFF file
-
-    Returns
-    -------
-    datetime
-        datetime object with extracted date
-    """
-    filename = tiff_file.name
-
-    # Look for date pattern YYYYMMDD or MMDDYYYY in filename
-    date_match = re.search(r"(\d{8})", filename)
-    if date_match:
-        date_str = date_match.group(1)
-
-        # Try YYYYMMDD format first
-        year = int(date_str[:4])
-        month = int(date_str[4:6])
-        day = int(date_str[6:8])
-
-        # If month is invalid, try MMDDYYYY format
-        if month < 1 or month > 12:
-            month = int(date_str[:2])
-            day = int(date_str[2:4])
-            year = int(date_str[4:8])
-
-            # Validate the corrected date
-            if month < 1 or month > 12 or day < 1 or day > 31:
-                raise ValueError(f"Could not parse valid date from: {date_str} in filename: {filename}")
-    else:
-        raise ValueError(f"Could not extract date from filename: {filename}")
-
-    # Illinois is in Central Time Zone
-    central_tz = ZoneInfo("America/Chicago")
-
-    return datetime(year, month, day, 0, 0, 0, tzinfo=central_tz)
-
-
-def parse_session_info(session_folder: Path) -> Dict[str, Any]:
-    """
-    Parse session information, preferring TIFF filename dates over folder names.
-
-    Parameters
-    ----------
-    session_folder : Path
-        Path to session folder containing subfolders with TIFF files
-
-    Returns
-    -------
-    Dict[str, Any]
-        Dictionary containing session information including start time, animal ID, and session ID
-    """
-
-    # Look for TIFF files in subfolders
-    for subfolder in session_folder.iterdir():
-        if subfolder.is_dir():
-            tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
-            if tiff_files:
-                tiff_date = extract_date_from_tiff_filename(tiff_files[0])
-                if tiff_date:
-                    session_start_time = tiff_date
-                    break
-            else:
-                raise ValueError(f"Could not extract date from TIFF file in folder: {subfolder.name}")
-
-    # Extract animal ID from folder name
-    # Figure 6 uses iSPNs, adjust animal ID extraction for different naming pattern
-    folder_name = session_folder.name
-    if "2019" in folder_name:
-        animal_id = folder_name[8:] if len(folder_name) > 8 else "unknown"
-    else:
-        animal_id = folder_name[4:] if len(folder_name) > 4 else "unknown"
-
-    return {
-        "session_start_time": session_start_time,
-        "animal_id": animal_id,
-        "date_str": f"{session_start_time.year}-{session_start_time.month:02d}-{session_start_time.day:02d}",
-    }
-
-
-def parse_container_info(subfolder_name: str, session_id: str) -> Dict[str, str]:
-    """
-    Parse container information from subfolder names.
-
-    Examples:
-    - "Decon_20190411_Cell1_dist1" -> Cell 1, distal dendrite 1
-    - "Decon_20170706_Cell1_prox12" -> Cell 1, proximal dendrites 1&2
-
-    Parameters
-    ----------
-    subfolder_name : str
-        Name of subfolder containing image stack
-
-    Returns
-    -------
-    Dict[str, str]
-        Dictionary containing container name and description
-    """
-    # Extract cell number and location - case insensitive
-    subfolder_name_lower = subfolder_name.lower()
-    cell_match = re.search(r"cell(\d+)", subfolder_name_lower)
-    cell_number = cell_match.group(1) if cell_match else "unknown"
-
-    # Extract location (proximal/distal) and dendrite identifier - case insensitive
-    if "dist" in subfolder_name_lower:
-        location_match = re.search(r"dist([a-z0-9]+)", subfolder_name_lower)
-        location = "Distal"
-        dendrite_num = location_match.group(1) if location_match else "1"
-    elif "prox" in subfolder_name_lower:
-        location_match = re.search(r"prox([a-z0-9]+)", subfolder_name_lower)
-        location = "Proximal"
-        dendrite_num = location_match.group(1) if location_match else "1"
-    else:
-        raise ValueError(f"Could not determine location from subfolder name: {subfolder_name}")
-
-    container_name = f"Images{location}{dendrite_num}"
-
-    # Handle "real" designation if present
-    if "real" in subfolder_name:
-        container_name += "Real"
-
-    # Add distance information based on location
-    distance_info = "proximal (~40 μm from soma)" if location == "Proximal" else "distal (>80 μm from soma)"
-
-    # Note: Figure 6 data is from iSPNs (indirect pathway), not dSPNs
-    description = (
-        f"Image stack of {location.lower()} dendrite {dendrite_num} from iSPN cell {cell_number} "
-        f"for spine density analysis. Location: {distance_info}. "
-        f"Acquired with 0.15 μm pixels, 0.3 μm z-steps using two-photon microscopy. "
-        f"Images deconvolved in AutoQuant X3.0.4 and analyzed using NeuronStudio."
-    )
-
-    return {
-        "container_name": container_name,
-        "description": description,
-    }
 
 
 def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool = False) -> NWBFile:
     """
-    Convert spine density data to NWB format for Figure 6.
+    Convert Figure 6 spine density data to NWB format.
+
+    This is a wrapper function that calls the shared conversion function with
+    Figure 6-specific configuration and session ID parameters.
 
     Parameters
     ----------
     session_folder_path : Path
-        Path to the top level folders in the conditions for spine density figure 6
+        Path to the session folder containing image stack subfolders
     condition : str
-        The experimental condition (e.g., 'control', 'M1R antagonist')
+        Experimental condition (e.g., "control", "M1R antagonist")
     verbose : bool, default=False
         Enable verbose output showing detailed processing information
 
     Returns
     -------
     NWBFile
-        The populated NWB file object
+        NWB file with the converted data
+
+    Notes
+    -----
+    This function handles Figure 6 iSPN spine density data with M1R antagonist
+    conditions in the OFF state.
     """
-    # Parse session information
-    session_info = parse_session_info(session_folder_path)
-
-    # Load general and session-specific metadata from YAML files
-    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
-    general_metadata = load_dict_from_file(general_metadata_path)
-
-    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
-    session_metadata_template = load_dict_from_file(session_metadata_path)
-    script_template = session_metadata_template["figure_6_spine_density"]
-
-    # Create BIDS-style base session ID with detailed timestamp when available
-    session_start_time = session_info["session_start_time"]
-    if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d_%H%M%S")
-    else:
-        timestamp = session_start_time.strftime("%Y%m%d")
-
-    # Create canonical session ID with explicit parameters
-    timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
-    condition_human_readable = format_condition[condition]["human_readable"]
-
-    # Map condition to pharmacology (Figure 6 tests M1R antagonist in OFF state)
-    if condition == "control":
-        pharmacology = "none"
-    elif condition == "M1R antagonist":
-        pharmacology = "M1RA"
-    else:
-        raise ValueError(f"Unknown condition: {condition}")
-
-    session_id = generate_canonical_session_id(
-        fig="F6",
-        compartment="dend",  # dendritic imaging
-        measurement="spine",  # spine density measurement
-        spn_type="ispn",  # Indirect pathway SPN for Figure 6
-        state="OFF",  # Always OFF state for Figure 6
-        pharmacology=pharmacology,
-        genotype="WT",  # Wild-type for all Figure 6
-        timestamp=timestamp,
-    )
-
-    # Handle conditional pharmacology based on condition
-    pharmacology_addition = ""
-    if "antagonist" in condition and "pharmacology_conditions" in script_template["NWBFile"]:
-        if "antagonist" in script_template["NWBFile"]["pharmacology_conditions"]:
-            pharmacology_addition = " " + script_template["NWBFile"]["pharmacology_conditions"]["antagonist"]
-
-    # Create session-specific metadata from template with runtime substitutions
-    session_specific_metadata = {
-        "NWBFile": {
-            "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition_human_readable,
-                animal_id=session_info["animal_id"],
-                date_str=session_info["date_str"],
-            ),
-            "session_start_time": session_info["session_start_time"],
-            "session_id": session_id,
-            "pharmacology": general_metadata["NWBFile"]["pharmacology"] + pharmacology_addition,
-            "keywords": script_template["NWBFile"]["keywords"],
-        },
-        "Subject": {
-            "subject_id": f"dSPN_mouse_{session_info['animal_id']}",
-            "description": (
-                f"Adult mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease. "
-                f"Received dyskinesiogenic levodopa treatment for spine density analysis. "
-                f"Animal {session_info['animal_id']} recorded on {session_info['date_str']}. "
-                f"M1R antagonist treatment: {'THP (3 mg/kg, i.p.)' if 'antagonist' in condition else 'Saline control'}."
-            ),
-            "genotype": "C57BL/6J wild-type",
-        },
+    # Configuration for Figure 6 spine density experiments
+    figure_6_config = {
+        "metadata_key": "figure_6_spine_density",
     }
 
-    # Deep merge with general metadata
-    metadata = dict_deep_update(general_metadata, session_specific_metadata)
+    # Local mapping for Figure 6 conditions to revised schema tokens
+    figure_6_mappings = {
+        "control": {"state": "OffState", "pharm": "none"},
+        "M1R antagonist": {"state": "OffState", "pharm": "M1RaThp"},  # Muscarinic type 1 receptor antagonist
+    }
 
-    # Create NWB file using neuroconv helper function
-    nwbfile = make_nwbfile_from_metadata(metadata)
+    if condition not in figure_6_mappings:
+        raise ValueError(f"Unknown condition: {condition}")
 
-    # Process each image stack using TiffImageStackInterface
-    subfolders = [f for f in session_folder_path.iterdir() if f.is_dir()]
+    state = figure_6_mappings[condition]["state"]
+    pharmacology = figure_6_mappings[condition]["pharm"]
 
-    for subfolder in subfolders:
-        # Parse container information
-        container_info = parse_container_info(subfolder.name, session_id)
+    # Build session ID parameters using revised schema
+    session_id_parameters = {
+        "fig": "F6",
+        "meas_comp": "SpineDens",  # Spine density measurement
+        "cell_type": "iSPN",  # Indirect pathway SPN
+        "state": state,
+        "pharm": pharmacology,
+        "geno": "WT",  # Wild-type for all Figure 6
+    }
 
-        # Create TiffImageStackInterface (handles file filtering, XML parsing, and device creation)
-        interface = TiffImageStackInterface(subfolder=subfolder, container_info=container_info, verbose=verbose)
-
-        # Add to NWB file (automatically creates microscope device and metadata)
-        interface.add_to_nwbfile(nwbfile=nwbfile)
-
-    return nwbfile
+    return convert_spine_density_session_to_nwbfile(
+        session_folder_path=session_folder_path,
+        condition=condition,
+        figure_config=figure_6_config,
+        session_id_parameters=session_id_parameters,
+        verbose=verbose,
+    )
 
 
 if __name__ == "__main__":

@@ -137,12 +137,11 @@ def convert_session_to_nwbfile(
 
     session_id = generate_canonical_session_id(
         fig="F7",
-        compartment="behav",  # Whole-animal behaviour
-        measurement="AIMs",  # AIM scoring
-        spn_type="pan",  # Non cell-specific
+        meas_comp="AIMs",  # AIM scoring
+        cell_type="pan",  # Non cell-specific
         state="ON",  # AIM scoring is during L-DOPA treatment (ON state)
-        pharmacology="none",  # No pharmacology
-        genotype=genotype_canonical,
+        pharm="none",  # No pharmacology
+        geno=genotype_canonical,
         timestamp=timestamp,
     )
 

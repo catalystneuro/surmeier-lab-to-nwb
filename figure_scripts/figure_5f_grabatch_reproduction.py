@@ -76,7 +76,7 @@ def load_grabatch_data(nwb_dir: Path) -> pd.DataFrame:
     pd.DataFrame
         Combined dataframe with all trials and fluorescence data
     """
-    nwb_files = list(nwb_dir.glob("figure5_grabatch_*.nwb"))
+    nwb_files = list(nwb_dir.glob("*.nwb"))
 
     if not nwb_files:
         raise FileNotFoundError(
@@ -727,7 +727,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_5" / "grabatch"
+    nwb_dir = base_dir / "nwb_files" / "acetylcholine_biosensor" / "figure_5"
     output_dir = base_dir / "analysis_outputs" / "figure_5f"
 
     # Ensure output directory exists

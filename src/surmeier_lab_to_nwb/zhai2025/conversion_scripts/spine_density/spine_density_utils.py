@@ -7,13 +7,24 @@ conversion scripts for parsing XML metadata files and other common operations.
 """
 
 import re
+import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import xmltodict
 from neuroconv.datainterfaces import ImageInterface
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
+from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.device import Device
+
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
+    PHARMACOLOGY_ADDITIONS,
+    format_condition,
+    generate_canonical_session_id,
+)
 
 
 def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -474,3 +485,307 @@ class TiffImageStackInterface(ImageInterface):
 
         # Add to NWB file using parent method
         super().add_to_nwbfile(nwbfile=nwbfile, metadata=metadata)
+
+
+def extract_date_from_tiff_filename(tiff_file: Path) -> datetime:
+    """
+    Extract date from TIFF filename using standard patterns.
+
+    Example filenames:
+    - "20_ZSeries-20170707_Cell2_prox12-001_Cycle00001_Ch1_#.ome_Z026.tif"
+    - "20_ZSeries-20190411_Cell1_dist1-001_Cycle00001_Ch1_#.ome_Z01.tif"
+
+    Parameters
+    ----------
+    tiff_file : Path
+        Path to TIFF file
+
+    Returns
+    -------
+    datetime
+        datetime object with extracted date
+    """
+    filename = tiff_file.name
+
+    # Look for date pattern YYYYMMDD or MMDDYYYY in filename
+    date_match = re.search(r"(\d{8})", filename)
+    if date_match:
+        date_str = date_match.group(1)
+
+        # Try YYYYMMDD format first
+        year = int(date_str[:4])
+        month = int(date_str[4:6])
+        day = int(date_str[6:8])
+
+        # If month is invalid, try MMDDYYYY format
+        if month < 1 or month > 12:
+            month = int(date_str[:2])
+            day = int(date_str[2:4])
+            year = int(date_str[4:8])
+
+            # Validate the corrected date
+            if month < 1 or month > 12 or day < 1 or day > 31:
+                raise ValueError(f"Could not parse valid date from: {date_str} in filename: {filename}")
+    else:
+        raise ValueError(f"Could not extract date from filename: {filename}")
+
+    # Illinois is in Central Time Zone
+    central_tz = ZoneInfo("America/Chicago")
+
+    return datetime(year, month, day, 0, 0, 0, tzinfo=central_tz)
+
+
+def parse_session_info(session_folder: Path) -> Dict[str, Any]:
+    """
+    Parse session information, preferring TIFF filename dates over folder names.
+
+    Parameters
+    ----------
+    session_folder : Path
+        Path to session folder containing subfolders with TIFF files
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing session information including start time, animal ID, and session ID
+    """
+    # Look for TIFF files in subfolders
+    session_start_time = None
+    for subfolder in session_folder.iterdir():
+        if subfolder.is_dir():
+            tiff_files = [f for f in subfolder.iterdir() if f.suffix.lower() == ".tif"]
+            if tiff_files:
+                session_start_time = extract_date_from_tiff_filename(tiff_files[0])
+                break
+
+    if not session_start_time:
+        raise ValueError(f"Could not extract date from TIFF files in folder: {session_folder.name}")
+
+    # Extract animal ID from folder name
+    folder_name = session_folder.name
+    if "2019" in folder_name:
+        animal_id = folder_name[8:] if len(folder_name) > 8 else "unknown"
+    else:
+        animal_id = folder_name[4:] if len(folder_name) > 4 else "unknown"
+
+    return {
+        "session_start_time": session_start_time,
+        "animal_id": animal_id,
+        "date_str": f"{session_start_time.year}-{session_start_time.month:02d}-{session_start_time.day:02d}",
+    }
+
+
+def parse_container_info(subfolder_name: str) -> Dict[str, str]:
+    """
+    Parse container information from subfolder names.
+
+    Examples:
+    - "Decon_20190411_Cell1_dist1" -> Cell 1, distal dendrite 1
+    - "Decon_20170706_Cell1_prox12" -> Cell 1, proximal dendrites 1&2
+
+    Parameters
+    ----------
+    subfolder_name : str
+        Name of subfolder containing image stack
+
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary containing container name and description
+    """
+    # Extract cell number and location - case insensitive
+    subfolder_name_lower = subfolder_name.lower()
+    cell_match = re.search(r"cell(\d+)", subfolder_name_lower)
+    cell_number = cell_match.group(1) if cell_match else "unknown"
+
+    # Extract location (proximal/distal/medium) and dendrite identifier
+    # Handle various patterns like dist1, dist12, dist34, distA, distC, proxBC, etc.
+    if "dist" in subfolder_name_lower:
+        location_match = re.search(r"dist([0-9a-z]+)", subfolder_name_lower)
+        location = "Distal"
+        dendrite_num = location_match.group(1) if location_match else "1"
+    elif "prox" in subfolder_name_lower:
+        location_match = re.search(r"prox([0-9a-z]+)", subfolder_name_lower)
+        location = "Proximal"
+        dendrite_num = location_match.group(1) if location_match else "1"
+    elif "medium" in subfolder_name_lower:
+        location_match = re.search(r"medium([0-9a-z]+)", subfolder_name_lower)
+        location = "Medium"
+        dendrite_num = location_match.group(1) if location_match else "1"
+    elif "Prox" in subfolder_name:
+        location_match = re.search(r"Prox_([0-9a-z]+)", subfolder_name)
+        location = "Proximal"
+        dendrite_num = location_match.group(1) if location_match else "1"
+    else:
+        raise ValueError(f"Could not determine location from subfolder name: {subfolder_name}")
+
+    # Use your suggested naming scheme: Images{Proximal|Distal}{dendrite_nums}{?Real}{MeasurementNumber}
+    container_name = f"Images{location}{dendrite_num}"
+
+    # Handle "real" variants
+    if "real" in subfolder_name_lower:
+        container_name += "Real"
+
+    # For Figure 7, extract measurement number from patterns like "prox2-001", "prox2-002"
+    measurement_match = re.search(r"-(\d{3})$", subfolder_name)
+    if measurement_match:
+        measurement_num = measurement_match.group(1)
+        container_name += measurement_num
+
+    # Add distance information based on location
+    if location == "Proximal":
+        distance_info = "proximal (~40 μm from soma)"
+    elif location == "Medium":
+        distance_info = "medium (~60 μm from soma)"
+    else:  # Distal
+        distance_info = "distal (>80 μm from soma)"
+
+    description = (
+        f"Image stack of {location.lower()} dendrite {dendrite_num} from SPN cell {cell_number} "
+        f"for spine density analysis. Location: {distance_info}. "
+        f"Acquired with 0.15 μm pixels, 0.3 μm z-steps using two-photon microscopy. "
+        f"Images deconvolved in AutoQuant X3.0.4 and analyzed using NeuronStudio."
+    )
+
+    return {
+        "container_name": container_name,
+        "description": description,
+    }
+
+
+def convert_spine_density_session_to_nwbfile(
+    session_folder_path: Path,
+    condition: str,
+    figure_config: Dict[str, Any],
+    session_id_parameters: Dict[str, Any],
+    verbose: bool = False,
+) -> NWBFile:
+    """
+    Convert a single session of spine density data to NWB format.
+
+    This shared function handles the common conversion logic for all spine density
+    experiments across different figures, with figure-specific variations handled through
+    the configuration dictionary.
+
+    Parameters
+    ----------
+    session_folder_path : Path
+        Path to the session folder containing image stack subfolders
+    condition : str
+        Experimental condition (e.g., "LID off-state dSPN", "control iSPN", etc.)
+    figure_config : Dict[str, Any]
+        Figure-specific configuration containing:
+        - metadata_key: str, key for session_specific_metadata.yaml
+    session_id_parameters : Dict[str, Any]
+        Session ID parameters using revised schema (excluding timestamp which is determined here):
+        - fig: str, figure number (e.g., "F2", "F4")
+        - meas_comp: str, measurement + compartment (e.g., "SpineDens")
+        - cell_type: str, cell type (e.g., "dSPN", "iSPN")
+        - state: str, experimental state (e.g., "OffState", "OnState")
+        - pharm: str, pharmacology condition (e.g., "none", "M1RaThp")
+        - geno: str, genotype (e.g., "WT", "CDGIKO")
+    verbose : bool, default=False
+        Enable verbose output showing detailed processing information
+
+    Returns
+    -------
+    NWBFile
+        NWB file with the converted data
+
+    Notes
+    -----
+    This function implements the shared spine density conversion logic while allowing
+    figure-specific customization through the configuration parameters.
+    """
+    # Extract configuration
+    metadata_key = figure_config["metadata_key"]
+
+    # Parse session information
+    session_info = parse_session_info(session_folder_path)
+
+    # Create canonical session ID with explicit parameters
+    timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
+
+    # Use session ID parameters passed by the calling script (revised schema)
+    session_id = generate_canonical_session_id(
+        fig=session_id_parameters["fig"],
+        meas_comp=session_id_parameters["meas_comp"],
+        cell_type=session_id_parameters["cell_type"],
+        state=session_id_parameters["state"],
+        pharm=session_id_parameters["pharm"],
+        geno=session_id_parameters["geno"],
+        timestamp=timestamp,
+    )
+
+    # Add session_id to session_info
+    session_info["session_id"] = session_id
+
+    # Load general and session-specific metadata from YAML files
+    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
+    general_metadata = load_dict_from_file(general_metadata_path)
+
+    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
+    session_metadata_template = load_dict_from_file(session_metadata_path)
+    script_template = session_metadata_template[metadata_key]
+
+    # Get condition formatting for description
+    condition_human_readable = format_condition[condition]["human_readable"]
+
+    # Build pharmacology description using centralized mapping
+    pharmacology_base = general_metadata["NWBFile"]["pharmacology"]
+    pharm_token = session_id_parameters["pharm"]
+
+    # Add pharmacology-specific text if applicable
+    if pharm_token != "none" and pharm_token in PHARMACOLOGY_ADDITIONS:
+        pharmacology_text = pharmacology_base + " " + PHARMACOLOGY_ADDITIONS[pharm_token]
+    else:
+        pharmacology_text = pharmacology_base
+
+    # Create session-specific metadata from template with runtime substitutions
+    session_specific_metadata = {
+        "NWBFile": {
+            "session_description": script_template["NWBFile"]["session_description"].format(
+                condition=condition_human_readable,
+                animal_id=session_info["animal_id"],
+                date_str=session_info["date_str"],
+            ),
+            "identifier": str(uuid.uuid4()),
+            "session_start_time": session_info["session_start_time"],
+            "session_id": session_info["session_id"],
+            "pharmacology": pharmacology_text,
+            "keywords": script_template["NWBFile"]["keywords"],
+        },
+        "Subject": {
+            "subject_id": f"SubjectRecordedAt{timestamp}",
+            "description": script_template["Subject"]["description"].format(
+                session_id=session_info["session_id"],
+                date_str=session_info["date_str"],
+                animal_id=session_info["animal_id"],
+            ),
+            "genotype": script_template["Subject"]["genotype"],
+        },
+    }
+
+    # Deep merge with general metadata
+    merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
+
+    # Create NWB file using neuroconv helper function
+    nwbfile = make_nwbfile_from_metadata(merged_metadata)
+
+    # Process each image stack using TiffImageStackInterface
+    subfolders = [f for f in session_folder_path.iterdir() if f.is_dir()]
+
+    for subfolder in subfolders:
+        # Parse container information
+        container_info = parse_container_info(subfolder.name)
+
+        # Create TiffImageStackInterface (handles file filtering, XML parsing, and device creation)
+        interface = TiffImageStackInterface(subfolder=subfolder, container_info=container_info, verbose=verbose)
+
+        # Add to NWB file (automatically creates microscope device and metadata)
+        interface.add_to_nwbfile(nwbfile=nwbfile)
+
+    if verbose:
+        print(f"Created NWB file with {len(subfolders)} image stacks and session ID: {session_id}")
+
+    return nwbfile
