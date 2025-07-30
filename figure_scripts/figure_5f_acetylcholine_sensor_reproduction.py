@@ -391,8 +391,9 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
     treatments = ["control", "quinpirole", "sulpiride"]
     treatment_labels = ["control", "+quinpirole", "+sulpiride"]
 
-    # Colors to match paper style
-    colors = ["white", "lightgray", "gray"]
+    # Colors to match paper style - same as direct reproduction
+    condition_colors = ["black", "red", "blue"]
+    box_face_colors = ["white", "#ffcccc", "#ccccff"]  # white, light red, light blue
 
     for i, (condition, title) in enumerate(zip(conditions, condition_titles)):
         ax = axes[i]
@@ -431,16 +432,17 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
             flierprops=dict(marker="o", markersize=4, markeredgecolor="black", alpha=0.7),
         )
 
-        # Color the boxes
-        for patch, color in zip(box_plot["boxes"], colors):
-            patch.set_facecolor(color)
-            patch.set_edgecolor("black")
+        # Color the boxes to match direct reproduction
+        for j, patch in enumerate(box_plot["boxes"]):
+            patch.set_facecolor(box_face_colors[j] if j < len(box_face_colors) else "white")
+            patch.set_edgecolor(condition_colors[i])
+            patch.set_linewidth(1.5)
 
         # Add individual data points
         for j, data in enumerate(box_data):
             if len(data) > 0:
                 x_pos = np.random.normal(j + 1, 0.04, len(data))
-                ax.scatter(x_pos, data, color="black", alpha=0.6, s=15, zorder=3)
+                ax.scatter(x_pos, data, color=condition_colors[i], alpha=0.7, s=20, zorder=3)
 
         # Styling
         ax.set_title(title, fontsize=12, fontweight="bold")
