@@ -42,7 +42,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/24)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/79930c77c568c646de43c4f4d66268e022c35602)
-- [ ] Upload data
+- [x] Upload data
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
@@ -50,7 +50,7 @@ Intracellular electrophysiology (VoltageClamp), Image Stacks and LineScans.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/19)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/20)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/79930c77c568c646de43c4f4d66268e022c35602)
-- [ ] Upload data
+- [x] Upload data
 
 
 
@@ -82,7 +82,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Time alignment of the data [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/23)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/d6242917671c51a21b693241edb5774eecafe364)
-- [ ] Upload data
+- [x] Upload data
 
 ### Dendritic Excitability
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5)
@@ -90,7 +90,7 @@ Intracellular electrophysiology (VoltageClamp) and LineScan data.
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/17)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/18)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/d6242917671c51a21b693241edb5774eecafe364)
-- [ ] Upload data
+- [x] Upload data
 
 ## Figure 4:
 
@@ -134,7 +134,7 @@ Structure: Three experiment types (Dendritic excitability, Somatic excitability,
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/21)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/3edb76c5195ac9c071d91065eb455831aeb55549)
-- [ ] Upload data
+- [x] Upload data
 
 
 ### Somatic Excitability
@@ -143,7 +143,7 @@ Structure: Three experiment types (Dendritic excitability, Somatic excitability,
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/26)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/3edb76c5195ac9c071d91065eb455831aeb55549)
-- [ ] Upload data
+- [x] Upload data
 
 ### Spine Density
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
@@ -160,7 +160,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/25)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
-- [ ] Upload data
+- [x] Upload data
 
 ### Dendritic Excitability (CDGI KO on vs off)
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
@@ -168,7 +168,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/22)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
-- [ ] Upload data
+- [x] Upload data
 
 ### Dendritic Excitability (oxoM response - CDGI KO vs WT)
 - [x] Build needed interfaces [Pairie View Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/5) | [Line Scan Interface](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/2)
@@ -176,7 +176,7 @@ CDGI knockout effects on iSPN function and behavior. Includes somatic excitabili
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/27)
 - [x] Inspector [Commit](https://github.com/catalystneuro/surmeier-lab-to-nwb/commit/76858abb498f606b42804a49168619dd2c6ac333)
-- [ ] Upload data
+- [x] Upload data
 
 ### Spine Density (CDGI KO on vs off)
 - [x] Build needed interfaces [Neuroconv Interface](https://github.com/catalystneuro/neuroconv/pull/1365)
@@ -206,7 +206,7 @@ M1R CRISPR deletion effects on iSPN properties and dyskinetic behaviors using ta
 - [x] Time alignment [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
 - [x] Add icephys table hierarchical structure [PR](https://github.com/catalystneuro/surmeier-lab-to-nwb/pull/31)
 - [x] Inspector [Commit](f4b989da3b66620c0164a834650acc26d82fa7d0)
-- [ ] Upload data
+- [x] Upload data
 
 ### Spine Density (M1R CRISPR vs control - off-state)
 - [x] Build needed interfaces [Neuroconv PR](https://github.com/catalystneuro/neuroconv/pull/1365)
@@ -241,10 +241,27 @@ First ensure that the raw data is available and on dandi and then we can do thes
 
 # Data uploading and conversion packaging
 - [x] Create Dandiset(s): [Link](https://dandiarchive.org/dandiset/001538)
-- [x]  Add protocols.io to dandiset
+- [x] Add protocols.io to dandiset
 - [x] Add anatomy metadata to Dandiset
 - [x] Add disease metadata to Dandiset
 - [ ] README/Documentation here in the repo.
 - [ ] Example Notebooks:
 - [ ] Middle Meeting
 - [ ] Final Meeting
+
+Confirm and add the following ORCID records for authors:
+Shenyu Zhai	https://orcid.org/0000-0002-7097-9387
+orcid.org
+Qiaoling Cui	https://orcid.org/0000-0002-2074-9655
+orcid.org
+David L. Wokosin	https://orcid.org/0000-0001-6232-7613
+eLife
+Linqing Sun	No public ORCID record found (as of 25 Jul 2025).
+Tatiana Tkatch	https://orcid.org/0000-0001-6626-7435
+orcid.org
+Jill R. Crittenden	https://orcid.org/0000-0002-0017-6116
+orcid.org
+Ann M. Graybiel	https://orcid.org/0000-0002-4326-7720
+orcid.org
+D. James Surmeier	https://orcid.org/0000-0002-6376-5225
+orcid.org

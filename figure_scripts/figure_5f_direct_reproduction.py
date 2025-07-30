@@ -358,7 +358,7 @@ def main():
         base_dir
         / "src/surmeier_lab_to_nwb/zhai2025/assets/author_assets/Tabular dataset Zhai et al. 2025/Fig 5 datasets.xlsx"
     )
-    output_dir = base_dir / "analysis_outputs" / "figure_5f"
+    output_dir = base_dir / "analysis_outputs" / "figure_5f_from_paper_data"
 
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
