@@ -434,7 +434,7 @@ def generate_canonical_session_id(
         Measurement + Compartment (CamelCase): SomExc, DendExc, DendSpine,
         DendConfSpine, DendOEPSC, StriAChFP, BehavAIMs, BehavRot, BehavVideo
     cell_type : str
-        Cell type: dSPN, iSPN, WholeStriatum, NonCell
+        Cell type: dSPN, iSPN, pan
     state : str
         Levodopa/disease state: OnState, OffState, LesionedControl, UnlesionedControl
     pharm : str
