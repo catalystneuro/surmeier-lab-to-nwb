@@ -3,10 +3,20 @@
 Figure 2 G and H oEPSC Reproduction Script (Fixed)
 
 This script reproduces Figure 2 G and H from Zhai et al. 2025 using NWB files
-containing Sr²⁺-oEPSC data. It loads voltage clamp recordings, extracts oEPSC
-amplitudes, and generates cumulative probability curves and box plots.
+containing Sr²⁺-oEPSC data. It loads voltage clamp recordings, detects oEPSC
+events with a robust median-absolute-deviation (MAD) method within the defined
+"detection" window from the NWB `intervals/optogenetic_epochs_table`, and then
+generates cumulative probability curves and box plots.
 
-Fixed to properly extract optogenetic stimulus timing from intervals.optogenetic_epochs_table
+Updates in this version:
+- Adjusts to the updated NWB file structure where condition is encoded as
+  `OnState`/`OffState` in the filename and optogenetic timing comes from
+  `intervals['optogenetic_epochs_table']` with `stage_name` columns.
+- Robustly derives timestamps for sweeps whether `timestamps` are stored
+  explicitly or via `starting_time` + `rate`.
+- Uses a MAD-based event detection with a 100 ms shift after the original
+  detection start to avoid stimulus transients, grouping contiguous threshold
+  crossings into single events and measuring their peak amplitudes.
 
 Usage:
     python figure_2gh_oepsc_reproduction_fixed.py
@@ -20,7 +30,7 @@ Output:
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,68 +62,143 @@ plt.rcParams["axes.spines.right"] = False
 plt.rcParams["axes.grid"] = False
 
 
-def extract_oepsc_amplitude(
-    voltage_trace: np.ndarray,
-    timestamps: np.ndarray,
-    stim_absolute_start_time: float,
-    baseline_window: float = 0.020,  # 20 ms baseline before stimulus
-    analysis_window_start: float = 0.040,  # 40 ms post-stim relative to stim_absolute_start_time
-    analysis_window_end: float = 0.400,  # 400 ms post-stim relative to stim_absolute_start_time
-) -> float:
+def _get_ts_slice_in_si_units(ts, idx_start: int, count: int) -> Tuple[np.ndarray, np.ndarray]:
+    """Return (data_in_amperes, timestamps_in_seconds) for a slice of a TimeSeries.
+
+    Handles both explicit `timestamps` and implicit `starting_time` + `rate`.
     """
-    Extracts the peak oEPSC amplitude within a specified analysis window with baseline correction.
-    Assumes voltage clamp at -70 mV, so EPSCs are inward (negative), but returns
-    the absolute value to represent amplitude as a positive number.
+    data = np.asarray(ts.data[idx_start : idx_start + count])
+    if ts.timestamps is not None:
+        t = np.asarray(ts.timestamps[idx_start : idx_start + count])
+    else:
+        # timestamps are derived from starting_time and rate
+        rate = float(ts.rate)
+        start = float(ts.starting_time) + idx_start / rate
+        t = start + np.arange(count, dtype=float) / rate
+    return data.astype(float), t.astype(float)
 
-    Parameters
-    ----------
-    voltage_trace : np.ndarray
-        Voltage recording in Amperes.
-    timestamps : np.ndarray
-        Time stamps in seconds (absolute, relative to NWB session start).
-    stim_absolute_start_time : float
-        The absolute time (in seconds, relative to NWB session start) when the optogenetic stimulus was applied.
-    baseline_window : float
-        Duration of baseline period before stimulus (seconds).
-    analysis_window_start : float
-        Start of the analysis window relative to stimulus start (seconds).
-    analysis_window_end : float
-        End of the analysis window relative to stimulus start (seconds).
 
-    Returns
-    -------
-    float
-        Peak oEPSC amplitude in pA (as a positive value), or NaN if no clear
-        event is detected.
+def _group_contiguous_indices(indices: np.ndarray) -> List[np.ndarray]:
+    """Group sorted indices into contiguous runs and return list of index arrays."""
+    if indices.size == 0:
+        return []
+    # Find boundaries where the difference > 1
+    splits = np.where(np.diff(indices) > 1)[0] + 1
+    groups = np.split(indices, splits)
+    return groups
+
+
+def detect_events_mad(
+    data_pA: np.ndarray,
+    timestamps_ms: np.ndarray,
+    detection_start_ms: float,
+    detection_stop_ms: float,
+    detection_window_shift_ms: float = 100.0,
+    threshold_k: float = 5.0,
+    min_inter_event_ms: float = 5.0,
+) -> Dict[str, np.ndarray]:
     """
-    # Calculate baseline from pre-stimulus period
-    baseline_start_abs = stim_absolute_start_time - baseline_window
-    baseline_end_abs = stim_absolute_start_time
+    MAD-based event detection within a shifted detection window.
 
-    baseline_mask = (timestamps >= baseline_start_abs) & (timestamps < baseline_end_abs)
-    baseline_trace = voltage_trace[baseline_mask]
+    Returns a dict with keys: 'times_ms', 'amps_pA', 'polarity'.
+    - times_ms: event time stamps
+    - amps_pA: event amplitudes as positive magnitudes from the noise median
+    - polarity: +1 for positive, -1 for negative events
+    """
+    # Apply shift to detection window start
+    det_start = detection_start_ms + detection_window_shift_ms
+    det_stop = detection_stop_ms
 
-    if len(baseline_trace) == 0:
-        return np.nan
+    mask = (timestamps_ms >= det_start) & (timestamps_ms <= det_stop)
+    if not np.any(mask):
+        return {"times_ms": np.array([]), "amps_pA": np.array([]), "polarity": np.array([])}
 
-    baseline = np.mean(baseline_trace)
+    x = data_pA[mask]
+    t = timestamps_ms[mask]
 
-    # Calculate absolute window times for analysis
-    window_start_abs = stim_absolute_start_time + analysis_window_start
-    window_end_abs = stim_absolute_start_time + analysis_window_end
+    noise_median = np.median(x)
+    mad = np.median(np.abs(x - noise_median))
+    mad_std = mad * 1.4826  # approx std for normal dist
+    pos_thr = noise_median + threshold_k * mad_std
+    neg_thr = noise_median - threshold_k * mad_std
 
-    window_mask = (timestamps >= window_start_abs) & (timestamps <= window_end_abs)
-    analysis_trace = voltage_trace[window_mask]
+    pos_idx = np.flatnonzero(x > pos_thr)
+    neg_idx = np.flatnonzero(x < neg_thr)
 
-    if len(analysis_trace) == 0:
-        return np.nan
+    event_times = []
+    event_amps = []
+    event_pol = []
 
-    # Find peak amplitude relative to baseline
-    # For inward currents (negative), we find the minimum
-    peak_amplitude_amps = np.min(analysis_trace) - baseline
+    # Positive events: pick the local maximum within each contiguous run
+    for grp in _group_contiguous_indices(pos_idx):
+        j = grp[np.argmax(x[grp])]
+        amp = x[j] - noise_median
+        event_times.append(t[j])
+        event_amps.append(abs(amp))
+        event_pol.append(1)
 
-    # Convert to picoamperes (1 A = 1e12 pA) and return absolute value
-    return abs(peak_amplitude_amps * 1e12)
+    # Negative events: pick the local minimum within each contiguous run
+    for grp in _group_contiguous_indices(neg_idx):
+        j = grp[np.argmin(x[grp])]
+        amp = noise_median - x[j]
+        event_times.append(t[j])
+        event_amps.append(abs(amp))
+        event_pol.append(-1)
+
+    if len(event_times) == 0:
+        return {"times_ms": np.array([]), "amps_pA": np.array([]), "polarity": np.array([])}
+
+    order = np.argsort(event_times)
+    t = np.asarray(event_times)[order]
+    a = np.asarray(event_amps)[order]
+    p = np.asarray(event_pol, dtype=int)[order]
+
+    # Merge nearby events within a refractory window
+    if t.size and min_inter_event_ms > 0:
+        t, a, p = merge_nearby_events(t, a, p, merge_distance_ms=min_inter_event_ms)
+
+    return {"times_ms": t, "amps_pA": a, "polarity": p}
+
+
+def merge_nearby_events(
+    event_times_ms: np.ndarray,
+    event_amplitudes_pA: np.ndarray,
+    event_polarity: np.ndarray,
+    merge_distance_ms: float = 5.0,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Merge events that are within merge_distance_ms of each other (single-linkage).
+    For merged clusters, keep the event with maximum amplitude.
+
+    Notes
+    -----
+    - Uses chained grouping: if consecutive events are each <= merge_distance_ms apart,
+      they are merged into one cluster (not just those close to the first event).
+    - Amplitudes are expected as positive magnitudes; polarity is preserved from
+      the selected representative event.
+    """
+    if event_times_ms.size == 0:
+        return event_times_ms, event_amplitudes_pA, event_polarity
+
+    # Sort by time
+    order = np.argsort(event_times_ms)
+    t = np.asarray(event_times_ms)[order]
+    a = np.asarray(event_amplitudes_pA)[order]
+    p = np.asarray(event_polarity, dtype=int)[order]
+
+    # Split where the gap exceeds merge_distance_ms
+    gaps = np.diff(t)
+    splits = np.where(gaps > merge_distance_ms)[0] + 1
+    groups = np.split(np.arange(t.size), splits)
+
+    kept_idx = []
+    for grp in groups:
+        # pick the event with max amplitude in the group
+        j_local = int(np.argmax(a[grp]))
+        kept_idx.append(int(grp[j_local]))
+
+    kept_idx = np.asarray(kept_idx, dtype=int)
+    return t[kept_idx], a[kept_idx], p[kept_idx]
 
 
 def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
@@ -130,7 +215,7 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
     pd.DataFrame
         Combined dataframe with all oEPSC amplitudes and conditions.
     """
-    nwb_files = list(nwb_dir.glob("figure2_sr_oepsc_*.nwb"))
+    nwb_files = list(nwb_dir.glob("*.nwb"))
 
     if not nwb_files:
         raise FileNotFoundError(
@@ -144,11 +229,12 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
         with NWBHDF5IO(str(nwb_file), "r") as io:
             nwb = io.read()
 
-            # Extract condition from filename
+            # Extract condition from filename (updated naming: OnState/OffState)
             condition = "unknown"
-            if "LID_off_state" in nwb_file.name:
+            name_lower = nwb_file.name.lower()
+            if "offstate" in name_lower:
                 condition = "LID off-state"
-            elif "LID_on_state" in nwb_file.name:
+            elif "onstate" in name_lower:
                 condition = "LID on-state"
 
             # Get session info
@@ -162,9 +248,24 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
             opto_epochs = nwb.intervals["optogenetic_epochs_table"]
             opto_df = opto_epochs.to_dataframe()
 
-            # Filter for actual stimulation epochs
-            stim_epochs = opto_df[opto_df["stimulation_on"] == True]
+            # Identify detection and stimulation stage windows as RELATIVE offsets per sweep
+            # Compute offsets from the first 'pre_stimulation' start time
+            if "stage_name" not in opto_df.columns:
+                raise ValueError(f"optogenetic_epochs_table missing 'stage_name' in {nwb_file.name}")
+            pre_rows = opto_df[opto_df["stage_name"] == "pre_stimulation"].copy()
+            det_rows = opto_df[opto_df["stage_name"] == "detection"].copy()
+            stim_rows = opto_df[opto_df["stage_name"] == "stimulation"].copy()
+            if pre_rows.empty or det_rows.empty:
+                raise ValueError(f"Missing required stage rows in optogenetic_epochs_table for {nwb_file.name}")
+            pre0 = float(pre_rows.iloc[0]["start_time"])
+            det0_start = float(det_rows.iloc[0]["start_time"]) - pre0
+            det0_stop = float(det_rows.iloc[0]["stop_time"]) - pre0
+            stim0_start = float(stim_rows.iloc[0]["start_time"]) - pre0 if not stim_rows.empty else det0_start
 
+            # Detection parameters
+            detection_window_shift_ms = 100.0
+
+            # Iterate over sweeps and detect events
             for idx in range(len(icephys_table.id)):
                 row = icephys_table[idx]
                 cell_number = row[("intracellular_recordings", "cell_number")].iloc[0]
@@ -175,41 +276,42 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
                 # Get the voltage clamp series (oEPSC trace)
                 response_ref = row[("responses", "response")].iloc[0]
                 ts = response_ref.timeseries
-                voltage_trace = ts.data[response_ref.idx_start : response_ref.idx_start + response_ref.count]
-                timestamps = ts.timestamps[response_ref.idx_start : response_ref.idx_start + response_ref.count]
+                data_A, time_s = _get_ts_slice_in_si_units(ts, response_ref.idx_start, response_ref.count)
 
-                # Find the stimulation epoch that occurs during this sweep
-                sweep_start = timestamps[0]
-                sweep_end = timestamps[-1]
+                # Convert to pA and relative ms for detection (0 at sweep start)
+                data_pA = data_A * 1e12
+                time_ms = (time_s - time_s[0]) * 1000.0
 
-                # Find stimulation epochs within this sweep
-                sweep_stim_epochs = stim_epochs[
-                    (stim_epochs["start_time"] >= sweep_start) & (stim_epochs["start_time"] <= sweep_end)
-                ]
-
-                if len(sweep_stim_epochs) == 0:
-                    print(f"Warning: No stimulation found for {recording_id} in {nwb_file.name}")
-                    continue
-
-                # Use the first stimulation epoch in this sweep
-                stim_absolute_start_time = sweep_stim_epochs.iloc[0]["start_time"]
-
-                # Extract oEPSC amplitude
-                oepsc_amplitude = extract_oepsc_amplitude(voltage_trace, timestamps, stim_absolute_start_time)
-
-                all_data.append(
-                    {
-                        "session_id": session_id,
-                        "subject_id": subject_id,
-                        "condition": condition,
-                        "recording_id": recording_id,
-                        "oepsc_amplitude_pA": oepsc_amplitude,
-                        "nwb_file": nwb_file.name,
-                        "stim_time": stim_absolute_start_time,
-                        "sweep_start": sweep_start,
-                        "sweep_end": sweep_end,
-                    }
+                # Detect events within the (shifted) detection window
+                detection = detect_events_mad(
+                    data_pA=data_pA,
+                    timestamps_ms=time_ms,
+                    detection_start_ms=det0_start * 1000.0,
+                    detection_stop_ms=det0_stop * 1000.0,
+                    detection_window_shift_ms=detection_window_shift_ms,
+                    threshold_k=5.0,
                 )
+
+                # Append one row per detected event
+                for t_ms, amp_pA, pol in zip(detection["times_ms"], detection["amps_pA"], detection["polarity"]):
+                    all_data.append(
+                        {
+                            "session_id": session_id,
+                            "subject_id": subject_id,
+                            "condition": condition,
+                            "recording_id": recording_id,
+                            "oepsc_amplitude_pA": float(amp_pA),
+                            "event_time_ms": float(t_ms),
+                            "event_polarity": int(pol),
+                            "nwb_file": nwb_file.name,
+                            "stim_start_ms": stim0_start * 1000.0,
+                            "detection_start_ms": det0_start * 1000.0,
+                            "detection_stop_ms": det0_stop * 1000.0,
+                            "sweep_number": int(sweep_number),
+                            "cell_number": int(cell_number),
+                            "led_intensity": led_intensity,
+                        }
+                    )
 
     if not all_data:
         raise ValueError("No oEPSC data could be loaded from NWB files.")
@@ -217,7 +319,9 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
     df = pd.DataFrame(all_data)
     # Filter out NaN amplitudes
     df = df.dropna(subset=["oepsc_amplitude_pA"])
-    print(f"Loaded {len(df)} oEPSC amplitudes from {len(df.session_id.unique())} cells.")
+    print(
+        f"Loaded {len(df)} detected events from {len(df.session_id.unique())} cells across {len(df.nwb_file.unique())} NWB files."
+    )
     return df
 
 
@@ -299,10 +403,18 @@ def create_amplitude_boxplot(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
     condition_order = ["LID off-state", "LID on-state"]
     condition_labels = ["off-state", "on-state"]
 
+    # Compute per-NWB-file (subject-level) mean amplitudes per condition
+    per_file_means = (
+        df.groupby(["condition", "nwb_file"])["oepsc_amplitude_pA"]  # each NWB file is treated as a subject
+        .mean()
+        .reset_index()
+    )
+
     plot_data = []
     for condition in condition_order:
-        if condition in df["condition"].unique():
-            plot_data.append(df[df["condition"] == condition]["oepsc_amplitude_pA"].values)
+        if condition in per_file_means["condition"].unique():
+            vals = per_file_means[per_file_means["condition"] == condition]["oepsc_amplitude_pA"].values
+            plot_data.append(vals)
         else:
             plot_data.append(np.array([]))  # Empty array if no data for condition
 
@@ -321,29 +433,29 @@ def create_amplitude_boxplot(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
     # Add individual data points
     for i, data in enumerate(plot_data):
         x_pos = np.random.normal(i + 1, 0.04, len(data))
-        ax.scatter(x_pos, data, color="gray", alpha=0.6, s=15, zorder=3)
+        ax.scatter(x_pos, data, color="gray", alpha=0.8, s=20, zorder=3)
 
     ax.set_ylabel("oEPSC amplitude (pA)", fontsize=12)
-    # Dynamic y-axis limits based on data
-    max_value = max([max(data) if len(data) > 0 else 0 for data in plot_data])
-    ax.set_ylim(0, max_value * 1.2)  # Add 20% padding
-    ax.set_yticks(np.arange(0, max_value * 1.2, 20))
+    # Fixed y-axis limits to match paper style
+    ax.set_ylim(0, 25)
+    ax.set_yticks(np.arange(0, 26, 5))
 
     ax.set_title("Figure 2H: dSPN oEPSC Amplitude Comparison", fontsize=14, pad=20)
 
-    # Perform statistical test (e.g., independent t-test)
-    off_state_data = df[df["condition"] == "LID off-state"]["oepsc_amplitude_pA"].values
-    on_state_data = df[df["condition"] == "LID on-state"]["oepsc_amplitude_pA"].values
+    # Perform statistical test on per-file means (subject-level)
+    off_state_data = per_file_means[per_file_means["condition"] == "LID off-state"]["oepsc_amplitude_pA"].values
+    on_state_data = per_file_means[per_file_means["condition"] == "LID on-state"]["oepsc_amplitude_pA"].values
 
     if len(off_state_data) > 1 and len(on_state_data) > 1:
         # Assuming independent samples and potentially unequal variances
         stat, p_value = stats.ttest_ind(off_state_data, on_state_data, equal_var=False)
+        y_pos = 23
         if p_value < 0.001:
-            ax.text(1.5, 22, "***", ha="center", va="bottom", fontsize=12, fontweight="bold")  # Adjust y-pos as needed
+            ax.text(1.5, y_pos, "***", ha="center", va="bottom", fontsize=12, fontweight="bold")
         elif p_value < 0.01:
-            ax.text(1.5, 22, "**", ha="center", va="bottom", fontsize=12, fontweight="bold")
+            ax.text(1.5, y_pos, "**", ha="center", va="bottom", fontsize=12, fontweight="bold")
         elif p_value < 0.05:
-            ax.text(1.5, 22, "*", ha="center", va="bottom", fontsize=12, fontweight="bold")
+            ax.text(1.5, y_pos, "*", ha="center", va="bottom", fontsize=12, fontweight="bold")
 
     plt.tight_layout()
     return fig, ax
@@ -480,7 +592,8 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_2" / "sr_oepsc"
+    nwb_dir = base_dir / "nwb_files" / "optical_stimulation" / "figure_2"
+    assert nwb_dir.exists(), f"NWB directory {nwb_dir} does not exist. Please run figure_2_optical_stimuli.py first."
     output_dir = base_dir / "analysis_outputs" / "figure_2gh"
 
     # Ensure output directory exists
