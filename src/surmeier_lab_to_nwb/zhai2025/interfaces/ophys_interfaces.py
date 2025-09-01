@@ -739,7 +739,7 @@ class BrukerReferenceImagesInterface(ImageInterface):
         # Initialize parent ImageInterface with the reference files
         super().__init__(
             file_paths=reference_files,
-            images_container_metadata_key=container_name,
+            metadata_key=container_name,
             images_location=images_location,
             verbose=verbose,
         )

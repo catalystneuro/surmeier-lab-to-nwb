@@ -29,7 +29,6 @@ from pynwb.device import Device
 from pynwb.epoch import TimeIntervals
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    format_condition,
     generate_canonical_session_id,
     str_to_bool,
 )
@@ -112,35 +111,114 @@ def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
     """
     trial_name = bot_folder.name
 
-    # Parse trial name: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[trial_num]
-    pattern = r"BOT_(\d{8})_(.+?)_([^_]+)_([^-]+)-(\d+)"
-    match = re.match(pattern, trial_name)
+    # Handle unique edge cases with direct dictionary lookup (6 specific cases)
+    unique_edge_cases = {
+        "BOT_04022024_slice2ROI1_ACh wash in-001": {
+            "treatment": "ACh",
+            "stimulation": "calibration",
+            "trial_number": "001",
+            "is_calibration": True,
+        },
+        "BOT_04022024_slice2ROI1_ACh wash in-002": {
+            "treatment": "ACh",
+            "stimulation": "calibration",
+            "trial_number": "002",
+            "is_calibration": True,
+        },
+        "BOT_04022024_slice2ROI2_ACh wash in-001": {
+            "treatment": "ACh",
+            "stimulation": "calibration",
+            "trial_number": "001",
+            "is_calibration": True,
+        },
+        "BOT_04022024_slice2ROI1_ctr-001": {
+            "treatment": "ctr",
+            "stimulation": "single",
+            "trial_number": "001",
+            "is_calibration": False,
+        },
+        "BOT_04022024_slice2ROI1_ctr-002": {
+            "treatment": "ctr",
+            "stimulation": "single",
+            "trial_number": "002",
+            "is_calibration": False,
+        },
+        "BOT_04122024_slice1ROI1_sul_TTX-001": {
+            "treatment": "sul_TTX_calibration",
+            "stimulation": "calibration",
+            "trial_number": "001",
+            "is_calibration": True,
+        },
+    }
 
-    if not match:
-        # Handle calibration sessions (ACh, TTX) - no stimulation protocol
-        calibration_pattern = r"BOT_(\d{8})_(.+?)_([^-]+)-(\d+)"
-        calibration_match = re.match(calibration_pattern, trial_name)
+    # Check if this is a unique edge case first
+    if trial_name in unique_edge_cases:
+        case_data = unique_edge_cases[trial_name]
+        date_str = trial_name.split("_")[1]  # Extract date for consistency
+        slice_info = trial_name.split("_")[2]  # Extract slice info for consistency
+        treatment = case_data["treatment"]
+        stimulation = case_data["stimulation"]
+        trial_num = case_data["trial_number"]
+    else:
+        # Parse with regex for all other cases
+        #
+        # REGEX PATTERN BREAKDOWN:
+        # BOT_(\d{8})_(.+?)_([^_]+)(?:_([^-]+))?-(\d+)
+        #
+        # BOT_           - Literal "BOT_" prefix
+        # (\d{8})        - Group 1: Exactly 8 digits (date: MMDDYYYY)
+        # _              - Literal underscore separator
+        # (.+?)          - Group 2: Slice info (non-greedy match: sliceXA, sliceXROIY, etc.)
+        # _              - Literal underscore separator
+        # ([^_]+)        - Group 3: Treatment (one or more non-underscore chars: ctr, 50nMDA, quin, sul, ACh, TTX)
+        # (?:_([^-]+))?  - Group 4: Optional stimulation (non-capturing ?: prefix, optional ? suffix)
+        #                  _([^-]+) - underscore + one or more non-dash chars (single, burst, 20Hz, etc.)
+        # -              - Literal dash separator
+        # (\d+)          - Group 5: Trial number (one or more digits: 001, 002, etc.)
+        #
+        # Examples:
+        # BOT_05242024_slice1A_50nMDA_burst-001 → Groups: ('05242024', 'slice1A', '50nMDA', 'burst', '001')
+        # BOT_05242024_slice1A_ACh-001          → Groups: ('05242024', 'slice1A', 'ACh', None, '001')
+        #
+        pattern = r"BOT_(\d{8})_(.+?)_([^_]+)(?:_([^-]+))?-(\d+)"
+        match = re.match(pattern, trial_name)
 
-        if calibration_match:
-            date_str, slice_info, treatment, trial_num = calibration_match.groups()
+        if match:
+            date_str, slice_info, treatment, stimulation, trial_num = match.groups()
+        else:
+            raise ValueError(f"Could not parse BOT folder name: {trial_name}")
 
-            # Check if this is a real calibration session (ACh, TTX) or missing stimulation type
+    # Now we have all variables set (either from dictionary or regex)
+    # Apply corrections only if this wasn't a dictionary case (dictionary cases are already correct)
+    if trial_name not in unique_edge_cases:
+        # Handle cases where stimulation is None (should only be calibration trials now)
+        if stimulation is None:
+            # ACh trials = Fmax calibration (100 μM acetylcholine chloride saturates GRABACh3.0 sensor)
+            # TTX trials = Fmin calibration (10 μM tetrodotoxin blocks neural transmission)
+            # These are the ONLY uses of ACh/TTX in the protocol - no experimental conditions use them
             if treatment in ["ACh", "TTX"] or "ACh" in treatment or "TTX" in treatment:
                 stimulation = "calibration"
             else:
-                # Experimental trial missing stimulation type - assume single pulse
-                stimulation = "single"
-                print(f"Warning: Trial {trial_name} missing stimulation type, assuming single pulse")
-        else:
-            raise ValueError(f"Could not parse BOT folder name: {trial_name}")
-    else:
-        date_str, slice_info, treatment, stimulation, trial_num = match.groups()
+                # This should never happen - all non-calibration missing stimulation cases are in dictionary
+                raise ValueError(f"Unexpected missing stimulation for non-calibration trial: {trial_name}")
 
-        # Check if stimulation field contains calibration markers
-        if stimulation in ["ACh", "TTX"] or "ACh" in stimulation or "TTX" in stimulation:
-            # This is actually a calibration trial, adjust treatment and stimulation
-            treatment = f"{treatment}_{stimulation}_calibration"
-            stimulation = "calibration"
+        # Handle common typos in stimulation field (only if not already "calibration")
+        if stimulation != "calibration":
+            stimulation_corrections = {
+                "sinlge": "single",  # Needed for: UL control/04022024slice1ROI*/BOT_*_sul_sinlge-*
+                "singl": "single",  # Needed for: PD/04102024slice2ROI1/BOT_*_quin_singl-*
+                "20Hz": "burst",  # Needed for: PD/05092024slice*/BOT_*_*_20Hz-*
+            }
+
+            # Apply exact matching for corrections to avoid partial matches
+            if stimulation in stimulation_corrections:
+                stimulation = stimulation_corrections[stimulation]
+
+            # Check if stimulation field contains calibration markers (for mixed treatment/stimulation cases)
+            if stimulation in ["ACh", "TTX"] or "ACh" in stimulation or "TTX" in stimulation:
+                # This is actually a calibration trial, adjust treatment and stimulation
+                treatment = f"{treatment}_{stimulation}_calibration"
+                stimulation = "calibration"
 
     # Map treatment abbreviations to full names
     treatment_mapping = {
@@ -152,15 +230,16 @@ def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
         "TTX": "TTX_calibration",
     }
 
+    # Clean up treatment name for special cases
+    if treatment == "ACh wash in":
+        treatment = "ACh"
+
     treatment_full = treatment_mapping.get(treatment, treatment)
 
-    # Map stimulation types (including typo correction)
+    # Map stimulation types
     stimulation_mapping = {
         "single": "single_pulse",
-        "sinlge": "single_pulse",  # Fix typo in raw data folders
-        "singl": "single_pulse",  # Fix truncated version in raw data folders
         "burst": "burst_stimulation",
-        "20Hz": "burst_stimulation",  # Frequency-based naming for burst stimulation
         "calibration": "calibration",
     }
 
@@ -202,24 +281,54 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     if not bot_trial_folders:
         raise FileNotFoundError(f"No BOT trial folders found in {slice_folder}")
 
-    # Sort trials for consistent ordering
-    bot_trial_folders.sort()
+    # First, instantiate all interfaces and collect their metadata with session times
+    trial_interfaces_data = []
 
-    # Get session start time from the first trial's XML if available
-    first_trial_folder = bot_trial_folders[0]
-    xml_files = [
-        f
-        for f in first_trial_folder.iterdir()
-        if f.name.endswith(".xml") and "VoltageRecording" not in f.name and "VoltageOutput" not in f.name
-    ]
+    for bot_trial_folder in bot_trial_folders:
+        # Find BOT CSV and XML files for this trial
+        bot_csv_file = None
+        xml_metadata_file = None
 
-    if xml_files:
-        # Use interface to get session start time
-        temp_csv = [f for f in first_trial_folder.iterdir() if f.name.endswith("-botData.csv")][0]
-        temp_interface = PrairieViewFluorescenceInterface(
-            bot_csv_data_file_path=temp_csv, xml_metadata_file_path=xml_files[0]
+        for file in bot_trial_folder.iterdir():
+            if file.name.endswith("-botData.csv"):
+                bot_csv_file = file
+            elif (
+                file.name.endswith(".xml") and "VoltageRecording" not in file.name and "VoltageOutput" not in file.name
+            ):
+                xml_metadata_file = file
+
+        if not bot_csv_file or not xml_metadata_file:
+            raise FileNotFoundError(f"Missing files in {bot_trial_folder}")
+
+        # Parse trial information
+        trial_info = parse_trial_info_from_bot_folder(bot_trial_folder)
+
+        # Create interface to get session start time
+        acetylcholine_interface = PrairieViewFluorescenceInterface(
+            bot_csv_data_file_path=bot_csv_file, xml_metadata_file_path=xml_metadata_file
         )
-        actual_session_start_time = temp_interface.get_session_start_time()
+
+        # Get session start time for this trial
+        trial_start_time = acetylcholine_interface.get_session_start_time()
+
+        # Store all the data we need for later processing
+        trial_interfaces_data.append(
+            {
+                "bot_trial_folder": bot_trial_folder,
+                "trial_info": trial_info,
+                "acetylcholine_interface": acetylcholine_interface,
+                "bot_csv_file": bot_csv_file,
+                "xml_metadata_file": xml_metadata_file,
+                "trial_start_time": trial_start_time,
+            }
+        )
+
+    # Sort all trials by their actual session start time
+    trial_interfaces_data.sort(key=lambda x: x["trial_start_time"])
+
+    # Get the earliest session start time for the overall session
+    if trial_interfaces_data:
+        actual_session_start_time = trial_interfaces_data[0]["trial_start_time"]
     else:
         actual_session_start_time = None
 
@@ -246,7 +355,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     # Map Figure 5 specific conditions to explicit parameters
     condition_mapping = {"UL control": "control", "PD": "6-OHDA", "LID off": "off-state"}
     standardized_condition = condition_mapping.get(condition, condition)
-    condition_human_readable = format_condition[standardized_condition]["human_readable"]
 
     # Map condition to explicit state
     if standardized_condition == "control":
@@ -337,29 +445,17 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     trials_table.add_column(name="is_calibration", description="Whether this is a calibration trial")
     trials_table.add_column(name="original_trial_number", description="Original trial number from BOT filename")
 
-    # Process each BOT trial and add fluorescence data
+    # Process each BOT trial and add fluorescence data (now in temporal order)
     cumulative_time = 0.0
     trial_duration = 8.0  # Typical trial length in seconds
 
-    for trial_index, bot_trial_folder in enumerate(bot_trial_folders):
-        # Parse trial information
-        trial_info = parse_trial_info_from_bot_folder(bot_trial_folder)
-
-        # Find BOT CSV and XML files for this trial
-        bot_csv_file = None
-        xml_metadata_file = None
-
-        for file in bot_trial_folder.iterdir():
-            if file.name.endswith("-botData.csv"):
-                bot_csv_file = file
-            elif (
-                file.name.endswith(".xml") and "VoltageRecording" not in file.name and "VoltageOutput" not in file.name
-            ):
-                xml_metadata_file = file
-
-        if not bot_csv_file or not xml_metadata_file:
-            print(f"Warning: Missing files in {bot_trial_folder}, skipping trial")
-            continue
+    for trial_index, trial_data in enumerate(trial_interfaces_data):
+        # Extract pre-computed data
+        bot_trial_folder = trial_data["bot_trial_folder"]
+        trial_info = trial_data["trial_info"]
+        bot_csv_file = trial_data["bot_csv_file"]
+        xml_metadata_file = trial_data["xml_metadata_file"]
+        acetylcholine_interface = trial_data["acetylcholine_interface"]
 
         # Create naming mappings for this trial (used for both fluorescence and raw data)
         condition_to_camel_case = {
@@ -397,13 +493,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         else:
             base_name = f"{clean_condition}{clean_treatment}{clean_stimulation}"
 
-        # Create acetylcholine fluorescence interface for this trial
-        acetylcholine_interface = PrairieViewFluorescenceInterface(
-            bot_csv_data_file_path=bot_csv_file, xml_metadata_file_path=xml_metadata_file
-        )
-
-        # Get precise trial start time and shift timestamps
-        trial_start_time = acetylcholine_interface.get_session_start_time()
+        # Get precise trial start time and shift timestamps (interface already created)
+        trial_start_time = trial_data["trial_start_time"]
         time_shift = (trial_start_time - session_start_time.replace(tzinfo=None)).total_seconds()
         trial_start_shifted = cumulative_time + time_shift
 
