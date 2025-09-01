@@ -407,6 +407,107 @@ BOT_[date]_slice[#]A_ACh-002                    # ACh saturation - trial 2 (some
 
 **Technical Analysis**: The actual acquisition rate (5.12 fps) matches the hardware-limited maximum frame rate (5.05 fps) calculated from scan line rate ÷ image height. The protocol specification of 21.26 fps appears to be incorrect or refers to a different imaging mode. The BOT acquisition captured data at the maximum possible rate for 128×128 images on this system, providing complete temporal coverage of acetylcholine release dynamics.
 
+## XML-Based Stimulation Type Detection
+
+### Background
+The Figure 5 conversion script initially attempted to determine stimulation type from BOT folder names using complex regex patterns. However, this approach proved unreliable due to inconsistent naming conventions and numerous edge cases. The solution was to extract stimulation information directly from the VoltageOutput XML files.
+
+### Detection Procedure
+1. **XML File Location**: Each experimental trial folder contains a VoltageOutput XML file:
+   ```
+   BOT_[experiment]_Cycle00001_VoltageOutput_001.xml
+   ```
+
+2. **Calibration Trial Detection**:
+   - **Calibration trials** (TTX, ACh) have **no VoltageOutput XML file**
+   - Absence of this file indicates no electrical stimulation was applied
+   - Function returns `"calibration"` when XML file is missing
+
+3. **Stimulation Type Parsing**: For trials with electrical stimulation, the XML contains:
+   ```xml
+   <Experiment>
+     <Name>1pulse</Name>  <!-- or "20pulses@20Hz" -->
+     <Waveform>
+       <Name>LED</Name>
+       <Enabled>true</Enabled>
+       <WaveformComponent_PulseTrain>
+         <PulseCount>1</PulseCount>  <!-- or 20 for burst -->
+       </WaveformComponent_PulseTrain>
+     </Waveform>
+   </Experiment>
+   ```
+
+### XML Structure Analysis
+
+#### Single Pulse Stimulation
+```xml
+<Experiment>
+  <Name>1pulse</Name>
+  <Waveform>
+    <Name>LED</Name>
+    <Enabled>true</Enabled>
+    <WaveformComponent_PulseTrain>
+      <PulseCount>1</PulseCount>
+      <PulseWidth>1</PulseWidth>
+      <PulseSpacing>499</PulseSpacing>
+      <PulsePotentialStart>5</PulsePotentialStart>
+      <FirstPulseDelay>10000</FirstPulseDelay>
+    </WaveformComponent_PulseTrain>
+  </Waveform>
+</Experiment>
+```
+
+#### Burst Stimulation (20 pulses @ 20Hz)
+```xml
+<Experiment>
+  <Name>20pulses@20Hz</Name>
+  <Waveform>
+    <Name>LED</Name>
+    <Enabled>true</Enabled>
+    <WaveformComponent_PulseTrain>
+      <PulseCount>20</PulseCount>
+      <PulseWidth>1</PulseWidth>
+      <PulseSpacing>49</PulseSpacing>
+      <PulsePotentialStart>5</PulsePotentialStart>
+      <FirstPulseDelay>10000</FirstPulseDelay>
+    </WaveformComponent_PulseTrain>
+  </Waveform>
+</Experiment>
+```
+
+### Key Detection Logic
+- **LED Channel**: The stimulation waveform uses the "LED" channel name, which corresponds to the electrical stimulator output
+- **PulseCount**: Distinguishes between single pulse (`PulseCount=1`) and burst stimulation (`PulseCount=20`)
+- **Experiment Name**: Provides human-readable confirmation (`"1pulse"` vs `"20pulses@20Hz"`)
+
+### Implementation Functions
+```python
+def get_stimulation_type_from_xml(bot_folder: Path) -> str:
+    """Determine stimulation type from VoltageOutput XML file.
+
+    Returns:
+        - "single" for PulseCount=1
+        - "burst" for PulseCount=20
+        - "calibration" for missing XML (TTX/ACh trials)
+    """
+```
+
+### Advantages of XML-Based Detection
+1. **Eliminates 280+ edge cases** from folder name parsing
+2. **Direct source of truth** - actual stimulation parameters used
+3. **Simplified code** - reduced from ~150 lines to ~50 lines
+4. **Reliable detection** - no assumptions about naming conventions
+5. **Future-proof** - works regardless of folder naming changes
+
+### Legacy Folder-Name Approach Issues
+The previous approach used complex regex patterns to infer stimulation type from folder names:
+- Required handling numerous edge cases and exceptions
+- Made assumptions about naming consistency
+- Failed when folder names deviated from expected patterns
+- Created maintenance burden with growing exception lists
+
+The XML-based approach provides definitive stimulation information directly from the acquisition system metadata, eliminating the need for folder name inference entirely.
+
 ## Related Files
 - [Overview](../conversion_notes_overview.md)
 - [Figure 1 Notes](figure_1_conversion_notes.md) - Two-photon imaging methods

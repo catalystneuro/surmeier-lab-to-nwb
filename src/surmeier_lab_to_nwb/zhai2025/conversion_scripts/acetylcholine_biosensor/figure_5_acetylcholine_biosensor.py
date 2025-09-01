@@ -15,7 +15,6 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_5_conversi
 """
 
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -26,7 +25,6 @@ from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 from pynwb import NWBFile
 from pynwb.device import Device
-from pynwb.epoch import TimeIntervals
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
@@ -40,56 +38,7 @@ from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
 )
 
 
-def parse_slice_session_info(slice_folder: Path) -> dict[str, Any]:
-    """
-    Parse session information from slice folder names (e.g., 04022024slice1ROI1).
-
-    Parameters
-    ----------
-    slice_folder : Path
-        Path to the slice folder containing BOT recordings
-
-    Returns
-    -------
-    Dict[str, Any]
-        Dictionary containing slice session information
-    """
-    folder_name = slice_folder.name
-
-    # Parse slice folder name: [date][slice][ROI] (e.g., 04022024slice1ROI1)
-    pattern = r"(\d{8})(slice\d+)(ROI\d+)?"
-    match = re.match(pattern, folder_name)
-
-    if not match:
-        # Try alternative pattern without ROI
-        pattern = r"(\d{8})(slice\d+[A-Z]?)"
-        match = re.match(pattern, folder_name)
-
-    if not match:
-        raise ValueError(f"Could not parse slice folder name: {folder_name}")
-
-    date_str = match.group(1)
-    slice_info = match.group(2)
-    roi_info = match.group(3) if match.lastindex >= 3 else None
-
-    # Parse date (MMDDYYYY format)
-    month = int(date_str[0:2])
-    day = int(date_str[2:4])
-    year = int(date_str[4:8])
-    session_date = datetime(year, month, day)
-
-    full_slice_info = slice_info + (roi_info or "")
-
-    return {
-        "slice_folder_name": folder_name,
-        "session_date": session_date,
-        "date_str": session_date.strftime("%Y-%m-%d"),
-        "slice_info": full_slice_info,
-        "subject_id": f"SubjectRecordedAt{date_str.replace('-', '')}",  # Use SubjectRecordedAt pattern
-    }
-
-
-def parse_basic_trial_info_from_folder(bot_folder: Path) -> dict[str, str]:
+def parse_treatment_and_repetition_from_folder_name(bot_folder: Path) -> dict[str, str]:
     """
     Extract basic trial information from BOT folder name.
 
@@ -149,58 +98,104 @@ def parse_basic_trial_info_from_folder(bot_folder: Path) -> dict[str, str]:
 
 def get_stimulation_type_from_xml(bot_folder: Path) -> str:
     """
-    Determine stimulation type from VoltageOutput XML file.
+    Determine stimulation type from VoltageOutput XML file containing electrical stimulation parameters.
+
+    This function provides definitive stimulation type detection by parsing the actual acquisition
+    system metadata rather than inferring from folder names. The VoltageOutput XML files contain
+    the complete electrical stimulation protocol used during data acquisition.
+
+    XML Structure Analysis:
+    ----------------------
+    Single pulse trials contain:
+        <Experiment>
+            <Name>1pulse</Name>
+            <Waveform>
+                <Name>LED</Name>  <!-- Electrical stimulator output channel -->
+                <Enabled>true</Enabled>
+                <WaveformComponent_PulseTrain>
+                    <PulseCount>1</PulseCount>  <!-- Single electrical pulse -->
+                </WaveformComponent_PulseTrain>
+            </Waveform>
+        </Experiment>
+
+    Burst stimulation trials contain:
+        <Experiment>
+            <Name>20pulses@20Hz</Name>
+            <Waveform>
+                <Name>LED</Name>  <!-- Electrical stimulator output channel -->
+                <Enabled>true</Enabled>
+                <WaveformComponent_PulseTrain>
+                    <PulseCount>20</PulseCount>  <!-- Burst of 20 pulses at 20Hz -->
+                </WaveformComponent_PulseTrain>
+            </Waveform>
+        </Experiment>
+
+    Calibration trials (TTX, ACh) have no VoltageOutput XML file as no electrical
+    stimulation is applied - only pharmacological treatments.
 
     Parameters
     ----------
     bot_folder : Path
-        Path to the BOT recording folder
+        Path to the BOT recording folder containing the experiment data
 
     Returns
     -------
     str
-        Stimulation type: "calibration", "single_pulse", or "burst_stimulation"
+        Stimulation type classification:
+        - "calibration": No VoltageOutput XML file present (TTX/ACh trials)
+        - "single_pulse": PulseCount=1 in LED waveform (single electrical stimulus)
+        - "burst_stimulation": PulseCount>1 in LED waveform (typically 20 pulses at 20Hz)
+
+    Raises
+    ------
+    ValueError
+        If VoltageOutput XML file exists but cannot be parsed or does not contain
+        expected LED waveform structure
+
+    Notes
+    -----
+    The LED channel name corresponds to the electrical stimulator output, not actual
+    LED illumination. This naming convention is part of the acquisition system's
+    voltage output configuration for electrical stimulation protocols.
     """
+    # Construct expected VoltageOutput XML filename following acquisition system naming convention
     voltage_xml = bot_folder / f"{bot_folder.name}_Cycle00001_VoltageOutput_001.xml"
 
+    # Calibration trials (TTX, ACh) have no electrical stimulation so no VoltageOutput XML
     if not voltage_xml.exists():
-        return "calibration"  # No electrical stimulation - drug-only calibration
+        return "calibration"  # Drug-only calibration experiments (TTX for Fmin, ACh for Fmax)
 
-    try:
-        import xml.etree.ElementTree as ET
+    import xml.etree.ElementTree as ET
 
-        tree = ET.parse(voltage_xml)
-        root = tree.getroot()
+    tree = ET.parse(voltage_xml)
+    root = tree.getroot()
 
-        # Find the LED waveform (the actual stimulation channel)
-        for waveform in root.findall("Waveform"):
-            name_elem = waveform.find("Name")
-            enabled_elem = waveform.find("Enabled")
+    # Search through all waveform channels to find the electrical stimulator output
+    # The LED channel name corresponds to the electrical stimulator, not actual LED illumination
+    for waveform in root.findall("Waveform"):
+        name_elem = waveform.find("Name")
+        enabled_elem = waveform.find("Enabled")
 
-            if (
-                name_elem is not None
-                and name_elem.text == "LED"
-                and enabled_elem is not None
-                and enabled_elem.text == "true"
-            ):
+        # Look for enabled LED waveform which carries electrical stimulation parameters
+        if (
+            name_elem is not None
+            and name_elem.text == "LED"  # Electrical stimulator output channel
+            and enabled_elem is not None
+            and enabled_elem.text == "true"  # Waveform is active during acquisition
+        ):
+            # Extract stimulation parameters from the pulse train component
+            pulse_train = waveform.find("WaveformComponent_PulseTrain")
+            pulse_count_elem = pulse_train.find("PulseCount")
+            pulse_count = int(pulse_count_elem.text)
 
-                # Get pulse count from the waveform component
-                pulse_train = waveform.find("WaveformComponent_PulseTrain")
-                if pulse_train is not None:
-                    pulse_count_elem = pulse_train.find("PulseCount")
-                    if pulse_count_elem is not None:
-                        pulse_count = int(pulse_count_elem.text)
+            # Classify stimulation type based on number of electrical pulses
+            if pulse_count == 1:
+                return "single_pulse"  # Single electrical stimulus (mimics single action potential)
+            else:
+                return "burst_stimulation"  # Multiple pulses (typically 20 at 20Hz, mimics burst firing)
 
-                        if pulse_count == 1:
-                            return "single_pulse"
-                        elif pulse_count > 1:
-                            return "burst_stimulation"
-
-        # Fallback if we can't find LED waveform
-        raise ValueError(f"Could not determine stimulation type from XML: {voltage_xml}")
-
-    except Exception as e:
-        raise ValueError(f"Error parsing VoltageOutput XML {voltage_xml}: {e}")
+    # If we reach here, XML exists but doesn't contain expected LED waveform structure
+    raise ValueError(f"VoltageOutput XML exists but no enabled LED waveform found: {voltage_xml}")
 
 
 def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
@@ -218,7 +213,7 @@ def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
         Dictionary containing complete trial information
     """
     # Get basic info from folder name
-    basic_info = parse_basic_trial_info_from_folder(bot_folder)
+    basic_info = parse_treatment_and_repetition_from_folder_name(bot_folder)
 
     # Get stimulation type from actual XML files
     stimulation_type = get_stimulation_type_from_xml(bot_folder)
@@ -261,8 +256,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     NWBFile
         NWB file with the converted data
     """
-    # Parse slice session information
-    session_info = parse_slice_session_info(slice_folder)
+    # Extract slice info directly from folder name (e.g., "slice1ROI1", "slice2A")
+    slice_info = slice_folder.name[8:]  # Remove MMDDYYYY prefix to get slice info
 
     # Get all BOT trial folders in this slice session
     bot_trial_folders = [f for f in slice_folder.iterdir() if f.is_dir() and f.name.startswith("BOT_")]
@@ -360,10 +355,13 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         + " All treatments applied during this session as described in trials table."
     )
 
+    # Generate subject_id from session timestamp
+    subject_id = f"SubjectRecordedAt{session_start_time.strftime('%Y%m%d')}"
+
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
-            "session_description": f"Acetylcholine GRAB biosensor session for {condition} condition in slice {session_info['slice_info']}. Contains multiple trials with different treatments and stimulation protocols.",
+            "session_description": f"Acetylcholine GRAB biosensor session for {condition} condition in slice {slice_info}. Contains multiple trials with different treatments and stimulation protocols.",
             "session_start_time": session_start_time,
             "session_id": session_id,
             "surgery": surgery_text,
@@ -371,10 +369,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": session_info["subject_id"],
-            "description": script_template["Subject"]["description"].format(
-                session_id=session_id, date_str=session_info["date_str"]
-            ),
+            "subject_id": subject_id,
+            "description": script_template["Subject"]["description"].format(session_id=session_id),
             "genotype": script_template["Subject"]["genotype"],
         },
     }
@@ -406,18 +402,13 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     )
     nwbfile.add_device(imaging_device)
 
-    # Create trials table for all BOT recordings in this session
-    trials_table = TimeIntervals(
-        name="trials", description="Individual BOT recording trials with different treatments and stimulation protocols"
-    )
-
-    # Add custom columns for trial metadata
-    trials_table.add_column(name="trial_name", description="Name of the BOT recording trial")
-    trials_table.add_column(name="treatment", description="Pharmacological treatment applied")
-    trials_table.add_column(name="stimulation", description="Stimulation protocol used")
-    trials_table.add_column(name="amplitude", description="Stimulation amplitude if applicable")
-    trials_table.add_column(name="electrode", description="Electrode model and type")
-    trials_table.add_column(name="original_trial_number", description="Original trial number from BOT filename")
+    # Add custom trial columns for BOT recording metadata
+    nwbfile.add_trial_column(name="trial_name", description="Name of the BOT recording trial")
+    nwbfile.add_trial_column(name="treatment", description="Pharmacological treatment applied")
+    nwbfile.add_trial_column(name="stimulation", description="Stimulation protocol used")
+    nwbfile.add_trial_column(name="amplitude", description="Stimulation amplitude if applicable")
+    nwbfile.add_trial_column(name="electrode", description="Electrode model and type")
+    nwbfile.add_trial_column(name="original_trial_number", description="Original trial number from BOT filename")
 
     # Process each BOT trial and add fluorescence data (now in temporal order)
     cumulative_time = 0.0
@@ -475,7 +466,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         electrode_desc = "None" if trial_info["stimulation"] == "calibration" else "CBAPD75 concentric bipolar"
         actual_trial_number = int(trial_info["repetition_number"])
 
-        trials_table.add_interval(
+        nwbfile.add_trial(
             start_time=trial_start_shifted,
             stop_time=trial_start_shifted + trial_duration,
             trial_name=trial_info["trial_name"],
@@ -525,9 +516,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
         # Update cumulative time for next trial
         cumulative_time = trial_start_shifted + trial_duration + 1.0  # 1s gap between trials
-
-    # Add trials table to NWB file
-    nwbfile.trials = trials_table
 
     return nwbfile
 
