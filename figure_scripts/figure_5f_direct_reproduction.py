@@ -78,10 +78,14 @@ def load_excel_data(excel_path: Path) -> pd.DataFrame:
 
 
 def create_figure_5f_boxplots(df: pd.DataFrame) -> plt.Figure:
-    """Create Figure 5F box plots matching the paper style exactly."""
+    """Create Figure 5F box plots matching the paper style exactly.
 
-    # Filter for main experimental treatments (exclude 50nMDA calibration data)
-    plot_data = df[df["treatment"].isin(["control", "+quinpirole", "+sulpiride"])].copy()
+    Adds the missing +DA box for the 6-OHDA (PD) and LID off conditions,
+    positioned immediately after control. UL control remains with three boxes.
+    """
+
+    # Include DA+ (50nMDA) along with main experimental treatments
+    plot_data = df[df["treatment"].isin(["control", "50nMDA", "+quinpirole", "+sulpiride"])].copy()
 
     # Create single panel figure to match paper layout
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
@@ -89,15 +93,31 @@ def create_figure_5f_boxplots(df: pd.DataFrame) -> plt.Figure:
     # Define condition order and styling to match paper
     conditions = ["UL control", "PD", "LID off"]
     condition_labels = ["control", "6-OHDA", "LID off-state"]
-    treatments = ["control", "+quinpirole", "+sulpiride"]
+
+    # Treatments by condition (add +DA for PD and LID off groups)
+    treatments_by_condition = {
+        "UL control": ["control", "+quinpirole", "+sulpiride"],
+        "PD": ["control", "50nMDA", "+quinpirole", "+sulpiride"],
+        "LID off": ["control", "50nMDA", "+quinpirole", "+sulpiride"],
+    }
+
+    # Display labels for treatments (map 50nMDA to +DA)
+    display_label = {
+        "control": "control",
+        "50nMDA": "+DA",
+        "+quinpirole": "+quinpirole",
+        "+sulpiride": "+sulpiride",
+    }
 
     # Colors to match paper: black, red, blue for the three conditions
     condition_colors = ["black", "red", "blue"]
 
-    # X positions for the groups (4 positions per condition with gap)
-    x_positions = []
-    x_labels = []
-    group_positions = [1, 2, 3, 5, 6, 7, 9, 10, 11]  # 3 groups of 3 with gaps
+    # Build dynamic x-positions per group with gaps between conditions
+    group_gap = 1
+    current_pos = 1
+    x_positions: list[int] = []
+    x_labels: list[str] = []
+    group_bounds = []  # (start_pos, end_pos) for each condition
 
     all_data = []
     all_colors = []
@@ -106,20 +126,25 @@ def create_figure_5f_boxplots(df: pd.DataFrame) -> plt.Figure:
     for i, condition in enumerate(conditions):
         condition_data = plot_data[plot_data["condition"] == condition]
 
-        for j, treatment in enumerate(treatments):
-            treatment_data = condition_data[condition_data["treatment"] == treatment]["auc_normalized"]
-            pos_idx = i * 3 + j
+        start_pos = current_pos
+        treatments = treatments_by_condition[condition]
 
-            if not treatment_data.empty:
-                all_data.append(treatment_data.values)
-                all_colors.append(condition_colors[i])
-                x_positions.append(group_positions[pos_idx])
-                x_labels.append(treatment)
+        for treatment in treatments:
+            treatment_series = condition_data[condition_data["treatment"] == treatment]["auc_normalized"]
+
+            if not treatment_series.empty:
+                all_data.append(treatment_series.values)
             else:
                 all_data.append([])
-                all_colors.append(condition_colors[i])
-                x_positions.append(group_positions[pos_idx])
-                x_labels.append(treatment)
+
+            all_colors.append(condition_colors[i])
+            x_positions.append(current_pos)
+            x_labels.append(display_label[treatment])
+            current_pos += 1
+
+        end_pos = current_pos - 1
+        group_bounds.append((start_pos, end_pos))
+        current_pos += group_gap  # gap before next condition
 
     # Create box plots
     box_plot = ax.boxplot(
@@ -153,47 +178,44 @@ def create_figure_5f_boxplots(df: pd.DataFrame) -> plt.Figure:
             ax.scatter(x_pos, all_data[i], color=color, alpha=0.7, s=20, zorder=3)
 
     # Add connecting lines between paired measurements (if data allows)
-    # This would require knowing which measurements are paired, so we'll add some example connections
-    for i in range(0, len(conditions)):
-        condition_data = plot_data[plot_data["condition"] == conditions[i]]
+    # We connect control with other treatments within each condition when lengths match
+    pos_idx = 0
+    for i, condition in enumerate(conditions):
+        condition_df = plot_data[plot_data["condition"] == condition]
+        treatments = treatments_by_condition[condition]
 
-        # Get data for each treatment in this condition
-        control_data = condition_data[condition_data["treatment"] == "control"]["auc_normalized"].values
-        quin_data = condition_data[condition_data["treatment"] == "+quinpirole"]["auc_normalized"].values
-        sulp_data = condition_data[condition_data["treatment"] == "+sulpiride"]["auc_normalized"].values
+        # Build a mapping from treatment to data and x position
+        tr_to_vals = {}
+        tr_to_x = {}
+        for t in treatments:
+            vals = condition_df[condition_df["treatment"] == t]["auc_normalized"].values
+            tr_to_vals[t] = vals
+            tr_to_x[t] = x_positions[pos_idx]
+            pos_idx += 1
 
-        # Connect lines between treatments (assuming paired data)
-        min_len = min(len(control_data), len(quin_data), len(sulp_data))
-        if min_len > 0:
-            for j in range(min_len):
-                x_ctrl = group_positions[i * 3]
-                x_quin = group_positions[i * 3 + 1]
-                x_sulp = group_positions[i * 3 + 2]
+        ctrl_vals = tr_to_vals.get("control", np.array([]))
 
-                # Add some jitter to x positions for visibility
-                x_ctrl_jitter = x_ctrl + np.random.normal(0, 0.05)
-                x_quin_jitter = x_quin + np.random.normal(0, 0.05)
-                x_sulp_jitter = x_sulp + np.random.normal(0, 0.05)
-
-                if j < len(control_data) and j < len(quin_data):
-                    ax.plot(
-                        [x_ctrl_jitter, x_quin_jitter],
-                        [control_data[j], quin_data[j]],
-                        color="gray",
-                        alpha=0.3,
-                        linewidth=0.5,
-                        zorder=1,
-                    )
-
-                if j < len(control_data) and j < len(sulp_data):
-                    ax.plot(
-                        [x_ctrl_jitter, x_sulp_jitter],
-                        [control_data[j], sulp_data[j]],
-                        color="gray",
-                        alpha=0.3,
-                        linewidth=0.5,
-                        zorder=1,
-                    )
+        # Connect control to each other treatment for which paired length matches
+        for t in treatments:
+            if t == "control":
+                continue
+            other_vals = tr_to_vals.get(t, np.array([]))
+            min_len = min(len(ctrl_vals), len(other_vals))
+            if min_len == 0:
+                continue
+            x_ctrl = tr_to_x["control"]
+            x_t = tr_to_x[t]
+            for k in range(min_len):
+                x_ctrl_j = x_ctrl + np.random.normal(0, 0.05)
+                x_t_j = x_t + np.random.normal(0, 0.05)
+                ax.plot(
+                    [x_ctrl_j, x_t_j],
+                    [ctrl_vals[k], other_vals[k]],
+                    color="gray",
+                    alpha=0.3,
+                    linewidth=0.5,
+                    zorder=1,
+                )
 
     # Styling to match paper
     ax.set_ylabel("AUC (normalized ΔF/F0*s)", fontsize=12, fontweight="bold")
@@ -203,14 +225,17 @@ def create_figure_5f_boxplots(df: pd.DataFrame) -> plt.Figure:
     # Add horizontal line at y=0
     ax.axhline(y=0, color="black", linestyle="--", alpha=0.5, linewidth=0.8)
 
-    # Set x-axis
-    ax.set_xlim(0, 12)
-    ax.set_xticks([2, 6, 10])  # Center of each group
+    # Set x-axis using dynamic group centers
+    first_pos = group_bounds[0][0]
+    last_pos = group_bounds[-1][1]
+    ax.set_xlim(first_pos - 0.5, last_pos + 0.5)
+    group_centers = [0.5 * (s + e) for (s, e) in group_bounds]
+    ax.set_xticks(group_centers)
     ax.set_xticklabels(condition_labels, fontsize=11, fontweight="bold")
 
     # Add treatment labels below
-    treatment_positions = group_positions
-    treatment_labels = ["control", "+quinpirole", "+sulpiride"] * 3
+    treatment_positions = x_positions
+    treatment_labels = x_labels
 
     # Create secondary x-axis for treatment labels
     ax2 = ax.twiny()
@@ -225,14 +250,14 @@ def create_figure_5f_boxplots(df: pd.DataFrame) -> plt.Figure:
     ax2.spines["left"].set_visible(False)
     ax2.spines["right"].set_visible(False)
 
-    # Add condition separators
-    ax.axvline(x=4, color="lightgray", linestyle="-", alpha=0.5, linewidth=1)
-    ax.axvline(x=8, color="lightgray", linestyle="-", alpha=0.5, linewidth=1)
+    # Add condition separators at group boundaries
+    for start, end in group_bounds[:-1]:
+        ax.axvline(x=end + 0.5, color="lightgray", linestyle="-", alpha=0.5, linewidth=1)
 
     # Add background shading for each condition
-    ax.axvspan(0.5, 3.5, alpha=0.1, color="lightgray", zorder=0)
-    ax.axvspan(4.5, 7.5, alpha=0.1, color="lightcoral", zorder=0)
-    ax.axvspan(8.5, 11.5, alpha=0.1, color="lightblue", zorder=0)
+    shade_colors = ["lightgray", "lightcoral", "lightblue"]
+    for (start, end), shade in zip(group_bounds, shade_colors):
+        ax.axvspan(start - 0.5, end + 0.5, alpha=0.1, color=shade, zorder=0)
 
     # Final styling
     ax.spines["top"].set_visible(False)

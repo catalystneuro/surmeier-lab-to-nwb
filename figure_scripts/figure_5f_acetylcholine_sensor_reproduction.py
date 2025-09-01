@@ -52,7 +52,7 @@ plt.rcParams["axes.grid"] = False
 
 def load_nwb_trials_data(nwb_path: Path) -> List[Dict]:
     """
-    Load all trial data from an NWB file.
+    Load all trial data from an NWB file using trials table iteration.
 
     Parameters
     ----------
@@ -69,62 +69,49 @@ def load_nwb_trials_data(nwb_path: Path) -> List[Dict]:
     with NWBHDF5IO(str(nwb_path), mode="r") as io:
         nwbfile = io.read()
 
-        # Extract fluorescence data from ophys processing module
-        ophys_module = nwbfile.processing.get("ophys", None)
-        if ophys_module is None:
-            raise ValueError(f"No ophys module found in {nwb_path.name}")
+        # Get trials table and fluorescence module
+        trials_df = nwbfile.trials.to_dataframe()
+        fluorescence_module = nwbfile.processing["ophys"]["Fluorescence"]
 
-        # Get the Fluorescence interface
-        fluorescence_interface = ophys_module.data_interfaces.get("Fluorescence", None)
-        if fluorescence_interface is None:
-            raise ValueError(f"No Fluorescence interface found in {nwb_path.name}")
-
-        # Extract metadata from file name and NWB metadata
-        # File naming convention: F5++AChFP++pan++[CONDITION]++none++WT++[timestamp].nwb
+        # Extract metadata from file name
         filename_parts = nwb_path.stem.split("++")
         condition = filename_parts[3] if len(filename_parts) > 3 else "unknown"
 
         # Map conditions to paper nomenclature
-        condition_map = {"CTRL": "UL control", "PD": "PD", "OFF": "LID off"}
+        condition_map = {"CTRL": "UL control", "PD": "6-OHDA", "OFF": "LID off"}
 
-        # Process each ROI response series (each series is a trial)
-        for series_name, time_series in fluorescence_interface.roi_response_series.items():
-            # Parse trial information from series name
-            # Format: AcetylcholineFluorescence[Condition][Treatment][Stimulation][Channel]Trial[Number]
-            # Example: AcetylcholineFluorescenceULControlControlSinglePulseGRABChTrial004
-
-            # Extract treatment and stimulation type
-            # Parse treatment from series name more carefully
-            if "AcetylcholineCalibration" in series_name:
-                treatment = "ACh_calibration"
-                stimulation = "calibration"
-            elif "TTXCalibration" in series_name:
-                treatment = "TTX_calibration"
-                stimulation = "calibration"
-            elif "SinglePulse" in series_name:
-                # For single pulse trials, parse the treatment
-                if "ControlSinglePulse" in series_name or "50nMDopamineSinglePulse" in series_name:
-                    treatment = "control"  # Both "Control" and "50nMDopamine" are baseline conditions
-                elif "QuinpiroleSinglePulse" in series_name:
-                    treatment = "quinpirole"
-                elif "SulpirideSinglePulse" in series_name:
-                    treatment = "sulpiride"
-                else:
-                    # Default to control if parsing fails
-                    treatment = "control"
-                stimulation = "single_pulse"
-            else:
-                # Skip burst stimulation and other non-single pulse trials
-                continue
+        # Iterate over trials table rows
+        for _, trial in trials_df.iterrows():
+            # Get the corresponding fluorescence series
+            series_name = trial["roi_series_name"]
+            series = fluorescence_module.roi_response_series[series_name]
 
             # Only process GRABCh channel (acetylcholine sensor)
             if "GRABCh" not in series_name:
                 continue
 
-            fluorescence = time_series.data[:]
-            timestamps = (
-                time_series.timestamps[:] if time_series.timestamps else np.arange(len(fluorescence)) / time_series.rate
-            )
+            # Map treatment names
+            treatment_mapping = {
+                "control": "control",
+                "50nM_dopamine": "dopamine",
+                "quinpirole": "quinpirole",
+                "sulpiride": "sulpiride",
+                "TTX_calibration": "TTX_calibration",
+                "acetylcholine_calibration": "ACh_calibration",
+            }
+
+            treatment = treatment_mapping.get(trial["treatment"], trial["treatment"])
+            stimulation = "calibration" if "calibration" in trial["treatment"] else trial["stimulation"]
+
+            fluorescence = series.data[:]
+            timestamps = series.get_timestamps()
+            # Convert to relative timestamps starting at 0
+            timestamps = timestamps - timestamps[0]
+
+            # Calculate relative stimulus time
+            abs_stim_time = trial["stimulus_start_time"]
+            orig_start = series.get_timestamps()[0]
+            stim_time = abs_stim_time - orig_start
 
             trials_data.append(
                 {
@@ -136,9 +123,8 @@ def load_nwb_trials_data(nwb_path: Path) -> List[Dict]:
                     "series_name": series_name,
                     "fluorescence": fluorescence,
                     "timestamps": timestamps,
-                    "sampling_rate": (
-                        time_series.rate if hasattr(time_series, "rate") else 1.0 / np.mean(np.diff(timestamps))
-                    ),
+                    "stim_time": stim_time,
+                    "sampling_rate": 1.0 / np.mean(np.diff(timestamps)) if len(timestamps) > 1 else 1.0,
                     "file": nwb_path.name,
                 }
             )
@@ -150,8 +136,6 @@ def process_bot_trial(
     timestamps: np.ndarray,
     fluorescence: np.ndarray,
     stim_time: float = 10.0,
-    baseline_window: Tuple[float, float] = (9.0, 10.0),
-    response_window: Tuple[float, float] = (10.0, 12.0),
 ) -> Dict:
     """
     Process a single BOT trial following the original analysis methodology.
@@ -163,17 +147,17 @@ def process_bot_trial(
     fluorescence : np.ndarray
         Background-subtracted fluorescence values
     stim_time : float
-        Time of stimulation (default: 10.0 seconds as per original script)
-    baseline_window : tuple
-        Time window for baseline calculation (TimeA to TimeB)
-    response_window : tuple
-        Time window for response measurement (TimeB to TimeC)
+        Time of stimulation
 
     Returns
     -------
     dict
         Processed trial data including F0, dF/F0, AUC
     """
+    # Calculate stimulus-relative windows
+    baseline_window = (stim_time - 1.0, stim_time)
+    response_window = (stim_time, stim_time + 2.0)
+
     # Find indices for time windows
     time_interval = timestamps[1] - timestamps[0]
     idx_baseline_start = np.argmin(np.abs(timestamps - baseline_window[0]))
@@ -229,23 +213,18 @@ def get_calibration_values_from_trials(trials_data: List[Dict]) -> Tuple[float, 
         bg_pmt = 162.0
 
         # Get mean fluorescence from ACh trials (after background subtraction)
+        # Use entire signal since calibration trials have no stimulus
         ach_fluorescence = []
         for trial in ach_trials:
             bg_subtracted = trial["fluorescence"] - bg_pmt
-            # Use mean of 2-4 second window as in original script
-            timestamps = trial["timestamps"]
-            mask = (timestamps >= 2.0) & (timestamps <= 4.0)
-            if np.any(mask):
-                ach_fluorescence.extend(bg_subtracted[mask])
+            ach_fluorescence.extend(bg_subtracted)
 
         # Get mean fluorescence from TTX trials
+        # Use entire signal since calibration trials have no stimulus
         ttx_fluorescence = []
         for trial in ttx_trials:
             bg_subtracted = trial["fluorescence"] - bg_pmt
-            timestamps = trial["timestamps"]
-            mask = (timestamps >= 2.0) & (timestamps <= 4.0)
-            if np.any(mask):
-                ttx_fluorescence.extend(bg_subtracted[mask])
+            ttx_fluorescence.extend(bg_subtracted)
 
         if ach_fluorescence and ttx_fluorescence:
             Fmax = np.mean(ach_fluorescence)
@@ -257,7 +236,7 @@ def get_calibration_values_from_trials(trials_data: List[Dict]) -> Tuple[float, 
     return 493.47, 212.39
 
 
-def normalize_fluorescence(trial_data: Dict, Fmax: float, Fmin: float) -> Dict:
+def normalize_fluorescence(trial_data: Dict, Fmax: float, Fmin: float, stim_time: float = 10.0) -> Dict:
     """
     Normalize fluorescence data using calibration values.
 
@@ -279,22 +258,19 @@ def normalize_fluorescence(trial_data: Dict, Fmax: float, Fmin: float) -> Dict:
     FI = Fmax - Fmin
 
     trial_data["dF_over_FI"] = (trial_data["fluorescence"] - trial_data["F0"]) / FI
-    trial_data["auc_normalized"] = np.sum(
-        trial_data["dF_over_FI"][
-            np.argmin(np.abs(trial_data["timestamps"] - 10.0)) : np.argmin(np.abs(trial_data["timestamps"] - 12.0))
-        ]
-    ) * (trial_data["timestamps"][1] - trial_data["timestamps"][0])
 
-    trial_data["peak_normalized"] = np.max(
-        trial_data["dF_over_FI"][
-            np.argmin(np.abs(trial_data["timestamps"] - 10.0)) : np.argmin(np.abs(trial_data["timestamps"] - 12.0))
-        ]
-    )
+    # Calculate normalized AUC and peak for response window (stim_time to stim_time+2s)
+    idx_start = np.argmin(np.abs(trial_data["timestamps"] - stim_time))
+    idx_end = np.argmin(np.abs(trial_data["timestamps"] - (stim_time + 2.0)))
+    response_slice = trial_data["dF_over_FI"][idx_start:idx_end]
+
+    trial_data["auc_normalized"] = np.sum(response_slice) * (trial_data["timestamps"][1] - trial_data["timestamps"][0])
+    trial_data["peak_normalized"] = np.max(response_slice)
 
     return trial_data
 
 
-def analyze_nwb_dataset(nwb_dir: Path) -> pd.DataFrame:
+def analyze_nwb_dataset(nwb_dir: Path, stimulation_type: str = "single_pulse") -> pd.DataFrame:
     """
     Analyze all NWB files in the dataset and extract relevant measurements.
 
@@ -330,11 +306,18 @@ def analyze_nwb_dataset(nwb_dir: Path) -> pd.DataFrame:
                 if trial["treatment"] in ["ACh_calibration", "TTX_calibration"]:
                     continue
 
+                # Skip trials that don't match the requested stimulation type
+                if trial["stimulation"] != stimulation_type:
+                    continue
+
+                # Get stimulus time from trials table
+                stim_time = trial["stim_time"]
+
                 # Process trial
-                trial_data = process_bot_trial(trial["timestamps"], trial["fluorescence"])
+                trial_data = process_bot_trial(trial["timestamps"], trial["fluorescence"], stim_time)
 
                 # Normalize
-                trial_data = normalize_fluorescence(trial_data, Fmax, Fmin)
+                trial_data = normalize_fluorescence(trial_data, Fmax, Fmin, stim_time)
 
                 # Store results
                 results.append(
@@ -362,20 +345,12 @@ def analyze_nwb_dataset(nwb_dir: Path) -> pd.DataFrame:
 
 def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
     """
-    Create Figure 5F box plots from NWB-derived data matching the original paper format.
+    Create Figure 5F box plots from NWB-derived data matching the direct reproduction exactly.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame with analyzed NWB data
-
-    Returns
-    -------
-    plt.Figure
-        Figure 5F reproduction
+    Uses the same single-panel layout, colors, treatments, and styling as the direct reproduction.
     """
-    # Filter for main experimental treatments (exclude calibration)
-    plot_data = df[df["treatment"].isin(["control", "quinpirole", "sulpiride"])].copy()
+    # Include dopamine along with main experimental treatments
+    plot_data = df[df["treatment"].isin(["control", "dopamine", "quinpirole", "sulpiride"])].copy()
 
     if plot_data.empty:
         raise ValueError("No experimental data found for box plots")
@@ -383,77 +358,184 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
     # Remove invalid data
     plot_data = plot_data.dropna(subset=["auc_normalized"])
 
-    fig, axes = plt.subplots(1, 3, figsize=(12, 5), sharey=True)
+    # Create single panel figure to match direct reproduction layout
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
-    # Define condition order and styling
-    conditions = ["UL control", "PD", "LID off"]
-    condition_titles = ["UL control", "PD", "LID off-state"]
-    treatments = ["control", "quinpirole", "sulpiride"]
-    treatment_labels = ["control", "+quinpirole", "+sulpiride"]
+    # Define condition order and styling to match paper exactly
+    conditions = ["UL control", "6-OHDA", "LID off"]
+    condition_labels = ["control", "6-OHDA", "LID off-state"]
 
-    # Colors to match paper style - same as direct reproduction
+    # Treatments by condition - add dopamine for 6-OHDA and LID off groups only
+    treatments_by_condition = {
+        "UL control": ["control", "quinpirole", "sulpiride"],
+        "6-OHDA": ["control", "dopamine", "quinpirole", "sulpiride"],
+        "LID off": ["control", "dopamine", "quinpirole", "sulpiride"],
+    }
+
+    # Display labels for treatments (map dopamine to +DA)
+    display_label = {
+        "control": "control",
+        "dopamine": "+DA",
+        "quinpirole": "+quinpirole",
+        "sulpiride": "+sulpiride",
+    }
+
+    # Colors to match paper: black, red, blue for the three conditions
     condition_colors = ["black", "red", "blue"]
-    box_face_colors = ["white", "#ffcccc", "#ccccff"]  # white, light red, light blue
 
-    for i, (condition, title) in enumerate(zip(conditions, condition_titles)):
-        ax = axes[i]
+    # Build dynamic x-positions per group with gaps between conditions
+    group_gap = 1
+    current_pos = 1
+    x_positions: list[int] = []
+    x_labels: list[str] = []
+    group_bounds = []  # (start_pos, end_pos) for each condition
 
+    all_data = []
+    all_colors = []
+
+    # Prepare data for all conditions and treatments
+    for i, condition in enumerate(conditions):
         condition_data = plot_data[plot_data["condition"] == condition]
 
-        if condition_data.empty:
-            print(f"Warning: No data for condition {condition}")
-            ax.set_title(title, fontsize=12, fontweight="bold")
-            ax.set_ylabel("AUC (normalized ΔF/F0*s)" if i == 0 else "", fontsize=12)
-            continue
+        start_pos = current_pos
+        treatments = treatments_by_condition[condition]
 
-        # Prepare data for box plot
-        box_data = []
-        labels = []
+        for treatment in treatments:
+            treatment_series = condition_data[condition_data["treatment"] == treatment]["auc_normalized"]
 
-        for treatment, label in zip(treatments, treatment_labels):
-            treatment_data = condition_data[condition_data["treatment"] == treatment]["auc_normalized"].dropna()
-
-            if not treatment_data.empty:
-                box_data.append(treatment_data.values)
-                labels.append(label)
+            if not treatment_series.empty:
+                all_data.append(treatment_series.values)
             else:
-                box_data.append([])
-                labels.append(label)
+                all_data.append([])
 
-        # Create box plot
-        box_plot = ax.boxplot(
-            box_data,
-            tick_labels=labels,
-            patch_artist=True,
-            boxprops=dict(linewidth=1),
-            whiskerprops=dict(linewidth=1),
-            capprops=dict(linewidth=1),
-            medianprops=dict(color="black", linewidth=2),
-            flierprops=dict(marker="o", markersize=4, markeredgecolor="black", alpha=0.7),
-        )
+            all_colors.append(condition_colors[i])
+            x_positions.append(current_pos)
+            x_labels.append(display_label[treatment])
+            current_pos += 1
 
-        # Color the boxes to match direct reproduction
-        for j, patch in enumerate(box_plot["boxes"]):
-            patch.set_facecolor(box_face_colors[j] if j < len(box_face_colors) else "white")
-            patch.set_edgecolor(condition_colors[i])
-            patch.set_linewidth(1.5)
+        end_pos = current_pos - 1
+        group_bounds.append((start_pos, end_pos))
+        current_pos += group_gap  # gap before next condition
+
+    # Create box plots
+    box_plot = ax.boxplot(
+        all_data,
+        positions=x_positions,
+        patch_artist=True,
+        boxprops=dict(linewidth=1.5),
+        whiskerprops=dict(linewidth=1.5),
+        capprops=dict(linewidth=1.5),
+        medianprops=dict(color="black", linewidth=2),
+        flierprops=dict(marker="o", markersize=3, markeredgecolor="black", alpha=0.7),
+        widths=0.6,
+    )
+
+    # Color the boxes and add individual points with connecting lines
+    for i, (patch, color) in enumerate(zip(box_plot["boxes"], all_colors)):
+        # Set box face color based on condition
+        if color == "black":
+            patch.set_facecolor("white")
+        elif color == "red":
+            patch.set_facecolor("#ffcccc")  # Light red
+        else:  # blue
+            patch.set_facecolor("#ccccff")  # Light blue
+
+        patch.set_edgecolor(color)
+        patch.set_linewidth(1.5)
 
         # Add individual data points
-        for j, data in enumerate(box_data):
-            if len(data) > 0:
-                x_pos = np.random.normal(j + 1, 0.04, len(data))
-                ax.scatter(x_pos, data, color=condition_colors[i], alpha=0.7, s=20, zorder=3)
+        if len(all_data[i]) > 0:
+            x_pos = np.random.normal(x_positions[i], 0.05, len(all_data[i]))
+            ax.scatter(x_pos, all_data[i], color=color, alpha=0.7, s=20, zorder=3)
 
-        # Styling
-        ax.set_title(title, fontsize=12, fontweight="bold")
-        ax.set_ylabel("AUC (normalized ΔF/F0*s)" if i == 0 else "", fontsize=12)
-        ax.set_ylim(-0.1, 0.8)
-        ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8])
+    # Add connecting lines between paired measurements (if data allows)
+    # We connect control with other treatments within each condition when lengths match
+    pos_idx = 0
+    for i, condition in enumerate(conditions):
+        condition_df = plot_data[plot_data["condition"] == condition]
+        treatments = treatments_by_condition[condition]
 
-        # Rotate x-axis labels if needed
-        ax.tick_params(axis="x", rotation=45)
+        # Build a mapping from treatment to data and x position
+        tr_to_vals = {}
+        tr_to_x = {}
+        for t in treatments:
+            vals = condition_df[condition_df["treatment"] == t]["auc_normalized"].values
+            tr_to_vals[t] = vals
+            tr_to_x[t] = x_positions[pos_idx]
+            pos_idx += 1
 
-    plt.suptitle("Figure 5F: GRABACh3.0 Acetylcholine Release (NWB Data)", fontsize=14, fontweight="bold")
+        ctrl_vals = tr_to_vals.get("control", np.array([]))
+
+        # Connect control to each other treatment for which paired length matches
+        for t in treatments:
+            if t == "control":
+                continue
+            other_vals = tr_to_vals.get(t, np.array([]))
+            min_len = min(len(ctrl_vals), len(other_vals))
+            if min_len == 0:
+                continue
+            x_ctrl = tr_to_x["control"]
+            x_t = tr_to_x[t]
+            for k in range(min_len):
+                x_ctrl_j = x_ctrl + np.random.normal(0, 0.05)
+                x_t_j = x_t + np.random.normal(0, 0.05)
+                ax.plot(
+                    [x_ctrl_j, x_t_j],
+                    [ctrl_vals[k], other_vals[k]],
+                    color="gray",
+                    alpha=0.3,
+                    linewidth=0.5,
+                    zorder=1,
+                )
+
+    # Styling to match paper
+    ax.set_ylabel("AUC (normalized ΔF/F0*s)", fontsize=12, fontweight="bold")
+    ax.set_ylim(-0.05, 0.7)
+    ax.set_yticks([0, 0.2, 0.4, 0.6])
+
+    # Add horizontal line at y=0
+    ax.axhline(y=0, color="black", linestyle="--", alpha=0.5, linewidth=0.8)
+
+    # Set x-axis using dynamic group centers
+    first_pos = group_bounds[0][0]
+    last_pos = group_bounds[-1][1]
+    ax.set_xlim(first_pos - 0.5, last_pos + 0.5)
+    group_centers = [0.5 * (s + e) for (s, e) in group_bounds]
+    ax.set_xticks(group_centers)
+    ax.set_xticklabels(condition_labels, fontsize=11, fontweight="bold")
+
+    # Add treatment labels below
+    treatment_positions = x_positions
+    treatment_labels = x_labels
+
+    # Create secondary x-axis for treatment labels
+    ax2 = ax.twiny()
+    ax2.set_xlim(ax.get_xlim())
+    ax2.set_xticks(treatment_positions)
+    ax2.set_xticklabels(treatment_labels, rotation=45, ha="right", fontsize=9)
+    ax2.tick_params(axis="x", which="major", pad=0)
+
+    # Remove top spine of secondary axis
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["bottom"].set_visible(False)
+    ax2.spines["left"].set_visible(False)
+    ax2.spines["right"].set_visible(False)
+
+    # Add condition separators at group boundaries
+    for start, end in group_bounds[:-1]:
+        ax.axvline(x=end + 0.5, color="lightgray", linestyle="-", alpha=0.5, linewidth=1)
+
+    # Add background shading for each condition
+    shade_colors = ["lightgray", "lightcoral", "lightblue"]
+    for (start, end), shade in zip(group_bounds, shade_colors):
+        ax.axvspan(start - 0.5, end + 0.5, alpha=0.1, color=shade, zorder=0)
+
+    # Final styling
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_linewidth(1.5)
+    ax.spines["bottom"].set_linewidth(1.5)
+
     plt.tight_layout()
 
     return fig
@@ -518,7 +600,7 @@ different experimental conditions.
 """
 
     # Add statistics for each condition
-    for condition in ["UL control", "PD", "LID off"]:
+    for condition in ["UL control", "6-OHDA", "LID off"]:
         if condition in stats:
             s = stats[condition]
             markdown_content += f"""
@@ -580,6 +662,9 @@ Individual data points represent separate imaging sessions.
 def main():
     """Main analysis function."""
 
+    # Analysis parameters
+    STIMULATION_TYPE = "single_pulse"  # Options: "single_pulse" or "burst_stimulation"
+
     # Set up paths
     base_dir = Path(__file__).parent.parent
     nwb_dir = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/acetylcholine_biosensor/figure_5")
@@ -596,8 +681,8 @@ def main():
     print()
 
     # Analyze NWB dataset
-    print("Step 1: Analyzing NWB files...")
-    df = analyze_nwb_dataset(nwb_dir)
+    print(f"Step 1: Analyzing NWB files for {STIMULATION_TYPE} stimulation...")
+    df = analyze_nwb_dataset(nwb_dir, STIMULATION_TYPE)
     print(f"Analyzed {len(df)} trials total")
 
     # Create figure
@@ -620,7 +705,7 @@ def main():
 
     control_data = df[df["treatment"] == "control"]
     print(f"\nSummary by Condition:")
-    for condition in ["UL control", "PD", "LID off"]:
+    for condition in ["UL control", "6-OHDA", "LID off"]:
         condition_data = control_data[control_data["condition"] == condition]
         if len(condition_data) > 0:
             auc_values = condition_data["auc_normalized"]
