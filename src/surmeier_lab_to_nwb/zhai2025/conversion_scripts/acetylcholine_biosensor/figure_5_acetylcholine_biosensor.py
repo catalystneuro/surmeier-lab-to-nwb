@@ -89,15 +89,123 @@ def parse_slice_session_info(slice_folder: Path) -> dict[str, Any]:
     }
 
 
+def parse_basic_trial_info_from_folder(bot_folder: Path) -> dict[str, str]:
+    """
+    Extract basic trial information from BOT folder name.
+
+    Parameters
+    ----------
+    bot_folder : Path
+        Path to the BOT recording folder
+
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary containing treatment and repetition_number
+    """
+    trial_name = bot_folder.name
+
+    # REGEX PATTERN BREAKDOWN:
+    # BOT_\d{8}_[^_]+_(.+)-(\d+)
+    #
+    # BOT_           - Literal "BOT_" prefix
+    # \d{8}          - Exactly 8 digits (date: MMDDYYYY)
+    # _              - Literal underscore separator
+    # [^_]+          - One or more non-underscore chars (slice info: slice1A, slice2ROI1, etc.)
+    # _              - Literal underscore separator
+    # (.+)           - Group 1: Treatment info (everything before dash, may include underscores)
+    #                  Examples: "ctr", "50nMDA_burst", "ACh wash in", "sul_sinlge"
+    # -              - Literal dash separator
+    # (\d+)          - Group 2: Repetition number (001, 002, etc.)
+    #
+    # Examples:
+    # BOT_04022024_slice2ROI1_ctr_single-001 → Groups: ('ctr_single', '001')
+    # BOT_05242024_slice1A_ACh-001           → Groups: ('ACh', '001')
+    # BOT_04022024_slice2ROI1_ACh wash in-001 → Groups: ('ACh wash in', '001')
+    #
+    pattern = r"BOT_\d{8}_[^_]+_(.+)-(\d+)"
+    match = re.match(pattern, trial_name)
+
+    if match:
+        treatment_raw, trial_num = match.groups()
+
+        # Clean up treatment name for special cases
+        if treatment_raw == "ACh wash in":
+            treatment = "ACh"
+        elif "_" in treatment_raw:
+            # Handle cases like "50nMDA_burst" or "ctr_single" - take everything before last underscore
+            treatment = (
+                "_".join(treatment_raw.split("_")[:-1])
+                if treatment_raw.split("_")[-1] in ["single", "burst", "sinlge", "singl", "20Hz"]
+                else treatment_raw
+            )
+        else:
+            treatment = treatment_raw
+
+        return {"treatment": treatment, "repetition_number": trial_num}
+    else:
+        raise ValueError(f"Could not parse BOT folder name: {trial_name}")
+
+
+def get_stimulation_type_from_xml(bot_folder: Path) -> str:
+    """
+    Determine stimulation type from VoltageOutput XML file.
+
+    Parameters
+    ----------
+    bot_folder : Path
+        Path to the BOT recording folder
+
+    Returns
+    -------
+    str
+        Stimulation type: "calibration", "single_pulse", or "burst_stimulation"
+    """
+    voltage_xml = bot_folder / f"{bot_folder.name}_Cycle00001_VoltageOutput_001.xml"
+
+    if not voltage_xml.exists():
+        return "calibration"  # No electrical stimulation - drug-only calibration
+
+    try:
+        import xml.etree.ElementTree as ET
+
+        tree = ET.parse(voltage_xml)
+        root = tree.getroot()
+
+        # Find the LED waveform (the actual stimulation channel)
+        for waveform in root.findall("Waveform"):
+            name_elem = waveform.find("Name")
+            enabled_elem = waveform.find("Enabled")
+
+            if (
+                name_elem is not None
+                and name_elem.text == "LED"
+                and enabled_elem is not None
+                and enabled_elem.text == "true"
+            ):
+
+                # Get pulse count from the waveform component
+                pulse_train = waveform.find("WaveformComponent_PulseTrain")
+                if pulse_train is not None:
+                    pulse_count_elem = pulse_train.find("PulseCount")
+                    if pulse_count_elem is not None:
+                        pulse_count = int(pulse_count_elem.text)
+
+                        if pulse_count == 1:
+                            return "single_pulse"
+                        elif pulse_count > 1:
+                            return "burst_stimulation"
+
+        # Fallback if we can't find LED waveform
+        raise ValueError(f"Could not determine stimulation type from XML: {voltage_xml}")
+
+    except Exception as e:
+        raise ValueError(f"Error parsing VoltageOutput XML {voltage_xml}: {e}")
+
+
 def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
     """
-    Parse trial information from individual BOT recording folder names.
-
-    Expected format: BOT_[date]_[slice_info]_[treatment]_[stimulation]-[trial_num]
-    Examples:
-    - BOT_04162024_slice2ROI1_50nMDA_burst-001
-    - BOT_05242024_slice1A_ctr_single-001
-    - BOT_04052024_slice2_ACh-001 (calibration)
+    Parse complete trial information from BOT folder using both folder name and XML files.
 
     Parameters
     ----------
@@ -107,118 +215,13 @@ def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
     Returns
     -------
     Dict[str, Any]
-        Dictionary containing trial information
+        Dictionary containing complete trial information
     """
-    trial_name = bot_folder.name
+    # Get basic info from folder name
+    basic_info = parse_basic_trial_info_from_folder(bot_folder)
 
-    # Handle unique edge cases with direct dictionary lookup (6 specific cases)
-    unique_edge_cases = {
-        "BOT_04022024_slice2ROI1_ACh wash in-001": {
-            "treatment": "ACh",
-            "stimulation": "calibration",
-            "trial_number": "001",
-            "is_calibration": True,
-        },
-        "BOT_04022024_slice2ROI1_ACh wash in-002": {
-            "treatment": "ACh",
-            "stimulation": "calibration",
-            "trial_number": "002",
-            "is_calibration": True,
-        },
-        "BOT_04022024_slice2ROI2_ACh wash in-001": {
-            "treatment": "ACh",
-            "stimulation": "calibration",
-            "trial_number": "001",
-            "is_calibration": True,
-        },
-        "BOT_04022024_slice2ROI1_ctr-001": {
-            "treatment": "ctr",
-            "stimulation": "single",
-            "trial_number": "001",
-            "is_calibration": False,
-        },
-        "BOT_04022024_slice2ROI1_ctr-002": {
-            "treatment": "ctr",
-            "stimulation": "single",
-            "trial_number": "002",
-            "is_calibration": False,
-        },
-        "BOT_04122024_slice1ROI1_sul_TTX-001": {
-            "treatment": "sul_TTX_calibration",
-            "stimulation": "calibration",
-            "trial_number": "001",
-            "is_calibration": True,
-        },
-    }
-
-    # Check if this is a unique edge case first
-    if trial_name in unique_edge_cases:
-        case_data = unique_edge_cases[trial_name]
-        date_str = trial_name.split("_")[1]  # Extract date for consistency
-        slice_info = trial_name.split("_")[2]  # Extract slice info for consistency
-        treatment = case_data["treatment"]
-        stimulation = case_data["stimulation"]
-        trial_num = case_data["trial_number"]
-    else:
-        # Parse with regex for all other cases
-        #
-        # REGEX PATTERN BREAKDOWN:
-        # BOT_(\d{8})_(.+?)_([^_]+)(?:_([^-]+))?-(\d+)
-        #
-        # BOT_           - Literal "BOT_" prefix
-        # (\d{8})        - Group 1: Exactly 8 digits (date: MMDDYYYY)
-        # _              - Literal underscore separator
-        # (.+?)          - Group 2: Slice info (non-greedy match: sliceXA, sliceXROIY, etc.)
-        # _              - Literal underscore separator
-        # ([^_]+)        - Group 3: Treatment (one or more non-underscore chars: ctr, 50nMDA, quin, sul, ACh, TTX)
-        # (?:_([^-]+))?  - Group 4: Optional stimulation (non-capturing ?: prefix, optional ? suffix)
-        #                  _([^-]+) - underscore + one or more non-dash chars (single, burst, 20Hz, etc.)
-        # -              - Literal dash separator
-        # (\d+)          - Group 5: Trial number (one or more digits: 001, 002, etc.)
-        #
-        # Examples:
-        # BOT_05242024_slice1A_50nMDA_burst-001 → Groups: ('05242024', 'slice1A', '50nMDA', 'burst', '001')
-        # BOT_05242024_slice1A_ACh-001          → Groups: ('05242024', 'slice1A', 'ACh', None, '001')
-        #
-        pattern = r"BOT_(\d{8})_(.+?)_([^_]+)(?:_([^-]+))?-(\d+)"
-        match = re.match(pattern, trial_name)
-
-        if match:
-            date_str, slice_info, treatment, stimulation, trial_num = match.groups()
-        else:
-            raise ValueError(f"Could not parse BOT folder name: {trial_name}")
-
-    # Now we have all variables set (either from dictionary or regex)
-    # Apply corrections only if this wasn't a dictionary case (dictionary cases are already correct)
-    if trial_name not in unique_edge_cases:
-        # Handle cases where stimulation is None (should only be calibration trials now)
-        if stimulation is None:
-            # ACh trials = Fmax calibration (100 μM acetylcholine chloride saturates GRABACh3.0 sensor)
-            # TTX trials = Fmin calibration (10 μM tetrodotoxin blocks neural transmission)
-            # These are the ONLY uses of ACh/TTX in the protocol - no experimental conditions use them
-            if treatment in ["ACh", "TTX"] or "ACh" in treatment or "TTX" in treatment:
-                stimulation = "calibration"
-            else:
-                # This should never happen - all non-calibration missing stimulation cases are in dictionary
-                raise ValueError(f"Unexpected missing stimulation for non-calibration trial: {trial_name}")
-
-        # Handle common typos in stimulation field (only if not already "calibration")
-        if stimulation != "calibration":
-            stimulation_corrections = {
-                "sinlge": "single",  # Needed for: UL control/04022024slice1ROI*/BOT_*_sul_sinlge-*
-                "singl": "single",  # Needed for: PD/04102024slice2ROI1/BOT_*_quin_singl-*
-                "20Hz": "burst",  # Needed for: PD/05092024slice*/BOT_*_*_20Hz-*
-            }
-
-            # Apply exact matching for corrections to avoid partial matches
-            if stimulation in stimulation_corrections:
-                stimulation = stimulation_corrections[stimulation]
-
-            # Check if stimulation field contains calibration markers (for mixed treatment/stimulation cases)
-            if stimulation in ["ACh", "TTX"] or "ACh" in stimulation or "TTX" in stimulation:
-                # This is actually a calibration trial, adjust treatment and stimulation
-                treatment = f"{treatment}_{stimulation}_calibration"
-                stimulation = "calibration"
+    # Get stimulation type from actual XML files
+    stimulation_type = get_stimulation_type_from_xml(bot_folder)
 
     # Map treatment abbreviations to full names
     treatment_mapping = {
@@ -230,27 +233,13 @@ def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
         "TTX": "TTX_calibration",
     }
 
-    # Clean up treatment name for special cases
-    if treatment == "ACh wash in":
-        treatment = "ACh"
-
-    treatment_full = treatment_mapping.get(treatment, treatment)
-
-    # Map stimulation types
-    stimulation_mapping = {
-        "single": "single_pulse",
-        "burst": "burst_stimulation",
-        "calibration": "calibration",
-    }
-
-    stimulation_full = stimulation_mapping.get(stimulation, stimulation)
+    treatment_full = treatment_mapping.get(basic_info["treatment"], basic_info["treatment"])
 
     return {
-        "trial_name": trial_name,
+        "trial_name": bot_folder.name,
         "treatment": treatment_full,
-        "stimulation": stimulation_full,
-        "trial_number": trial_num,
-        "is_calibration": treatment in ["ACh", "TTX"] or "ACh" in treatment or "TTX" in treatment,
+        "stimulation": stimulation_type,
+        "repetition_number": basic_info["repetition_number"],
     }
 
 
@@ -317,8 +306,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
                 "bot_trial_folder": bot_trial_folder,
                 "trial_info": trial_info,
                 "acetylcholine_interface": acetylcholine_interface,
-                "bot_csv_file": bot_csv_file,
-                "xml_metadata_file": xml_metadata_file,
                 "trial_start_time": trial_start_time,
             }
         )
@@ -327,10 +314,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     trial_interfaces_data.sort(key=lambda x: x["trial_start_time"])
 
     # Get the earliest session start time for the overall session
-    if trial_interfaces_data:
-        actual_session_start_time = trial_interfaces_data[0]["trial_start_time"]
-    else:
-        actual_session_start_time = None
+    earliest_trial_start_time = trial_interfaces_data[0]["trial_start_time"]
+    session_start_time = earliest_trial_start_time.replace(tzinfo=central_tz)
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -342,15 +327,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
     # Create session-specific metadata with Chicago timezone
     central_tz = ZoneInfo("America/Chicago")
-
-    if actual_session_start_time:
-        session_start_time = actual_session_start_time.replace(tzinfo=central_tz)
-        timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    else:
-        session_start_time = datetime.combine(session_info["session_date"], datetime.min.time()).replace(
-            tzinfo=central_tz
-        )
-        timestamp = session_start_time.strftime("%Y%m%d")
 
     # Map Figure 5 specific conditions to explicit parameters
     condition_mapping = {"UL control": "control", "PD": "6-OHDA", "LID off": "off-state"}
@@ -374,7 +350,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         state=state,
         pharm="none",  # No acute pharmacology
         geno="WT",  # Wild-type
-        timestamp=timestamp,
+        timestamp=session_start_time.strftime("%Y%m%d%H%M%S"),
     )
 
     # Handle surgery and pharmacology from template
@@ -439,10 +415,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     trials_table.add_column(name="trial_name", description="Name of the BOT recording trial")
     trials_table.add_column(name="treatment", description="Pharmacological treatment applied")
     trials_table.add_column(name="stimulation", description="Stimulation protocol used")
-    trials_table.add_column(name="stimulus_type", description="Type of stimulation (single/burst/calibration)")
     trials_table.add_column(name="amplitude", description="Stimulation amplitude if applicable")
     trials_table.add_column(name="electrode", description="Electrode model and type")
-    trials_table.add_column(name="is_calibration", description="Whether this is a calibration trial")
     trials_table.add_column(name="original_trial_number", description="Original trial number from BOT filename")
 
     # Process each BOT trial and add fluorescence data (now in temporal order)
@@ -453,8 +427,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         # Extract pre-computed data
         bot_trial_folder = trial_data["bot_trial_folder"]
         trial_info = trial_data["trial_info"]
-        bot_csv_file = trial_data["bot_csv_file"]
-        xml_metadata_file = trial_data["xml_metadata_file"]
         acetylcholine_interface = trial_data["acetylcholine_interface"]
 
         # Create naming mappings for this trial (used for both fluorescence and raw data)
@@ -488,7 +460,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
         # Create base name with condition and stimulus info, avoiding duplications
         # For calibration trials, the treatment already contains "Calibration", so don't add stimulation
-        if trial_info["is_calibration"]:
+        if trial_info["stimulation"] == "calibration":
             base_name = f"{clean_condition}{clean_treatment}"
         else:
             base_name = f"{clean_condition}{clean_treatment}{clean_stimulation}"
@@ -499,9 +471,9 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         trial_start_shifted = cumulative_time + time_shift
 
         # Add trial to trials table (include actual trial number from filename in metadata)
-        stimulus_desc = "None" if trial_info["is_calibration"] else "0.3 mA"
-        electrode_desc = "None" if trial_info["is_calibration"] else "CBAPD75 concentric bipolar"
-        actual_trial_number = int(trial_info["trial_number"])
+        stimulus_desc = "None" if trial_info["stimulation"] == "calibration" else "0.3 mA"
+        electrode_desc = "None" if trial_info["stimulation"] == "calibration" else "CBAPD75 concentric bipolar"
+        actual_trial_number = int(trial_info["repetition_number"])
 
         trials_table.add_interval(
             start_time=trial_start_shifted,
@@ -509,10 +481,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
             trial_name=trial_info["trial_name"],
             treatment=trial_info["treatment"],
             stimulation=trial_info["stimulation"],
-            stimulus_type=trial_info["stimulation"],
             amplitude=stimulus_desc,
             electrode=electrode_desc,
-            is_calibration=trial_info["is_calibration"],
             original_trial_number=actual_trial_number,  # Store actual trial number from filename
         )
 
