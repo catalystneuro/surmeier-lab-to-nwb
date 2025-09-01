@@ -96,13 +96,13 @@ def parse_treatment_and_repetition_from_folder_name(bot_folder: Path) -> dict[st
         raise ValueError(f"Could not parse BOT folder name: {trial_name}")
 
 
-def get_stimulation_type_from_xml(bot_folder: Path) -> str:
+def get_stimulation_info(bot_folder: Path) -> dict[str, Any]:
     """
-    Determine stimulation type from VoltageOutput XML file containing electrical stimulation parameters.
+    Extract complete stimulation information from VoltageOutput XML file.
 
-    This function provides definitive stimulation type detection by parsing the actual acquisition
-    system metadata rather than inferring from folder names. The VoltageOutput XML files contain
-    the complete electrical stimulation protocol used during data acquisition.
+    This function provides comprehensive stimulation detection and timing information by parsing
+    the actual acquisition system metadata. The VoltageOutput XML files contain the complete
+    electrical stimulation protocol used during data acquisition.
 
     XML Structure Analysis:
     ----------------------
@@ -114,6 +114,7 @@ def get_stimulation_type_from_xml(bot_folder: Path) -> str:
                 <Enabled>true</Enabled>
                 <WaveformComponent_PulseTrain>
                     <PulseCount>1</PulseCount>  <!-- Single electrical pulse -->
+                    <FirstPulseDelay>10000</FirstPulseDelay>  <!-- 10s delay -->
                 </WaveformComponent_PulseTrain>
             </Waveform>
         </Experiment>
@@ -126,6 +127,7 @@ def get_stimulation_type_from_xml(bot_folder: Path) -> str:
                 <Enabled>true</Enabled>
                 <WaveformComponent_PulseTrain>
                     <PulseCount>20</PulseCount>  <!-- Burst of 20 pulses at 20Hz -->
+                    <FirstPulseDelay>10000</FirstPulseDelay>  <!-- 10s delay -->
                 </WaveformComponent_PulseTrain>
             </Waveform>
         </Experiment>
@@ -140,11 +142,14 @@ def get_stimulation_type_from_xml(bot_folder: Path) -> str:
 
     Returns
     -------
-    str
-        Stimulation type classification:
-        - "calibration": No VoltageOutput XML file present (TTX/ACh trials)
-        - "single_pulse": PulseCount=1 in LED waveform (single electrical stimulus)
-        - "burst_stimulation": PulseCount>1 in LED waveform (typically 20 pulses at 20Hz)
+    dict
+        Dictionary containing complete stimulation information:
+        - stimulation_type: "single_pulse", "burst_stimulation", or "calibration"
+        - stimulus_delay_ms: FirstPulseDelay in milliseconds (None for calibration)
+        - pulse_count: Number of pulses (0 for calibration)
+        - pulse_width_ms: Width of each pulse in milliseconds (None for calibration)
+        - pulse_spacing_ms: Spacing between pulses in milliseconds (None for calibration)
+        - has_stimulus: Boolean indicating if electrical stimulation is present
 
     Raises
     ------
@@ -163,7 +168,14 @@ def get_stimulation_type_from_xml(bot_folder: Path) -> str:
 
     # Calibration trials (TTX, ACh) have no electrical stimulation so no VoltageOutput XML
     if not voltage_xml.exists():
-        return "calibration"  # Drug-only calibration experiments (TTX for Fmin, ACh for Fmax)
+        return {
+            "stimulation_type": "calibration",
+            "stimulus_delay_ms": None,
+            "pulse_count": 0,
+            "pulse_width_ms": None,
+            "pulse_spacing_ms": None,
+            "has_stimulus": False,
+        }
 
     import xml.etree.ElementTree as ET
 
@@ -185,14 +197,26 @@ def get_stimulation_type_from_xml(bot_folder: Path) -> str:
         ):
             # Extract stimulation parameters from the pulse train component
             pulse_train = waveform.find("WaveformComponent_PulseTrain")
-            pulse_count_elem = pulse_train.find("PulseCount")
-            pulse_count = int(pulse_count_elem.text)
+
+            first_pulse_delay = int(pulse_train.find("FirstPulseDelay").text)
+            pulse_count = int(pulse_train.find("PulseCount").text)
+            pulse_width = int(pulse_train.find("PulseWidth").text)
+            pulse_spacing = int(pulse_train.find("PulseSpacing").text)
 
             # Classify stimulation type based on number of electrical pulses
             if pulse_count == 1:
-                return "single_pulse"  # Single electrical stimulus (mimics single action potential)
+                stimulation_type = "single_pulse"  # Single electrical stimulus
             else:
-                return "burst_stimulation"  # Multiple pulses (typically 20 at 20Hz, mimics burst firing)
+                stimulation_type = "burst_stimulation"  # Multiple pulses (typically 20 at 20Hz)
+
+            return {
+                "stimulation_type": stimulation_type,
+                "stimulus_delay_ms": first_pulse_delay,
+                "pulse_count": pulse_count,
+                "pulse_width_ms": pulse_width,
+                "pulse_spacing_ms": pulse_spacing,
+                "has_stimulus": True,
+            }
 
     # If we reach here, XML exists but doesn't contain expected LED waveform structure
     raise ValueError(f"VoltageOutput XML exists but no enabled LED waveform found: {voltage_xml}")
@@ -215,8 +239,8 @@ def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
     # Get basic info from folder name
     basic_info = parse_treatment_and_repetition_from_folder_name(bot_folder)
 
-    # Get stimulation type from actual XML files
-    stimulation_type = get_stimulation_type_from_xml(bot_folder)
+    # Get complete stimulation information from XML files
+    stimulation_info = get_stimulation_info(bot_folder)
 
     # Map treatment abbreviations to full names
     treatment_mapping = {
@@ -233,8 +257,9 @@ def parse_trial_info_from_bot_folder(bot_folder: Path) -> dict[str, Any]:
     return {
         "trial_name": bot_folder.name,
         "treatment": treatment_full,
-        "stimulation": stimulation_type,
+        "stimulation": stimulation_info["stimulation_type"],
         "repetition_number": basic_info["repetition_number"],
+        "stimulation_info": stimulation_info,
     }
 
 
@@ -400,6 +425,13 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         name="repetition_number",
         description="Repetition number within treatment/stimulation combination (001, 002, etc.) as recorded in original BOT filename",
     )
+    nwbfile.add_trial_column(
+        name="stimulus_start_time",
+        description="Stimulus onset time in session coordinates (seconds). NaN for calibration trials without stimulation.",
+    )
+    nwbfile.add_trial_column(
+        name="roi_series_name", description="Name of the corresponding GRABCh RoiResponseSeries for this trial"
+    )
 
     # Process each BOT trial and add fluorescence data (now in temporal order)
     for trial_index, trial_data in enumerate(trial_interfaces_data):
@@ -449,14 +481,13 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         fluorescence_series_name = f"{base_name}"
         repetition_num = int(trial_info["repetition_number"])
 
-        # Handle naming collisions with hard-coded mappings
-        collision_mappings = {"BOT_04022024_slice1ROI_sul_sinlge-001": 5}  # Map to repetition 005
+        # Skip problematic trials that are too short or incomplete
+        trials_to_skip = {"BOT_04022024_slice1ROI_sul_sinlge-001"}  # Short/incomplete recording
 
-        # Apply collision mapping if this trial folder matches a known collision case
-        if bot_trial_folder.name in collision_mappings:
-            final_repetition_num = collision_mappings[bot_trial_folder.name]
-        else:
-            final_repetition_num = repetition_num
+        if bot_trial_folder.name in trials_to_skip:
+            continue
+
+        final_repetition_num = repetition_num
 
         acetylcholine_interface.add_to_nwbfile(
             nwbfile=nwbfile, fluorescence_series_name=fluorescence_series_name, repetition_number=final_repetition_num
@@ -472,12 +503,24 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         trial_start_time_adjusted = float(timestamps[0])
         trial_stop_time_adjusted = float(timestamps[-1])
 
+        # Calculate stimulus timing from XML data
+        stimulation_info = trial_info["stimulation_info"]
+        if stimulation_info["stimulus_delay_ms"] is not None:
+            calculated_stimulus_time = trial_start_time_adjusted + (stimulation_info["stimulus_delay_ms"] / 1000.0)
+        else:
+            # Use NaN for calibration trials without electrical stimulation
+            import numpy as np
+
+            calculated_stimulus_time = np.nan
+
         nwbfile.add_trial(
             start_time=trial_start_time_adjusted,
             stop_time=trial_stop_time_adjusted,
             treatment=trial_info["treatment"],
             stimulation=trial_info["stimulation"],
             repetition_number=final_repetition_num,
+            stimulus_start_time=calculated_stimulus_time,
+            roi_series_name=grabch_series_name,
         )
 
         bruker_converter = BrukerTiffSinglePlaneConverter(folder_path=bot_trial_folder)
