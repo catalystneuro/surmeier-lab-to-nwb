@@ -166,6 +166,14 @@ Figure 5_SF2/ (Raw data directory)
 - **PD and UL control**: Use standard "sliceXROIY" format for multiple fields per slice
 - **Experimental variation**: Some slices have single ROI, others have multiple ROIs per slice
 
+### Session Timing Validation
+**Temporal analysis confirms appropriate session boundaries**:
+- **ROI separations** (ROI1 ↔ ROI2): 3-5 minutes apart - represent different imaging fields on the **same physical slice** (should share same NWB session)
+- **Slice separations** (slice1 ↔ slice2): 1-3 hours apart - represent **different physical slice preparations** from same day (separate NWB sessions)
+- **Date separations**: 1-22 days apart - represent **different experimental sessions/animals** (definitely separate sessions)
+
+The conversion script correctly treats each slice folder as a separate NWB session, with ROI subfolders sharing session metadata when present.
+
 ### Key Structural Differences Observed
 - **LID off group**: Uses "sliceXA" naming convention instead of "sliceXROIY"
 - **Missing TTX in some experiments**: Not all slice directories contain TTX calibration trials
@@ -480,33 +488,6 @@ The Figure 5 conversion script initially attempted to determine stimulation type
 - **PulseCount**: Distinguishes between single pulse (`PulseCount=1`) and burst stimulation (`PulseCount=20`)
 - **Experiment Name**: Provides human-readable confirmation (`"1pulse"` vs `"20pulses@20Hz"`)
 
-### Implementation Functions
-```python
-def get_stimulation_type_from_xml(bot_folder: Path) -> str:
-    """Determine stimulation type from VoltageOutput XML file.
-
-    Returns:
-        - "single" for PulseCount=1
-        - "burst" for PulseCount=20
-        - "calibration" for missing XML (TTX/ACh trials)
-    """
-```
-
-### Advantages of XML-Based Detection
-1. **Eliminates 280+ edge cases** from folder name parsing
-2. **Direct source of truth** - actual stimulation parameters used
-3. **Simplified code** - reduced from ~150 lines to ~50 lines
-4. **Reliable detection** - no assumptions about naming conventions
-5. **Future-proof** - works regardless of folder naming changes
-
-### Legacy Folder-Name Approach Issues
-The previous approach used complex regex patterns to infer stimulation type from folder names:
-- Required handling numerous edge cases and exceptions
-- Made assumptions about naming consistency
-- Failed when folder names deviated from expected patterns
-- Created maintenance burden with growing exception lists
-
-The XML-based approach provides definitive stimulation information directly from the acquisition system metadata, eliminating the need for folder name inference entirely.
 
 ## Related Files
 - [Overview](../conversion_notes_overview.md)

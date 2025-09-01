@@ -860,9 +860,15 @@ class BrukerReferenceImagesInterface(ImageInterface):
 
         return metadata
 
-    def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict[str, Any]] = None) -> None:
+    def add_to_nwbfile(
+        self,
+        nwbfile: NWBFile,
+        metadata: Optional[dict[str, Any]] = None,
+        qualifier: str = "",
+        repetition_number: Optional[int] = None,
+    ) -> None:
         """
-        Add reference images to the NWB file.
+        Add reference images to the NWB file in a shared container.
 
         Parameters
         ----------
@@ -870,13 +876,77 @@ class BrukerReferenceImagesInterface(ImageInterface):
             The NWB file to add the reference images to
         metadata : dict[str, Any], optional
             Metadata for the images. If None, will use get_metadata()
+        qualifier : str, optional
+            Qualifier to prepend to image names (e.g., condition+treatment+stimulation)
+        repetition_number : int, optional
+            Repetition number to append to image names in 3-digit format
         """
+        import tifffile
+        from pynwb.image import Image, Images
+
         # Use provided metadata or get default
         if metadata is None:
             metadata = self.get_metadata()
 
-        # Call parent method to add images using ImageInterface functionality
-        super().add_to_nwbfile(nwbfile=nwbfile, metadata=metadata)
+        # Check if shared container already exists
+        container_name = "ImagesBackgroundReferences"
+        if container_name in nwbfile.acquisition:
+            images_container = nwbfile.acquisition[container_name]
+        else:
+            # Create shared container
+            images_container = Images(
+                name=container_name,
+                description=(
+                    "Background reference images used for PMT background subtraction across all trials. "
+                    "These images were acquired with zero laser power to measure "
+                    "baseline PMT response for background correction as described in methods."
+                ),
+            )
+            nwbfile.add_acquisition(images_container)
+
+        # Process and add each reference image with new naming convention
+        for file_path_str, file_info in self.reference_file_info.items():
+            file_path = Path(file_path_str)
+
+            # Load image data
+            image_data = tifffile.imread(file_path)
+
+            # Handle multi-channel images by converting to grayscale
+            if len(image_data.shape) > 2:
+                # Convert to grayscale if multi-channel (RGB or RGBA)
+                if image_data.shape[2] == 3:  # RGB
+                    image_data = np.mean(image_data, axis=2)
+                elif image_data.shape[2] == 4:  # RGBA
+                    image_data = np.mean(image_data[:, :, :3], axis=2)  # Ignore alpha channel
+                image_data = image_data.astype(np.float32)
+
+            # Extract channel information for display name
+            channel_info = file_info.get("channel", "unknown")
+            channel_display = channel_info  # Ch1, Ch2, etc.
+
+            # Determine image type
+            bit_depth = file_info.get("bit_depth", "unknown")
+            if bit_depth == "16bit":
+                type_suffix = "16BitReference"
+            elif bit_depth == "8bit":
+                type_suffix = "8BitReference"
+            else:
+                type_suffix = "Reference"
+
+            # Build new image name following pattern: Image{qualifier}{channel_to_display}{type_of_image}{repetition_if_exists}
+            image_name = f"Image{qualifier}{channel_display}{type_suffix}"
+            if repetition_number is not None:
+                image_name += f"Repetition{repetition_number:03d}"
+
+            # Create image with new name
+            image = Image(
+                name=image_name,
+                data=image_data,
+                description=file_info["description"],
+            )
+
+            # Add to shared container
+            images_container.add_image(image)
 
     @classmethod
     def from_trial_folder(

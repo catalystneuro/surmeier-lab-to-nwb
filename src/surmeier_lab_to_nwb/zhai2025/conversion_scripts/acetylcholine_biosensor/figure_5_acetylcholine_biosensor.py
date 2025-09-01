@@ -289,7 +289,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
         # Create interface to get session start time
         acetylcholine_interface = PrairieViewFluorescenceInterface(
-            bot_csv_data_file_path=bot_csv_file, xml_metadata_file_path=xml_metadata_file
+            bot_csv_data_file_path=bot_csv_file,
+            xml_metadata_file_path=xml_metadata_file,
         )
 
         # Get session start time for this trial
@@ -308,6 +309,9 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     # Sort all trials by their actual session start time
     trial_interfaces_data.sort(key=lambda x: x["trial_start_time"])
 
+    # Create session-specific metadata with Chicago timezone
+    central_tz = ZoneInfo("America/Chicago")
+
     # Get the earliest session start time for the overall session
     earliest_trial_start_time = trial_interfaces_data[0]["trial_start_time"]
     session_start_time = earliest_trial_start_time.replace(tzinfo=central_tz)
@@ -319,9 +323,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_5_acetylcholine_biosensor"]
-
-    # Create session-specific metadata with Chicago timezone
-    central_tz = ZoneInfo("America/Chicago")
 
     # Map Figure 5 specific conditions to explicit parameters
     condition_mapping = {"UL control": "control", "PD": "6-OHDA", "LID off": "off-state"}
@@ -383,7 +384,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
     # Add stimulation device and electrode information
     stimulation_device = Device(
-        name="DeviceConcentricBipolarElectrode",
+        name="StimulusElectrode",
         description=(
             "Concentric bipolar stimulating electrode (CBAPD75, FHC) for electrical "
             "stimulation of striatal tissue. Placed 200 μm ventral to GRABACh3.0 "
@@ -392,28 +393,15 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     )
     nwbfile.add_device(stimulation_device)
 
-    # Add imaging device for BOT interface
-    imaging_device = Device(
-        name="default",  # Name expected by BrukerTiffSinglePlaneConverter
-        description=(
-            "Bruker two-photon microscope for acetylcholine GRAB biosensor imaging. "
-            "Used for brightness over time (BOT) measurements of acetylcholine release dynamics."
-        ),
-    )
-    nwbfile.add_device(imaging_device)
-
     # Add custom trial columns for BOT recording metadata
-    nwbfile.add_trial_column(name="trial_name", description="Name of the BOT recording trial")
     nwbfile.add_trial_column(name="treatment", description="Pharmacological treatment applied")
     nwbfile.add_trial_column(name="stimulation", description="Stimulation protocol used")
-    nwbfile.add_trial_column(name="amplitude", description="Stimulation amplitude if applicable")
-    nwbfile.add_trial_column(name="electrode", description="Electrode model and type")
-    nwbfile.add_trial_column(name="original_trial_number", description="Original trial number from BOT filename")
+    nwbfile.add_trial_column(
+        name="repetition_number",
+        description="Repetition number within treatment/stimulation combination (001, 002, etc.) as recorded in original BOT filename",
+    )
 
     # Process each BOT trial and add fluorescence data (now in temporal order)
-    cumulative_time = 0.0
-    trial_duration = 8.0  # Typical trial length in seconds
-
     for trial_index, trial_data in enumerate(trial_interfaces_data):
         # Extract pre-computed data
         bot_trial_folder = trial_data["bot_trial_folder"]
@@ -421,12 +409,6 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         acetylcholine_interface = trial_data["acetylcholine_interface"]
 
         # Create naming mappings for this trial (used for both fluorescence and raw data)
-        condition_to_camel_case = {
-            "UL control": "ULControl",
-            "PD": "PD",
-            "LID off": "LIDOff",
-        }
-
         treatment_to_camel_case = {
             "control": "Control",
             "50nM_dopamine": "50nMDopamine",
@@ -443,47 +425,61 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         }
 
         # Get camelCase versions
-        clean_condition = condition_to_camel_case.get(condition, condition.replace(" ", "").replace("-", ""))
         clean_treatment = treatment_to_camel_case.get(trial_info["treatment"], trial_info["treatment"].replace("_", ""))
         clean_stimulation = stimulation_to_camel_case.get(
             trial_info["stimulation"], trial_info["stimulation"].replace("_", "")
         )
 
-        # Create base name with condition and stimulus info, avoiding duplications
+        # Create base name without condition (same for all objects in session)
         # For calibration trials, the treatment already contains "Calibration", so don't add stimulation
         if trial_info["stimulation"] == "calibration":
-            base_name = f"{clean_condition}{clean_treatment}"
+            base_name = f"{clean_treatment}"
         else:
-            base_name = f"{clean_condition}{clean_treatment}{clean_stimulation}"
+            base_name = f"{clean_treatment}{clean_stimulation}"
 
-        # Get precise trial start time and shift timestamps (interface already created)
+        # Calculate aligned starting time for this trial
         trial_start_time = trial_data["trial_start_time"]
-        time_shift = (trial_start_time - session_start_time.replace(tzinfo=None)).total_seconds()
-        trial_start_shifted = cumulative_time + time_shift
+        aligned_t_start = (trial_start_time - session_start_time.replace(tzinfo=None)).total_seconds()
 
-        # Add trial to trials table (include actual trial number from filename in metadata)
-        stimulus_desc = "None" if trial_info["stimulation"] == "calibration" else "0.3 mA"
-        electrode_desc = "None" if trial_info["stimulation"] == "calibration" else "CBAPD75 concentric bipolar"
-        actual_trial_number = int(trial_info["repetition_number"])
-
-        nwbfile.add_trial(
-            start_time=trial_start_shifted,
-            stop_time=trial_start_shifted + trial_duration,
-            trial_name=trial_info["trial_name"],
-            treatment=trial_info["treatment"],
-            stimulation=trial_info["stimulation"],
-            amplitude=stimulus_desc,
-            electrode=electrode_desc,
-            original_trial_number=actual_trial_number,  # Store actual trial number from filename
-        )
+        # Set aligned starting time on the interface
+        acetylcholine_interface.set_aligned_starting_time(aligned_t_start)
 
         # Add fluorescence data for this trial with trial-specific naming
-        # Use sequential trial_index for unique naming within session, actual trial number stored in trials table
-        fluorescence_suffix = f"{base_name}Trial{trial_index:03d}"
-        acetylcholine_interface.add_to_nwbfile(nwbfile=nwbfile, trial_id=fluorescence_suffix)
+        # Use sequential trial_index for unique naming within session, actual repetition number for display
+        fluorescence_series_name = f"{base_name}"
+        repetition_num = int(trial_info["repetition_number"])
 
-        # Add raw imaging data for this trial
-        # Add raw imaging data with custom naming
+        # Handle naming collisions with hard-coded mappings
+        collision_mappings = {"BOT_04022024_slice1ROI_sul_sinlge-001": 5}  # Map to repetition 005
+
+        # Apply collision mapping if this trial folder matches a known collision case
+        if bot_trial_folder.name in collision_mappings:
+            final_repetition_num = collision_mappings[bot_trial_folder.name]
+        else:
+            final_repetition_num = repetition_num
+
+        acetylcholine_interface.add_to_nwbfile(
+            nwbfile=nwbfile, fluorescence_series_name=fluorescence_series_name, repetition_number=final_repetition_num
+        )
+
+        # Get actual trial start/stop times from the fluorescence data timestamps
+        # The interface creates series names like: RoiResponseSeriesGRABCh{treatment}{stimulation}Repetition{XXX}
+        fluorescence_module = nwbfile.processing["ophys"]["Fluorescence"]
+        grabch_series_name = f"RoiResponseSeriesGRABCh{fluorescence_series_name}Repetition{final_repetition_num:03d}"
+        fluorescence_series = fluorescence_module.roi_response_series[grabch_series_name]
+
+        timestamps = fluorescence_series.get_timestamps()
+        trial_start_time_adjusted = float(timestamps[0])
+        trial_stop_time_adjusted = float(timestamps[-1])
+
+        nwbfile.add_trial(
+            start_time=trial_start_time_adjusted,
+            stop_time=trial_stop_time_adjusted,
+            treatment=trial_info["treatment"],
+            stimulation=trial_info["stimulation"],
+            repetition_number=final_repetition_num,
+        )
+
         bruker_converter = BrukerTiffSinglePlaneConverter(folder_path=bot_trial_folder)
         bruker_metadata = bruker_converter.get_metadata()
 
@@ -500,22 +496,24 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
                 else:
                     channel_name = channel_suffix.replace("Ch", "Channel")
 
-                # Create series name: TwoPhotonSeries + condition + treatment + stimulation + channel + trial
-                series_metadata["name"] = f"TwoPhotonSeries{base_name}{channel_name}Trial{trial_index:03d}"
+                # Create series name: TwoPhotonSeries{channel}{treatment}{stimulation}Repetition{XXX}
+                series_metadata["name"] = (
+                    f"TwoPhotonSeries{channel_name}{base_name}Repetition{final_repetition_num:03d}"
+                )
 
         bruker_converter.add_to_nwbfile(nwbfile=nwbfile, metadata=bruker_metadata)
 
-        # Add reference images if they exist for this trial
+        # Add reference images if they exist for this trial (all in shared container)
         references_folder = bot_trial_folder / "References"
-        # Create container name specific to this trial
-        ref_container_name = f"BackgroundReferences{base_name}Trial{trial_index:03d}"
-        reference_interface = BrukerReferenceImagesInterface(
-            references_folder_path=references_folder, container_name=ref_container_name
-        )
-        reference_interface.add_to_nwbfile(nwbfile=nwbfile)
-
-        # Update cumulative time for next trial
-        cumulative_time = trial_start_shifted + trial_duration + 1.0  # 1s gap between trials
+        if references_folder.exists() and references_folder.is_dir():
+            reference_interface = BrukerReferenceImagesInterface(
+                references_folder_path=references_folder, container_name="ImagesBackgroundReferences"
+            )
+            reference_interface.add_to_nwbfile(
+                nwbfile=nwbfile,
+                qualifier=base_name,  # condition + treatment + stimulation
+                repetition_number=final_repetition_num,
+            )
 
     return nwbfile
 
