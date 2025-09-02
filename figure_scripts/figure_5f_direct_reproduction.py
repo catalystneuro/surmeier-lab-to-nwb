@@ -222,33 +222,27 @@ def create_figure_5f_boxplots(df: pd.DataFrame) -> plt.Figure:
     ax.set_ylim(-0.05, 0.7)
     ax.set_yticks([0, 0.2, 0.4, 0.6])
 
-    # Add horizontal line at y=0
-    ax.axhline(y=0, color="black", linestyle="--", alpha=0.5, linewidth=0.8)
+    # Add dotted horizontal line at y=0
+    ax.axhline(y=0, color="black", linestyle=":", linewidth=1.0, alpha=0.8, zorder=2)
 
-    # Set x-axis using dynamic group centers
+    # Set x-axis limits
     first_pos = group_bounds[0][0]
     last_pos = group_bounds[-1][1]
     ax.set_xlim(first_pos - 0.5, last_pos + 0.5)
+
+    # Bottom: treatment labels under the x-axis line
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=9)
+
+    # Top: condition labels centered above groups
     group_centers = [0.5 * (s + e) for (s, e) in group_bounds]
-    ax.set_xticks(group_centers)
-    ax.set_xticklabels(condition_labels, fontsize=11, fontweight="bold")
-
-    # Add treatment labels below
-    treatment_positions = x_positions
-    treatment_labels = x_labels
-
-    # Create secondary x-axis for treatment labels
-    ax2 = ax.twiny()
-    ax2.set_xlim(ax.get_xlim())
-    ax2.set_xticks(treatment_positions)
-    ax2.set_xticklabels(treatment_labels, rotation=45, ha="right", fontsize=9)
-    ax2.tick_params(axis="x", which="major", pad=0)
-
-    # Remove top spine of secondary axis
-    ax2.spines["top"].set_visible(False)
-    ax2.spines["bottom"].set_visible(False)
-    ax2.spines["left"].set_visible(False)
-    ax2.spines["right"].set_visible(False)
+    ax_top = ax.twiny()
+    ax_top.set_xlim(ax.get_xlim())
+    ax_top.set_xticks(group_centers)
+    ax_top.set_xticklabels(condition_labels, fontsize=11, fontweight="bold")
+    ax_top.tick_params(axis="x", which="major", pad=0)
+    for spine in ["top", "bottom", "left", "right"]:
+        ax_top.spines[spine].set_visible(False)
 
     # Add condition separators at group boundaries
     for start, end in group_bounds[:-1]:

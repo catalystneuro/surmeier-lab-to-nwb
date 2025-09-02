@@ -343,6 +343,33 @@ def analyze_nwb_dataset(nwb_dir: Path, stimulation_type: str = "single_pulse") -
     return pd.DataFrame(results)
 
 
+def _collapse_first_two_trials_per_file(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Collapse per-trial rows into one value per file×condition×treatment by
+    averaging the first two trials' normalized AUCs.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Per-trial dataset from analyze_nwb_dataset
+
+    Returns
+    -------
+    pd.DataFrame
+        Collapsed dataset with columns: condition, treatment, file, auc_normalized
+    """
+    plot_data = df[df["treatment"].isin(["control", "dopamine", "quinpirole", "sulpiride"])].copy()
+    plot_data = plot_data.dropna(subset=["auc_normalized"])  # remove invalid rows
+
+    # Preserve original order as proxy for chronological ordering, then take first two
+    plot_data = plot_data.reset_index().rename(columns={"index": "_row_order"})
+    first_two = plot_data.groupby(["condition", "treatment", "file"], sort=False, group_keys=False).apply(
+        lambda g: g.nsmallest(2, columns=["_row_order"])
+    )
+    collapsed = first_two.groupby(["condition", "treatment", "file"], as_index=False)["auc_normalized"].mean()
+    return collapsed
+
+
 def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
     """
     Create Figure 5F box plots from NWB-derived data matching the direct reproduction exactly.
@@ -357,6 +384,14 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
 
     # Remove invalid data
     plot_data = plot_data.dropna(subset=["auc_normalized"])
+
+    # Collapse to per-file averages using the first two trials per file×treatment.
+    # Preserve original row order (proxy for chronological order) and average AUCs.
+    plot_data = plot_data.reset_index().rename(columns={"index": "_row_order"})
+    first_two = plot_data.groupby(["condition", "treatment", "file"], sort=False, group_keys=False).apply(
+        lambda g: g.nsmallest(2, columns=["_row_order"])
+    )
+    collapsed = first_two.groupby(["condition", "treatment", "file"], as_index=False)["auc_normalized"].mean()
 
     # Create single panel figure to match direct reproduction layout
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
@@ -395,7 +430,7 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
 
     # Prepare data for all conditions and treatments
     for i, condition in enumerate(conditions):
-        condition_data = plot_data[plot_data["condition"] == condition]
+        condition_data = collapsed[collapsed["condition"] == condition]
 
         start_pos = current_pos
         treatments = treatments_by_condition[condition]
@@ -452,7 +487,7 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
     # We connect control with other treatments within each condition when lengths match
     pos_idx = 0
     for i, condition in enumerate(conditions):
-        condition_df = plot_data[plot_data["condition"] == condition]
+        condition_df = collapsed[collapsed["condition"] == condition]
         treatments = treatments_by_condition[condition]
 
         # Build a mapping from treatment to data and x position
@@ -493,33 +528,27 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
     ax.set_ylim(-0.05, 0.7)
     ax.set_yticks([0, 0.2, 0.4, 0.6])
 
-    # Add horizontal line at y=0
-    ax.axhline(y=0, color="black", linestyle="--", alpha=0.5, linewidth=0.8)
+    # Add dotted horizontal line at y=0
+    ax.axhline(y=0, color="black", linestyle=":", linewidth=1.0, alpha=0.8, zorder=2)
 
-    # Set x-axis using dynamic group centers
+    # Set x-axis limits
     first_pos = group_bounds[0][0]
     last_pos = group_bounds[-1][1]
     ax.set_xlim(first_pos - 0.5, last_pos + 0.5)
+
+    # Bottom: treatment labels under the x-axis line
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=9)
+
+    # Top: condition labels centered above groups
     group_centers = [0.5 * (s + e) for (s, e) in group_bounds]
-    ax.set_xticks(group_centers)
-    ax.set_xticklabels(condition_labels, fontsize=11, fontweight="bold")
-
-    # Add treatment labels below
-    treatment_positions = x_positions
-    treatment_labels = x_labels
-
-    # Create secondary x-axis for treatment labels
-    ax2 = ax.twiny()
-    ax2.set_xlim(ax.get_xlim())
-    ax2.set_xticks(treatment_positions)
-    ax2.set_xticklabels(treatment_labels, rotation=45, ha="right", fontsize=9)
-    ax2.tick_params(axis="x", which="major", pad=0)
-
-    # Remove top spine of secondary axis
-    ax2.spines["top"].set_visible(False)
-    ax2.spines["bottom"].set_visible(False)
-    ax2.spines["left"].set_visible(False)
-    ax2.spines["right"].set_visible(False)
+    ax_top = ax.twiny()
+    ax_top.set_xlim(ax.get_xlim())
+    ax_top.set_xticks(group_centers)
+    ax_top.set_xticklabels(condition_labels, fontsize=11, fontweight="bold")
+    ax_top.tick_params(axis="x", which="major", pad=0)
+    for spine in ["top", "bottom", "left", "right"]:
+        ax_top.spines[spine].set_visible(False)
 
     # Add condition separators at group boundaries
     for start, end in group_bounds[:-1]:
@@ -559,9 +588,12 @@ def generate_nwb_report(df: pd.DataFrame, output_dir: Path) -> str:
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Calculate summary statistics
+    # Collapse per-trial data to per-file averages (first two trials)
+    collapsed = _collapse_first_two_trials_per_file(df)
+
+    # Calculate summary statistics using collapsed control data
     stats = {}
-    control_data = df[df["treatment"] == "control"]
+    control_data = collapsed[collapsed["treatment"] == "control"]
 
     for condition in control_data["condition"].unique():
         condition_data = control_data[control_data["condition"] == condition]
@@ -589,9 +621,9 @@ different experimental conditions.
 
 ### Key Findings
 
-- **Total NWB Files Analyzed:** {len(df)}
-- **Control Condition Measurements:** {len(control_data)}
-- **Experimental Conditions:** {len(control_data['condition'].unique())}
+- **Total Per-file Datapoints (all treatments):** {len(collapsed)}
+- **Control Condition Per-file Measurements:** {len(control_data)}
+- **Experimental Conditions (control):** {len(control_data['condition'].unique())}
 
 ## Summary Statistics
 
@@ -698,18 +730,21 @@ def main():
     report_path = generate_nwb_report(df, output_dir)
     print(f"  Saved: {report_path}")
 
-    # Print summary
+    # Print summary (collapsed per-file counts)
     print("\n" + "=" * 80)
     print("ANALYSIS COMPLETED SUCCESSFULLY!")
     print("=" * 80)
 
-    control_data = df[df["treatment"] == "control"]
-    print(f"\nSummary by Condition:")
+    # Collapsed dataset for summary
+    collapsed = _collapse_first_two_trials_per_file(df)
+    control_collapsed = collapsed[collapsed["treatment"] == "control"]
+    print("\nSummary by Condition (collapsed per-file, control):")
     for condition in ["UL control", "6-OHDA", "LID off"]:
-        condition_data = control_data[control_data["condition"] == condition]
+        condition_data = control_collapsed[control_collapsed["condition"] == condition]
         if len(condition_data) > 0:
             auc_values = condition_data["auc_normalized"]
             print(f"  {condition}: n={len(auc_values)}, mean={auc_values.mean():.3f}±{auc_values.sem():.3f}")
+    print(f"\nTotal per-file datapoints (all treatments): {len(collapsed)}")
 
     print(f"\nOutput Files:")
     print(f"  - {fig_path}")
