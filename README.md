@@ -28,18 +28,45 @@ This repository contains conversion scripts for data from the **Zhai et al. 2025
 
 ## Installation
 
-### Basic installation
+### Installation from GitHub
 
-You can install the latest release of the package with pip:
+This package is currently only available from GitHub (not yet released on PyPI). This project requires Python 3.12 or higher.
 
+#### Option 1: Using uv (Recommended)
+The project uses `uv` for fast and reliable dependency management. Install `uv` first ([installation instructions](https://docs.astral.sh/uv/getting-started/installation/)), then:
+
+```bash
+git clone https://github.com/catalystneuro/surmeier-lab-to-nwb
+cd surmeier-lab-to-nwb
+uv sync
 ```
-pip install surmeier-lab-to-nwb
+
+This will create a virtual environment and install all dependencies automatically.
+
+#### Option 2: Using conda
+If you prefer conda for environment management ([installation instructions](https://docs.conda.io/en/latest/miniconda.html)):
+
+```bash
+git clone https://github.com/catalystneuro/surmeier-lab-to-nwb
+cd surmeier-lab-to-nwb
+conda create -n surmeier-lab-to-nwb python=3.12
+conda activate surmeier-lab-to-nwb
+pip install --editable .
 ```
 
-We recommend that you install the package inside a [virtual environment](https://docs.python.org/3/tutorial/venv.html). A simple way of doing this is to use a [conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/environments.html) from the `conda` package manager ([installation instructions](https://docs.conda.io/en/latest/miniconda.html)). Detailed instructions on how to use conda environments can be found in their [documentation](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html).
+#### Option 3: Using pip with virtual environment
+Alternatively, you can use standard Python tools:
+
+```bash
+git clone https://github.com/catalystneuro/surmeier-lab-to-nwb
+cd surmeier-lab-to-nwb
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install --editable .
+```
 
 ### Running a specific conversion
-Once you have installed the package with pip, you can run any of the conversion scripts in a notebook or a python file:
+Once you have installed the package, you can run any of the conversion scripts in a notebook or a python file:
 
 Figure-specific conversion scripts are located in `src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/`. Each script handles specific data types and experimental conditions:
 
@@ -51,30 +78,7 @@ python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitabilit
 python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py
 ```
 
-## Installation from GitHub
-Another option is to install the package directly from GitHub. This option has the advantage that the source code can be modified if you need to amend some of the code we originally provided to adapt to future experimental differences. To install the conversion from GitHub you will need to use `git` ([installation instructions](https://github.com/git-guides/install-git)). We also recommend the installation of `conda` ([installation instructions](https://docs.conda.io/en/latest/miniconda.html)) as it contains all the required machinery in a single and simple install.
-
-From a terminal (note that conda should install one in your system) you can do the following:
-
-```
-git clone https://github.com/catalystneuro/surmeier-lab-to-nwb
-cd surmeier-lab-to-nwb
-conda env create --file make_env.yml
-conda activate surmeier-lab-to-nwb-env
-```
-
-This creates a [conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/environments.html) which isolates the conversion code from your system libraries.  We recommend that you run all your conversion related tasks and analysis from the created environment in order to minimize issues related to package dependencies.
-
-Alternatively, if you want to avoid conda altogether (for example if you use another virtual environment tool) you can install the repository with the following commands using only pip:
-
-```
-git clone https://github.com/catalystneuro/surmeier-lab-to-nwb
-cd surmeier-lab-to-nwb
-pip install --editable .
-```
-
-Note:
-both of the methods above install the repository in [editable mode](https://pip.pypa.io/en/stable/cli/pip_install/#editable-installs).
+**Note:** All methods above install the repository in [editable mode](https://pip.pypa.io/en/stable/cli/pip_install/#editable-installs), allowing you to modify the source code if needed.
 
 
 ## Repository structure
