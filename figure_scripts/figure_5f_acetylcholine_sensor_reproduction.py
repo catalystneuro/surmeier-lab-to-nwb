@@ -212,27 +212,23 @@ def get_calibration_values_from_trials(trials_data: List[Dict]) -> Tuple[float, 
         # Apply same background subtraction as in original script
         bg_pmt = 162.0
 
-        # Get mean fluorescence from ACh trials (after background subtraction)
         # Use entire signal since calibration trials have no stimulus
         ach_fluorescence = []
         for trial in ach_trials:
             bg_subtracted = trial["fluorescence"] - bg_pmt
             ach_fluorescence.extend(bg_subtracted)
 
-        # Get mean fluorescence from TTX trials
-        # Use entire signal since calibration trials have no stimulus
         ttx_fluorescence = []
         for trial in ttx_trials:
             bg_subtracted = trial["fluorescence"] - bg_pmt
             ttx_fluorescence.extend(bg_subtracted)
 
         if ach_fluorescence and ttx_fluorescence:
-            Fmax = np.mean(ach_fluorescence)
-            Fmin = np.mean(ttx_fluorescence)
+            Fmax = float(np.mean(ach_fluorescence))
+            Fmin = float(np.mean(ttx_fluorescence))
             return Fmax, Fmin
 
-    # Fallback to original script values if no calibration data
-    # From original script: Fmax=493.47, Fmin=212.39 (after background subtraction)
+    # Fallback to constants if no calibration data available
     return 493.47, 212.39
 
 
@@ -263,8 +259,12 @@ def normalize_fluorescence(trial_data: Dict, Fmax: float, Fmin: float, stim_time
     idx_start = np.argmin(np.abs(trial_data["timestamps"] - stim_time))
     idx_end = np.argmin(np.abs(trial_data["timestamps"] - (stim_time + 2.0)))
     response_slice = trial_data["dF_over_FI"][idx_start:idx_end]
-
-    trial_data["auc_normalized"] = np.sum(response_slice) * (trial_data["timestamps"][1] - trial_data["timestamps"][0])
+    ts = trial_data["timestamps"][idx_start:idx_end]
+    # Use trapezoidal integration by default for robustness
+    if len(response_slice) > 1:
+        trial_data["auc_normalized"] = float(np.trapezoid(response_slice, ts))
+    else:
+        trial_data["auc_normalized"] = 0.0
     trial_data["peak_normalized"] = np.max(response_slice)
 
     return trial_data
@@ -310,7 +310,7 @@ def analyze_nwb_dataset(nwb_dir: Path, stimulation_type: str = "single_pulse") -
                 if trial["stimulation"] != stimulation_type:
                     continue
 
-                # Get stimulus time from trials table
+                # Use stimulus start time from trials table (absolute alignment)
                 stim_time = trial["stim_time"]
 
                 # Process trial
@@ -368,6 +368,47 @@ def _collapse_first_two_trials_per_file(df: pd.DataFrame) -> pd.DataFrame:
     )
     collapsed = first_two.groupby(["condition", "treatment", "file"], as_index=False)["auc_normalized"].mean()
     return collapsed
+
+
+def _collapse_trials(df: pd.DataFrame, selection: str = "first_two") -> pd.DataFrame:
+    """
+    Collapse per-trial rows to per-file averages according to selection policy.
+
+    selection:
+      - "first_two": first two rows per file×condition×treatment (default)
+      - "repetition12": pick rows whose series_name ends with Repetition1/2 if present,
+                         else fall back to first_two
+      - "all": average all trials per file×condition×treatment
+    """
+    # Filter to experimental treatments only
+    plot_data = df[df["treatment"].isin(["control", "dopamine", "quinpirole", "sulpiride"])].copy()
+    plot_data = plot_data.dropna(subset=["auc_normalized"]).reset_index(drop=True)
+
+    grp = ["condition", "treatment", "file"]
+    if selection == "all":
+        return plot_data.groupby(grp, as_index=False)["auc_normalized"].mean()
+
+    if selection == "repetition12":
+        # Try to find Repetition1 and Repetition2 per group
+        def pick_rep12(g: pd.DataFrame) -> pd.DataFrame:
+            mask = g["series_name"].astype(str).str.contains(r"Repetition(1|2)$", regex=True)
+            sub = g[mask]
+            if len(sub) >= 1:
+                # take at most two
+                return sub.nsmallest(2, columns=[sub.index.name or sub.reset_index().index.name or "auc_normalized"])
+            # fallback to first two by original order within group
+            g = g.reset_index().rename(columns={"index": "_row_order"})
+            return g.nsmallest(2, columns=["_row_order"])
+
+        picked = plot_data.groupby(grp, group_keys=False, sort=False).apply(pick_rep12)
+        return picked.groupby(grp, as_index=False)["auc_normalized"].mean()
+
+    # Default: first_two by original order
+    plot_data = plot_data.reset_index().rename(columns={"index": "_row_order"})
+    first_two = plot_data.groupby(grp, sort=False, group_keys=False).apply(
+        lambda g: g.nsmallest(2, columns=["_row_order"])
+    )
+    return first_two.groupby(grp, as_index=False)["auc_normalized"].mean()
 
 
 def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
@@ -689,6 +730,125 @@ Individual data points represent separate imaging sessions.
         f.write(markdown_content)
 
     return str(report_path)
+
+
+def run_discrepancy_analysis(output_dir: Path) -> Path:
+    """
+    Run a sensitivity analysis varying calibration, alignment, integration, and
+    trial selection to explain differences vs Excel direct reproduction.
+
+    Writes a markdown report summarizing per-group means and differences.
+    """
+    base_dir = Path(__file__).parent.parent
+    nwb_dir = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/acetylcholine_biosensor/figure_5")
+
+    # Load Excel reference
+    excel_path = (
+        base_dir
+        / "src/surmeier_lab_to_nwb/zhai2025/assets/author_assets/Tabular dataset Zhai et al. 2025/Fig 5 datasets.xlsx"
+    )
+    df_x = pd.read_excel(excel_path, sheet_name="Fig 5F_GRAB-ACh_single-AUC")
+    colmap = {
+        "UL_ctr": ("UL control", "control"),
+        "UL_quin": ("UL control", "+quinpirole"),
+        "UL_sul": ("UL control", "+sulpiride"),
+        "6-OHDA_ctr": ("6-OHDA", "control"),
+        "6-OHDA_50nMDA": ("6-OHDA", "+DA"),
+        "6-OHDA_quin": ("6-OHDA", "+quinpirole"),
+        "6-OHDA_sul": ("6-OHDA", "+sulpiride"),
+        "LID off_ctr": ("LID off", "control"),
+        "LID off_50nMDA": ("LID off", "+DA"),
+        "LID off_quin": ("LID off", "+quinpirole"),
+        "LID off_sul": ("LID off", "+sulpiride"),
+    }
+    rows = []
+    for c, (cond, treat) in colmap.items():
+        for v in df_x[c].dropna().values:
+            rows.append({"condition": cond, "treatment": treat, "auc_norm": float(v)})
+    excel_long = pd.DataFrame(rows)
+    excel_means = excel_long.groupby(["condition", "treatment"]).auc_norm.mean()
+
+    # Define variants: one-factor-at-a-time
+    # With simplified production pipeline (trapz integration, full-trace calibration),
+    # keep a minimal set of variants for reference-only analysis
+    variants = [
+        {"name": "baseline_trapz", "sel": "first_two"},
+        {"name": "select_rep12", "sel": "repetition12"},
+        {"name": "all_trials", "sel": "all"},
+    ]
+
+    results = []
+    for v in variants:
+        df_trials = analyze_nwb_dataset(nwb_dir, stimulation_type="single_pulse")
+        # Optionally, limit files here if needed for speed in ad-hoc runs
+        collapsed = _collapse_trials(df_trials, selection=v["sel"])  # per-file
+        labmap = {"dopamine": "+DA", "quinpirole": "+quinpirole", "sulpiride": "+sulpiride", "control": "control"}
+        condmap = {"UL control": "UL control", "6-OHDA": "6-OHDA", "LID off": "LID off"}
+        collapsed = collapsed.assign(
+            condition=collapsed["condition"].map(condmap),
+            treatment=collapsed["treatment"].map(labmap),
+        )
+        means = collapsed.groupby(["condition", "treatment"]).auc_normalized.mean()
+        # Join with excel
+        idx = sorted(set(excel_means.index) & set(means.index))
+        for ct in idx:
+            excel_mean = float(excel_means.loc[ct])
+            nwb_mean = float(means.loc[ct])
+            diff = nwb_mean - excel_mean
+            ratio = nwb_mean / excel_mean if excel_mean != 0 else float("nan")
+            results.append(
+                {
+                    "variant": v["name"],
+                    "condition": ct[0],
+                    "treatment": ct[1],
+                    "excel_mean": excel_mean,
+                    "nwb_mean": nwb_mean,
+                    "diff": diff,
+                    "ratio": ratio,
+                }
+            )
+
+    res_df = pd.DataFrame(results)
+
+    # Write markdown report
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report = output_dir / "figure_5f_discrepancy_report.md"
+    with report.open("w") as f:
+        f.write("# Figure 5F: Excel vs NWB Sensitivity Analysis\n\n")
+        f.write(
+            "This report varies one factor at a time to identify the dominant sources of discrepancy between the Excel-based and NWB-based reproductions.\n\n"
+        )
+        f.write("## Variants\n")
+        for v in variants:
+            f.write(f"- {v['name']}: selection={v['sel']} (production uses trapz + full-trace calibration)\n")
+        f.write("\n")
+
+        def write_table(sub: pd.DataFrame, title: str):
+            f.write(f"### {title}\n\n")
+            f.write("condition | treatment | excel_mean | nwb_mean | diff | ratio\n")
+            f.write("---|---|---:|---:|---:|---:\n")
+            for _, r in sub.iterrows():
+                f.write(
+                    f"{r['condition']}|{r['treatment']}|{r['excel_mean']:.3f}|{r['nwb_mean']:.3f}|{r['diff']:.3f}|{r['ratio']:.2f}\n"
+                )
+            f.write("\n")
+
+        for v in variants:
+            sub = res_df[res_df.variant == v["name"]].copy()
+            write_table(sub, v["name"])
+
+        # Aggregate summary per variant
+        f.write("## Summary\n\n")
+        agg = res_df.groupby("variant")["ratio"].mean().reset_index().sort_values("ratio")
+        f.write("Variant | mean ratio (NWB/Excel)\n")
+        f.write("---|---:\n")
+        for _, r in agg.iterrows():
+            f.write(f"{r['variant']}|{r['ratio']:.2f}\n")
+        f.write("\n")
+
+        f.write("Notes: A mean ratio closer to 1.00 indicates closer agreement to the Excel reproduction.\n")
+
+    return report
 
 
 def main():
