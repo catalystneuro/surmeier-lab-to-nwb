@@ -245,23 +245,21 @@ First ensure that the raw data is available and on dandi and then we can do thes
 - [x] Add anatomy metadata to Dandiset
 - [x] Add disease metadata to Dandiset
 - [x] README/Documentation here in the repo.
-- [ ] Example Notebooks:
-- [ ] Middle Meeting
-- [ ] Final Meeting
+- [x] Example Notebooks:
+- [x] Final Meeting
 
-Confirm and add the following ORCID records for authors:
-Shenyu Zhai	https://orcid.org/0000-0002-7097-9387
-orcid.org
-Qiaoling Cui	https://orcid.org/0000-0002-2074-9655
-orcid.org
-David L. Wokosin	https://orcid.org/0000-0001-6232-7613
-eLife
-Linqing Sun	No public ORCID record found (as of 25 Jul 2025).
-Tatiana Tkatch	https://orcid.org/0000-0001-6626-7435
-orcid.org
-Jill R. Crittenden	https://orcid.org/0000-0002-0017-6116
-orcid.org
-Ann M. Graybiel	https://orcid.org/0000-0002-4326-7720
-orcid.org
-D. James Surmeier	https://orcid.org/0000-0002-6376-5225
-orcid.org
+Example of neurosift access with the modalities:
+
+
+- Surmeier Presentation
+https://neurosift.app/dandiset/001538
+Dataset (ecephys):
+https://neurosift.app/nwb?url=https://api.dandiarchive.org/api/assets/b341d3b5-8413-49d4-b2c9-f93bd0985778/download/&dandisetId=001538&dandisetVersion=draft
+Dataset (video)
+https://neurosift.app/nwb?url=https://api.dandiarchive.org/api/assets/c574b342-ee3b-4deb-8bcd-0104c64b78a2/download/&dandisetId=001538&dandisetVersion=draft
+Datset (optogenetics)
+https://neurosift.app/nwb?url=https://api.dandiarchive.org/api/assets/276d2b36-18cc-4f68-be2f-9fa1ea288abc/download/&dandisetId=001538&dandisetVersion=draft
+Dataset (ophys)
+https://neurosift.app/nwb?url=https://api.dandiarchive.org/api/assets/812b3bae-285d-481e-9001-97f0247407a1/download/&dandisetId=001538&dandisetVersion=draft
+Dataset (figure 5)
+https://neurosift.app/nwb?url=https://api.dandiarchive.org/api/assets/c8ecbe04-6a51-4dae-a3fa-43ba3fa6c5f8/download/&dandisetId=001538&dandisetVersion=draft
