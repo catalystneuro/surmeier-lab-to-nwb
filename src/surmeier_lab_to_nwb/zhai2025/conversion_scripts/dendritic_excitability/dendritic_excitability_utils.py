@@ -469,13 +469,17 @@ def convert_dendritic_excitability_session_to_nwbfile(
             {
                 "name": electrode_name,
                 "description": (
-                    f"Recording from {genotype_description}{cell_type} {recording_info['location_description']} - {condition_human_readable} - "
+                    f"Recording from {genotype_description}{cell_type} {recording_info['location_description']} "
+                    f"in dorsolateral striatum - {condition_human_readable} - "
                     f"Trial {recording_info['trial_number']} - "
                     f"Brief current steps (three 2 nA injections, 2 ms each, at 50 Hz) with simultaneous "
                     f"two-photon line scan imaging of calcium transients"
                 ),
                 "cell_id": f"CellRecordedAt{timestamp}",
-                "location": recording_info["location_description"],
+                # Allen Mouse Brain Atlas (CCFv3) full name; dorsolateral subdivision and the
+                # proximal/distal dendritic segment live in description plus the icephys
+                # electrodes-table custom columns (dendrite_segment, distance_from_soma_um).
+                "location": "Caudoputamen",
                 "slice": general_metadata["NWBFile"]["slices"],
             }
         )

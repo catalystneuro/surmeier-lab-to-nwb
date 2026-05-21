@@ -272,7 +272,10 @@ def convert_optical_stimulation_session_to_nwbfile(
     # Create NWB file using neuroconv helper function
     nwbfile = make_nwbfile_from_metadata(metadata)
 
-    # Add custom columns to intracellular recording table for Sr²⁺-oEPSC experiment annotations
+    # Add custom columns to intracellular recording table for Sr²⁺-oEPSC experiment annotations.
+    # dendrite_type and dendrite_distance_um are declared here so the columns are uniform across
+    # all icephys recordings in the Surmeier dandiset (somatic Sr-oEPSC recordings populate them
+    # with "Soma" and 0; dendritic recordings populate them with "Proximal"/"Distal" and 40/90 μm).
     intracellular_recording_table = nwbfile.get_intracellular_recordings()
     intracellular_recording_table.add_column(
         name="led_intensity",
@@ -286,6 +289,20 @@ def convert_optical_stimulation_session_to_nwbfile(
     )
     intracellular_recording_table.add_column(
         name="session_letter", description="Session identifier letter for this experimental day"
+    )
+    intracellular_recording_table.add_column(
+        name="dendrite_type",
+        description=(
+            "Cell compartment recorded: 'Soma' for somatic recordings, "
+            "'Proximal' or 'Distal' for dendritic recordings."
+        ),
+    )
+    intracellular_recording_table.add_column(
+        name="dendrite_distance_um",
+        description=(
+            "Approximate distance from soma in micrometers: 0 for somatic recordings, "
+            "~40 for proximal dendrite, ~90 for distal dendrite."
+        ),
     )
 
     # Data structures for tracking icephys table indices
@@ -333,7 +350,9 @@ def convert_optical_stimulation_session_to_nwbfile(
                 ),
                 "cell_id": f"Cell{recording_info['cell_number']}",
                 "session_id": session_info["session_letter"],
-                "location": "soma - dorsolateral striatum",
+                # Allen Mouse Brain Atlas (CCFv3) full name; dorsolateral subdivision and
+                # subcellular detail live in description and electrodes-table custom columns.
+                "location": "Caudoputamen",
                 "slice": general_metadata["NWBFile"]["slices"],
             }
         )
@@ -393,7 +412,9 @@ def convert_optical_stimulation_session_to_nwbfile(
                     "Coordinates: AP +1.15mm, ML -1.60mm, DV -1.55mm relative to Bregma. "
                     "Volume: 0.15 µL. Expression time: 4 weeks."
                 ),
-                "location": "M1 motor cortex",
+                # Allen Mouse Brain Atlas (CCFv3) full name for M1; "M1 motor cortex"
+                # subdivision context lives in the description above.
+                "location": "Primary motor area",
                 "hemisphere": "ipsilateral to 6-OHDA lesion",
                 "reference": "Bregma at the cortical surface",
                 "ap_in_mm": 1.15,  # mm anterior to Bregma
@@ -424,7 +445,10 @@ def convert_optical_stimulation_session_to_nwbfile(
 
         # Add intracellular recording to icephys table with custom annotations
 
-        # Add intracellular recording entry with enhanced metadata
+        # Add intracellular recording entry with enhanced metadata.
+        # Sr-oEPSC recordings are somatic patch clamp, so dendrite_type and
+        # dendrite_distance_um match the somatic convention ("Soma" / 0); these columns
+        # are queryable uniformly across all icephys recordings in the Surmeier dandiset.
         recording_index = nwbfile.add_intracellular_recording(
             electrode=voltage_clamp_series.electrode,
             response=voltage_clamp_series,
@@ -432,6 +456,8 @@ def convert_optical_stimulation_session_to_nwbfile(
             sweep_number=recording_info["sweep_number"],
             cell_number=recording_info["cell_number"],
             session_letter=session_info["session_letter"],
+            dendrite_type="Soma",
+            dendrite_distance_um=0,
         )
 
         # Track recording index and metadata for table building

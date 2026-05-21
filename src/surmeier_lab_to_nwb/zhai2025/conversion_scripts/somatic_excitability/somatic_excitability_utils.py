@@ -256,7 +256,10 @@ def convert_somatic_excitability_session_to_nwbfile(
     # Create NWB file using neuroconv helper function
     nwbfile = make_nwbfile_from_metadata(metadata)
 
-    # Add custom columns to intracellular recording table for somatic experiment annotations
+    # Add custom columns to intracellular recording table for somatic experiment annotations.
+    # dendrite_type and dendrite_distance_um are declared here so the columns are uniform across
+    # all icephys recordings in the Surmeier dandiset (dendritic recordings populate them with
+    # "Proximal"/"Distal" and 40/90 μm; somatic recordings populate them with "Soma" and 0).
     intracellular_recording_table = nwbfile.get_intracellular_recordings()
     intracellular_recording_table.add_column(
         name="stimulus_current_pA",
@@ -264,6 +267,20 @@ def convert_somatic_excitability_session_to_nwbfile(
     )
     intracellular_recording_table.add_column(
         name="protocol_step", description="Protocol step number (e.g., '001', '002', etc.)"
+    )
+    intracellular_recording_table.add_column(
+        name="dendrite_type",
+        description=(
+            "Cell compartment recorded: 'Soma' for somatic recordings, "
+            "'Proximal' or 'Distal' for dendritic recordings."
+        ),
+    )
+    intracellular_recording_table.add_column(
+        name="dendrite_distance_um",
+        description=(
+            "Approximate distance from soma in micrometers: 0 for somatic recordings, "
+            "~40 for proximal dendrite, ~90 for distal dendrite."
+        ),
     )
 
     # Data structures for tracking icephys table indices
@@ -298,7 +315,10 @@ def convert_somatic_excitability_session_to_nwbfile(
                     f"{condition_human_readable} - F-I protocol with {len(recording_folders)} current steps"
                 ),
                 "cell_id": f"CellRecordedAt{timestamp}",
-                "location": "soma - dorsolateral striatum",
+                # Allen Mouse Brain Atlas (CCFv3) full name; dorsolateral subdivision and
+                # subcellular ("soma") detail live in description and the icephys electrodes
+                # table custom columns below.
+                "location": "Caudoputamen",
                 "slice": general_metadata["NWBFile"]["slices"],
             }
         )
@@ -324,11 +344,17 @@ def convert_somatic_excitability_session_to_nwbfile(
         current_clamp_series = nwbfile.acquisition[series_name]
 
         # Add intracellular recording entry with enhanced metadata
+        # dendrite_type and dendrite_distance_um are also set on dendritic recordings
+        # (where they take values "Proximal"/"Distal" and 40/90 μm); for somatic recordings
+        # they take "Soma" and 0, keeping the columns queryable uniformly across all
+        # icephys recordings in the Surmeier dandiset.
         recording_index = nwbfile.add_intracellular_recording(
             electrode=current_clamp_series.electrode,
             response=current_clamp_series,
             stimulus_current_pA=recording_info["current_pA"],
             protocol_step=recording_info["protocol_step"],
+            dendrite_type="Soma",
+            dendrite_distance_um=0,
         )
 
         # Track recording index for table building
