@@ -543,19 +543,19 @@ def convert_dendritic_excitability_session_to_nwbfile(
         ] = f"Line scan imaging plane for {location_id} using Alexa Fluor 568 structural dye. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
         structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["indicator"] = "Alexa Fluor 568"
 
-        # Update PlaneSegmentation metadata for structural channel
-        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
+        # Update PlaneSegmentations metadata for structural channel
+        structural_metadata["Ophys"]["PlaneSegmentations"][structural_ophys_key][
             "name"
         ] = f"PlaneSegmentation{recording_id}"
-        structural_metadata["Ophys"]["PlaneSegmentation"][structural_ophys_key][
+        structural_metadata["Ophys"]["PlaneSegmentations"][structural_ophys_key][
             "description"
         ] = f"Line scan ROI segmentation for {location_id} structural imaging. Detected by Hamamatsu R3982 side-on PMT (580-620 nm)."
 
-        # Update RoiResponseSeries metadata for structural channel
-        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
+        # Update RoiResponses metadata for structural channel
+        structural_metadata["Ophys"]["RoiResponses"][structural_ophys_key]["raw"][
             "name"
         ] = f"RoiResponseSeriesAlexa568{recording_id}"
-        structural_metadata["Ophys"]["RoiResponseSeries"][structural_ophys_key][
+        structural_metadata["Ophys"]["RoiResponses"][structural_ophys_key]["raw"][
             "description"
         ] = f"Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM) - {location_id}. Ca2+-insensitive dye to visualize dendrites."
 
@@ -567,19 +567,13 @@ def convert_dendritic_excitability_session_to_nwbfile(
             "description"
         ] = f"Source image for Alexa Fluor 568 structural reference - {location_id}. Field of view with scan line overlay."
 
-        # Update TimeSeries metadata for structural channel
-        structural_metadata["TimeSeries"][structural_ophys_key]["name"] = f"TimeSeriesLineScanRawAlexa568{recording_id}"
-        structural_metadata["TimeSeries"][structural_ophys_key][
+        # Update MicroscopySeries metadata for structural channel (raw kymograph)
+        structural_metadata["Ophys"]["MicroscopySeries"][structural_ophys_key][
+            "name"
+        ] = f"TimeSeriesLineScanRawAlexa568{recording_id}"
+        structural_metadata["Ophys"]["MicroscopySeries"][structural_ophys_key][
             "description"
         ] = f"Line scan raw data for Alexa Fluor 568 structural reference - {location_id}. Typical acquisition: 2500 lines (time points)."
-
-        # Update TwoPhotonSeries metadata for structural channel
-        structural_metadata["Ophys"]["TwoPhotonSeries"][structural_ophys_key][
-            "name"
-        ] = f"TwoPhotonSeries{recording_id}Alexa568"
-        structural_metadata["Ophys"]["TwoPhotonSeries"][structural_ophys_key][
-            "description"
-        ] = f"Line scan imaging data from {location_id} using Alexa Fluor 568 structural dye (Ch1). High-speed line scans across dendritic segments during current injection protocol. Acquisition: {recording_info['trial_number']} of dendritic excitability protocol."
 
         # Process calcium channel (Ch2/Fluo-4)
         calcium_metadata = calcium_interface.get_metadata()
@@ -594,17 +588,17 @@ def convert_dendritic_excitability_session_to_nwbfile(
         ] = f"Line scan imaging plane for {location_id} using Fluo-4 calcium indicator. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
         calcium_metadata["Ophys"]["ImagingPlanes"][calcium_ophys_key]["indicator"] = "Fluo-4"
 
-        # Update PlaneSegmentation metadata for calcium channel
-        calcium_metadata["Ophys"]["PlaneSegmentation"][calcium_ophys_key]["name"] = f"PlaneSegmentation{recording_id}"
-        calcium_metadata["Ophys"]["PlaneSegmentation"][calcium_ophys_key][
+        # Update PlaneSegmentations metadata for calcium channel
+        calcium_metadata["Ophys"]["PlaneSegmentations"][calcium_ophys_key]["name"] = f"PlaneSegmentation{recording_id}"
+        calcium_metadata["Ophys"]["PlaneSegmentations"][calcium_ophys_key][
             "description"
         ] = f"Line scan ROI segmentation for {location_id} calcium imaging. Detected by Hamamatsu H7422P-40 GaAsP PMT (490-560 nm)."
 
-        # Update RoiResponseSeries metadata for calcium channel
-        calcium_metadata["Ophys"]["RoiResponseSeries"][calcium_ophys_key][
+        # Update RoiResponses metadata for calcium channel
+        calcium_metadata["Ophys"]["RoiResponses"][calcium_ophys_key]["raw"][
             "name"
         ] = f"RoiResponseSeriesFluo4{recording_id}"
-        calcium_metadata["Ophys"]["RoiResponseSeries"][calcium_ophys_key][
+        calcium_metadata["Ophys"]["RoiResponses"][calcium_ophys_key]["raw"][
             "description"
         ] = f"Calcium fluorescence from Fluo-4 (100 μM) - {location_id}. Ca2+-sensitive dye for measuring back-propagating action potential-evoked calcium transients. Magnitude serves as surrogate estimate of dendritic depolarization extent."
 
@@ -614,17 +608,13 @@ def convert_dendritic_excitability_session_to_nwbfile(
             "description"
         ] = f"Source image for Fluo-4 calcium indicator - {location_id}. Field of view with scan line overlay."
 
-        # Update TimeSeries metadata for calcium channel
-        calcium_metadata["TimeSeries"][calcium_ophys_key]["name"] = f"TimeSeriesLineScanRawFluo4{recording_id}"
-        calcium_metadata["TimeSeries"][calcium_ophys_key][
+        # Update MicroscopySeries metadata for calcium channel (raw kymograph)
+        calcium_metadata["Ophys"]["MicroscopySeries"][calcium_ophys_key][
+            "name"
+        ] = f"TimeSeriesLineScanRawFluo4{recording_id}"
+        calcium_metadata["Ophys"]["MicroscopySeries"][calcium_ophys_key][
             "description"
         ] = f"Line scan raw data for Fluo-4 calcium indicator - {location_id}. Typical acquisition: 2500 lines (time points). Kymograph structure: (C, T, X) where C=channels, T=time/lines, X=pixels along scan line."
-
-        # Update TwoPhotonSeries metadata for calcium channel
-        calcium_metadata["Ophys"]["TwoPhotonSeries"][calcium_ophys_key]["name"] = f"TwoPhotonSeries{recording_id}Fluo4"
-        calcium_metadata["Ophys"]["TwoPhotonSeries"][calcium_ophys_key][
-            "description"
-        ] = f"Line scan imaging data from {location_id} using Fluo-4 calcium indicator (Ch2). High-speed line scans measuring calcium transients during current injection protocol. Acquisition: {recording_info['trial_number']} of dendritic excitability protocol."
 
         # Add both ophys channels to NWB file
         structural_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=structural_metadata)

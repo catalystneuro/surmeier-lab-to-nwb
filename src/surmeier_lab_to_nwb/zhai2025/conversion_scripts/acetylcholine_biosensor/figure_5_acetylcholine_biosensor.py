@@ -469,9 +469,9 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         else:
             base_name = f"{clean_treatment}{clean_stimulation}"
 
-        # Calculate aligned starting time for this trial
+        # Calculate aligned starting time for this trial. Both times are Chicago tz-aware.
         trial_start_time = trial_data["trial_start_time"]
-        aligned_t_start = (trial_start_time - session_start_time.replace(tzinfo=None)).total_seconds()
+        aligned_t_start = (trial_start_time - session_start_time).total_seconds()
 
         # Set aligned starting time on the interface
         acetylcholine_interface.set_aligned_starting_time(aligned_t_start)

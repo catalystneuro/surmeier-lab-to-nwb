@@ -7,7 +7,6 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 import tifffile
-import xmltodict
 from neuroconv.basedatainterface import BaseDataInterface
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.utils import DeepDict, calculate_regular_series_rate
@@ -19,6 +18,14 @@ from pynwb.ophys import (
     ImageSegmentation,
     OpticalChannel,
     RoiResponseSeries,
+)
+
+from .prairie_view_utils import (
+    get_pv_indexed,
+    get_pv_scalar,
+    get_session_start_time,
+    get_session_start_time_from_file,
+    parse_prairie_view_xml,
 )
 
 
@@ -107,10 +114,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         self._t_start = 0.0  # Default starting time
 
         parent_folder = self.xml_metadata_file_path.parent
-        # Load XML metadata
-        with open(self.xml_metadata_file_path, "r") as xml_file:
-            xml_general_metadata_file = xml_file.read()
-            self.xml_general_metadata_dict = xmltodict.parse(xml_general_metadata_file)
+        self.xml_general_metadata_dict = parse_prairie_view_xml(self.xml_metadata_file_path)
 
         # Extract line scan metadata
         prairie_view_metadata = self.xml_general_metadata_dict["PVScan"]
@@ -161,38 +165,26 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         if session_start_time is not None:
             metadata["NWBFile"]["session_start_time"] = session_start_time
 
-        # Extract microscope metadata from XML
-        prairie_view_metadata = self.xml_general_metadata_dict["PVScan"]
-        prairie_view_state_metadata_list = prairie_view_metadata["PVStateShard"]["PVStateValue"]
+        objective_lens = get_pv_scalar(self.xml_general_metadata_dict, "objectiveLens", default="Olympus 60X")
 
-        # Get objective lens info
-        objective_lens = next(
-            (item["@value"] for item in prairie_view_state_metadata_list if item["@key"] == "objectiveLens"),
-            "Olympus 60X",
-        )
-
-        # Device metadata
-        self.device_name = "BrukerUltima"
+        self.device_name = "BrukerFluorescenceMicroscope"
         metadata["Devices"][self.ophys_metadata_key] = {
             "name": self.device_name,
             "description": "Bruker two-photon microscope",
         }
 
-        # Extract spatial resolution
-        microns_per_pixel = next(
-            (item for item in prairie_view_state_metadata_list if item["@key"] == "micronsPerPixel"), None
-        )
-        microns_per_pixel_dict = {value["@index"]: value["@value"] for value in microns_per_pixel["IndexedValue"]}
-        grid_spacing = [float(microns_per_pixel_dict["XAxis"]), float(microns_per_pixel_dict["YAxis"])]
+        microns_per_pixel = get_pv_indexed(self.xml_general_metadata_dict, "micronsPerPixel")
+        grid_spacing = [float(microns_per_pixel["XAxis"]), float(microns_per_pixel["YAxis"])]
 
-        # Ophys-specific metadata
         ophys_metadata = metadata["Ophys"]
+        key = self.ophys_metadata_key
+        indicator_name = f"Channel{self.channel_name}"
 
         self.imaging_plane_name = "ImagingPlaneLineScan"
-        ophys_metadata["ImagingPlanes"][self.ophys_metadata_key] = {
+        ophys_metadata["ImagingPlanes"][key] = {
             "name": self.imaging_plane_name,
             "description": f"Line scan imaging using {objective_lens} objective",
-            "device": self.ophys_metadata_key,
+            "device_metadata_key": key,
             "excitation_lambda": 810.0,
             "indicator": "Fluo-4",
             "location": "dorsolateral striatum",
@@ -201,126 +193,43 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         }
 
         self.plane_segmentation_name = "PlaneSegmentationLineScan"
-        ophys_metadata["PlaneSegmentation"][self.ophys_metadata_key] = {
+        ophys_metadata["PlaneSegmentations"][key] = {
             "name": self.plane_segmentation_name,
             "description": "Line scan ROI segmentation for dendritic calcium imaging",
-            "imaging_plane": self.ophys_metadata_key,
+            "imaging_plane_metadata_key": key,
         }
 
-        # Use generic channel-based naming - fluorophore info comes from metadata updates
-        indicator_name = f"Channel{self.channel_name}"
-        channel_type = "imaging"
-        indicator_description = f"Fluorescence data from {self.channel_name}"
-        timeseries_description = f"Line scan raw data for {self.channel_name}"
-        image_description = f"Source image for {self.channel_name}"
-
-        # Single ROI response series for this channel
-        ophys_metadata["RoiResponseSeries"][self.ophys_metadata_key] = {
-            "name": f"RoiResponseSeriesLineScan{indicator_name}",
-            "description": f"{channel_type.capitalize()} fluorescence from {indicator_description}",
-            "unit": "a.u.",
+        ophys_metadata["RoiResponses"][key] = {
+            "raw": {
+                "name": f"RoiResponseSeriesLineScan{indicator_name}",
+                "description": f"Imaging fluorescence from Fluorescence data from {self.channel_name}",
+                "unit": "a.u.",
+            },
         }
 
-        # Single TimeSeries for this channel (top level)
-        metadata["TimeSeries"][self.ophys_metadata_key] = {
+        ophys_metadata["MicroscopySeries"][key] = {
             "name": f"TimeSeriesLineScanRawData{indicator_name}",
-            "description": timeseries_description,
+            "description": f"Line scan raw data for {self.channel_name}",
             "unit": "a.u.",
+            "imaging_plane_metadata_key": key,
         }
 
-        # Single source image in acquisition metadata
+        # Source image (field-of-view snapshot with scan-line overlay). No clear bucket in the
+        # new ophys ontology yet; kept under Acquisition.SourceImages as a custom branch.
         acquisition_metadata = metadata["Acquisition"]
         self.source_images_name = "ImagesLineScan"
-        acquisition_metadata["SourceImages"][self.ophys_metadata_key] = {
+        acquisition_metadata["SourceImages"][key] = {
             "name": f"ImageSource{indicator_name}",
-            "description": image_description,
+            "description": f"Source image for {self.channel_name}",
         }
 
         return metadata
 
-    @staticmethod
-    def get_session_start_time_from_file(file_path: str | Path) -> datetime:
-        """
-        Extract session start time from master XML metadata file without creating interface instance.
-
-        Parameters
-        ----------
-        file_path : str | Path
-            Path to the master XML metadata file (session_name.xml)
-
-        Returns
-        -------
-        datetime
-            Session start time from XML metadata
-        """
-        from datetime import datetime
-        from pathlib import Path
-        from zoneinfo import ZoneInfo
-
-        import xmltodict
-
-        xml_metadata_file_path = Path(file_path)
-
-        # Load XML metadata
-        with open(xml_metadata_file_path, "r") as xml_file:
-            xml_general_metadata_file = xml_file.read()
-            xml_general_metadata_dict = xmltodict.parse(xml_general_metadata_file)
-
-        # Extract session start time from PVScan element
-        prairie_view_metadata = xml_general_metadata_dict["PVScan"]
-
-        # Get the date attribute from PVScan element
-        # Format is like "5/23/2016 1:58:21 PM"
-        if "@date" in prairie_view_metadata:
-            date_str = prairie_view_metadata["@date"]
-        else:
-            raise ValueError(f"Could not find date attribute in PVScan element")
-
-        # Parse the date string in format "M/D/YYYY H:MM:SS AM/PM"
-        # Illinois is in Central Time Zone
-        central_tz = ZoneInfo("America/Chicago")
-
-        # Parse using strptime - this handles various month/day formats automatically
-        session_start_time = datetime.strptime(date_str, "%m/%d/%Y %I:%M:%S %p")
-
-        # Add timezone info
-        session_start_time = session_start_time.replace(tzinfo=central_tz)
-
-        return session_start_time
+    get_session_start_time_from_file = staticmethod(get_session_start_time_from_file)
 
     def get_session_start_time(self) -> datetime:
-        """
-        Extract session start time from the XML metadata.
-
-        Returns
-        -------
-        datetime
-            Session start time from XML metadata
-        """
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-
-        # Extract session start time from PVScan element
-        prairie_view_metadata = self.xml_general_metadata_dict["PVScan"]
-
-        # Get the date attribute from PVScan element
-        # Format is like "5/23/2016 1:58:21 PM"
-        if "@date" in prairie_view_metadata:
-            date_str = prairie_view_metadata["@date"]
-        else:
-            raise ValueError(f"Could not find date attribute in PVScan element")
-
-        # Parse the date string in format "M/D/YYYY H:MM:SS AM/PM"
-        # Illinois is in Central Time Zone
-        central_tz = ZoneInfo("America/Chicago")
-
-        # Parse using strptime - this handles various month/day formats automatically
-        session_start_time = datetime.strptime(date_str, "%m/%d/%Y %I:%M:%S %p")
-
-        # Add timezone info
-        session_start_time = session_start_time.replace(tzinfo=central_tz)
-
-        return session_start_time
+        """Return the session start time (Central Time) from the parsed XML."""
+        return get_session_start_time(self.xml_general_metadata_dict)
 
     @staticmethod
     def get_available_channels(file_path: str | Path) -> list[str]:
@@ -337,27 +246,9 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         list[str]
             List of available channel names from the XML metadata
         """
-        from pathlib import Path
-
-        import xmltodict
-
-        xml_metadata_file_path = Path(file_path)
-
-        # Load XML metadata
-        with open(xml_metadata_file_path, "r") as xml_file:
-            xml_general_metadata_file = xml_file.read()
-            xml_general_metadata_dict = xmltodict.parse(xml_general_metadata_file)
-
-        # Extract channel information
-        prairie_view_metadata = xml_general_metadata_dict["PVScan"]
-        sequence_metadata = prairie_view_metadata["Sequence"]
-        frame_metadata = sequence_metadata["Frame"]
-        file_metadata = frame_metadata["File"]
-
-        # Get all channel names
-        available_channels = [file["@channelName"] for file in file_metadata]
-
-        return available_channels
+        xml_dict = parse_prairie_view_xml(file_path)
+        file_metadata = xml_dict["PVScan"]["Sequence"]["Frame"]["File"]
+        return [file["@channelName"] for file in file_metadata]
 
     def set_aligned_starting_time(self, aligned_starting_time: float) -> None:
         """
@@ -445,7 +336,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             ophys_module.add(image_segmentation)
 
         # Create plane segmentation
-        plane_segmentation_metadata = metadata["Ophys"]["PlaneSegmentation"][self.ophys_metadata_key]
+        plane_segmentation_metadata = metadata["Ophys"]["PlaneSegmentations"][self.ophys_metadata_key]
         plane_segmentation_name = plane_segmentation_metadata["name"]
         available_plane_segmentations = image_segmentation.plane_segmentations
         if plane_segmentation_name in available_plane_segmentations:
@@ -541,7 +432,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         )
 
         # Create ROI response series using metadata structure
-        roi_metadata = metadata["Ophys"]["RoiResponseSeries"][self.ophys_metadata_key]
+        roi_metadata = metadata["Ophys"]["RoiResponses"][self.ophys_metadata_key]["raw"]
 
         # Use neuroconv pattern: check if timestamps are regular, use rate+starting_time or timestamps
         rate = calculate_regular_series_rate(series=timestamps)
@@ -624,7 +515,7 @@ class PrairieViewLineScanInterface(BaseDataInterface):
         rate = 1.0 / scan_line_period if scan_line_period else None
 
         # Add raw line scan data using metadata structure
-        timeseries_metadata = metadata["TimeSeries"][self.ophys_metadata_key]
+        timeseries_metadata = metadata["Ophys"]["MicroscopySeries"][self.ophys_metadata_key]
 
         raw_line_scan_data = tifffile.imread(self.line_scan_raw_data_file_path)
 
