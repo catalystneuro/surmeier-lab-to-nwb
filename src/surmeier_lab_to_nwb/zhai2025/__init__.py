@@ -1,5 +1,5 @@
 from .interfaces import (
-    PrairieViewLineScanInterface,  # noqa: F401
+    BrukerLineScanInterface,  # noqa: F401
 )
 from .interfaces.behavior_interfaces import (
     AIMBehavioralDynamicTableInterface,  # noqa: F401

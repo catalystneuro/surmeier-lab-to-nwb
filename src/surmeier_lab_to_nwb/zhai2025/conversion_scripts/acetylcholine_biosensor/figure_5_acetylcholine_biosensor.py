@@ -30,12 +30,20 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
     str_to_bool,
 )
-from surmeier_lab_to_nwb.zhai2025.interfaces import (
-    PrairieViewFluorescenceInterface,
+from surmeier_lab_to_nwb.zhai2025.interfaces.bruker_bot_segmentation_interface import (
+    BrukerBOTSegmentationInterface,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.ophys_interfaces import (
     BrukerReferenceImagesInterface,
 )
+
+# Per-channel BOT metadata keys + display labels for object names.
+# Each channel uses its own metadata_key so its ImagingPlane / PlaneSegmentation get a
+# distinct entry in the metadata dict; the writer dedupes them by name across trials.
+_BOT_CHANNEL_TO_KEY_AND_DISPLAY = {
+    "Ch2": ("bot_ach_grabch", "GRABCh"),
+    "Dodt": ("bot_ach_dodt", "DoDT"),
+}
 
 
 def parse_treatment_and_repetition_from_folder_name(bot_folder: Path) -> dict[str, str]:
@@ -294,39 +302,30 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     trial_interfaces_data = []
 
     for bot_trial_folder in bot_trial_folders:
-        # Find BOT CSV and XML files for this trial
-        bot_csv_file = None
-        xml_metadata_file = None
-
-        for file in bot_trial_folder.iterdir():
-            if file.name.endswith("-botData.csv"):
-                bot_csv_file = file
-            elif (
-                file.name.endswith(".xml") and "VoltageRecording" not in file.name and "VoltageOutput" not in file.name
-            ):
-                xml_metadata_file = file
-
-        if not bot_csv_file or not xml_metadata_file:
-            raise FileNotFoundError(f"Missing files in {bot_trial_folder}")
-
         # Parse trial information
         trial_info = parse_trial_info_from_bot_folder(bot_trial_folder)
 
-        # Create interface to get session start time
-        acetylcholine_interface = PrairieViewFluorescenceInterface(
-            bot_csv_data_file_path=bot_csv_file,
-            xml_metadata_file_path=xml_metadata_file,
+        # Create per-channel BOT segmentation interfaces (Ch2 = GRABCh sensor, Dodt = DIC reference).
+        # The neuroconv writer dedupes Device / ImagingPlane / PlaneSegmentation by name across trials.
+        per_channel_interfaces = {
+            channel: BrukerBOTSegmentationInterface(
+                folder_path=bot_trial_folder,
+                channel_name=channel,
+                metadata_key=metadata_key,
+            )
+            for channel, (metadata_key, _) in _BOT_CHANNEL_TO_KEY_AND_DISPLAY.items()
+        }
+
+        # Session start time comes from the XML; it is identical across channels of the same trial.
+        trial_start_time = per_channel_interfaces["Ch2"].segmentation_extractor.get_session_start_time(
+            tz=ZoneInfo("America/Chicago")
         )
 
-        # Get session start time for this trial
-        trial_start_time = acetylcholine_interface.get_session_start_time()
-
-        # Store all the data we need for later processing
         trial_interfaces_data.append(
             {
                 "bot_trial_folder": bot_trial_folder,
                 "trial_info": trial_info,
-                "acetylcholine_interface": acetylcholine_interface,
+                "per_channel_interfaces": per_channel_interfaces,
                 "trial_start_time": trial_start_time,
             }
         )
@@ -337,9 +336,8 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
     # Create session-specific metadata with Chicago timezone
     central_tz = ZoneInfo("America/Chicago")
 
-    # Get the earliest session start time for the overall session
-    earliest_trial_start_time = trial_interfaces_data[0]["trial_start_time"]
-    session_start_time = earliest_trial_start_time.replace(tzinfo=central_tz)
+    # Get the earliest session start time for the overall session (trial times are already tz-aware).
+    session_start_time = trial_interfaces_data[0]["trial_start_time"]
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -438,7 +436,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         # Extract pre-computed data
         bot_trial_folder = trial_data["bot_trial_folder"]
         trial_info = trial_data["trial_info"]
-        acetylcholine_interface = trial_data["acetylcholine_interface"]
+        per_channel_interfaces = trial_data["per_channel_interfaces"]
 
         # Create naming mappings for this trial (used for both fluorescence and raw data)
         treatment_to_camel_case = {
@@ -473,11 +471,7 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
         trial_start_time = trial_data["trial_start_time"]
         aligned_t_start = (trial_start_time - session_start_time).total_seconds()
 
-        # Set aligned starting time on the interface
-        acetylcholine_interface.set_aligned_starting_time(aligned_t_start)
-
         # Add fluorescence data for this trial with trial-specific naming
-        # Use sequential trial_index for unique naming within session, actual repetition number for display
         fluorescence_series_name = f"{base_name}"
         repetition_num = int(trial_info["repetition_number"])
 
@@ -489,12 +483,20 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
         final_repetition_num = repetition_num
 
-        acetylcholine_interface.add_to_nwbfile(
-            nwbfile=nwbfile, fluorescence_series_name=fluorescence_series_name, repetition_number=final_repetition_num
-        )
+        # For each channel: mutate the PlaneSegmentation + RoiResponseSeries names (the writer
+        # dedupes by name across calls), apply per-trial alignment, write.
+        for channel_name, channel_interface in per_channel_interfaces.items():
+            metadata_key, display = _BOT_CHANNEL_TO_KEY_AND_DISPLAY[channel_name]
+            channel_metadata = channel_interface.get_metadata(use_new_metadata_format=True)
+            channel_metadata["Ophys"]["PlaneSegmentations"][metadata_key]["name"] = f"PlaneSegmentation{display}"
+            channel_metadata["Ophys"]["RoiResponses"][metadata_key]["raw"][
+                "name"
+            ] = f"RoiResponseSeries{display}{fluorescence_series_name}Repetition{final_repetition_num:03d}"
+            aligned_timestamps = channel_interface.segmentation_extractor.get_native_timestamps() + aligned_t_start
+            channel_interface.set_aligned_timestamps(aligned_timestamps)
+            channel_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=channel_metadata)
 
-        # Get actual trial start/stop times from the fluorescence data timestamps
-        # The interface creates series names like: RoiResponseSeriesGRABCh{treatment}{stimulation}Repetition{XXX}
+        # Get actual trial start/stop times from the fluorescence data timestamps.
         fluorescence_module = nwbfile.processing["ophys"]["Fluorescence"]
         grabch_series_name = f"RoiResponseSeriesGRABCh{fluorescence_series_name}Repetition{final_repetition_num:03d}"
         fluorescence_series = fluorescence_module.roi_response_series[grabch_series_name]

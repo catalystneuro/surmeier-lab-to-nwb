@@ -74,11 +74,18 @@ class BrukerLineScanInterface(BaseSegmentationExtractorInterface):
         """Add segmentation to NWB, defaulting to new-shape metadata when not provided.
 
         Local override so callers in this repo don't need to remember the
-        ``use_new_metadata_format=True`` opt-in. Safe to delete when this is lifted
-        upstream and the upstream interface's default is decided.
+        ``use_new_metadata_format=True`` opt-in. Also injects the shared Bruker
+        DeviceModel into the Device metadata so the resulting NWB device links to
+        a DeviceModel rather than using the deprecated ``manufacturer`` field.
+        Safe to delete when lifted upstream and the upstream default is decided.
         """
+        from surmeier_lab_to_nwb.zhai2025.devices import (
+            get_or_create_bruker_ultima_model,
+        )
+
         if metadata is None:
             metadata = self.get_metadata(use_new_metadata_format=True)
+        metadata["Devices"][self.metadata_key]["model"] = get_or_create_bruker_ultima_model(nwbfile)
         return super().add_to_nwbfile(nwbfile=nwbfile, metadata=metadata, **kwargs)
 
     def get_metadata(self, *, use_new_metadata_format: bool = False) -> DeepDict:

@@ -20,7 +20,18 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces import (
     PrairieViewCurrentClampInterface,
-    PrairieViewLineScanInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.bruker_line_scan_interface import (
+    BrukerLineScanInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.bruker_line_scan_kymograph_interface import (
+    BrukerLineScanKymographInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.bruker_line_scan_source_image_interface import (
+    BrukerLineScanSourceImageInterface,
+)
+from surmeier_lab_to_nwb.zhai2025.interfaces.prairie_view_utils import (
+    get_session_start_time_from_file as _pv_session_start_time_from_file,
 )
 
 
@@ -278,7 +289,7 @@ def convert_dendritic_excitability_session_to_nwbfile(
             raise FileNotFoundError(f"Expected electrophysiology XML file does not exist: {electrophysiology_xml_file}")
 
         # Get session start times from both sources
-        ophys_session_start_time = PrairieViewLineScanInterface.get_session_start_time_from_file(main_xml_file)
+        ophys_session_start_time = _pv_session_start_time_from_file(main_xml_file)
         if ophys_session_start_time is None:
             raise ValueError(f"Could not extract ophys session start time from {main_xml_file}")
 
@@ -419,25 +430,35 @@ def convert_dendritic_excitability_session_to_nwbfile(
         recording_info = parse_function(recording_folder)
         main_xml_file = recording_folder / f"{recording_folder.name}.xml"
 
-        # Create interfaces for the two known channels
-        structural_ophys_key = f"PrairieViewLineScan{recording_id}Alexa568"
-        calcium_ophys_key = f"PrairieViewLineScan{recording_id}Fluo4"
-
-        structural_interface = PrairieViewLineScanInterface(
-            file_path=main_xml_file,
-            channel_name="Ch1",
-            ophys_metadata_key=structural_ophys_key,
-        )
-
-        calcium_interface = PrairieViewLineScanInterface(
-            file_path=main_xml_file,
-            channel_name="Ch2",
-            ophys_metadata_key=calcium_ophys_key,
-        )
-
-        # Apply temporal alignment offsets using precise mapping with descriptive interface names
-        structural_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_structural_channel"])
-        calcium_interface.set_aligned_starting_time(t_starts[recording_id]["line_scan_calcium_channel"])
+        # Per-channel keys + alignment offsets for the line scan (Ch1 = Alexa 568 structural,
+        # Ch2 = Fluo-4 calcium). Three portable interfaces per channel: segmentation (1D profile),
+        # raw kymograph TimeSeries, and FOV source image. Each gets its own metadata_key so it
+        # has its own entry in the metadata dict.
+        line_scan_channels = [
+            {
+                "channel": "Ch1",
+                "indicator": "Alexa Fluor 568",
+                "display": "Alexa568",
+                "pmt": "Hamamatsu R3982 side-on PMT (580-620 nm)",
+                "trace_desc": (
+                    f"Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM) - {location_id}. "
+                    "Ca2+-insensitive dye to visualize dendrites."
+                ),
+                "t_start_key": "line_scan_structural_channel",
+            },
+            {
+                "channel": "Ch2",
+                "indicator": "Fluo-4",
+                "display": "Fluo4",
+                "pmt": "Hamamatsu H7422P-40 GaAsP PMT (490-560 nm)",
+                "trace_desc": (
+                    f"Calcium fluorescence from Fluo-4 (100 μM) - {location_id}. "
+                    "Ca2+-sensitive dye for measuring back-propagating action potential-evoked calcium transients. "
+                    "Magnitude serves as surrogate estimate of dendritic depolarization extent."
+                ),
+                "t_start_key": "line_scan_calcium_channel",
+            },
+        ]
 
         # Find electrophysiology XML file (exact name from Figure 1 notes)
         electrophysiology_xml_file = recording_folder / f"{recording_folder.name}_Cycle00001_VoltageRecording_001.xml"
@@ -534,95 +555,73 @@ def convert_dendritic_excitability_session_to_nwbfile(
             location_to_recording_indices[location_id] = []
         location_to_recording_indices[location_id].append(recording_index)
 
-        # Process structural channel (Ch1/Alexa568)
-        structural_metadata = structural_interface.get_metadata()
-        # Apply fluorophore-specific metadata based on experimental knowledge
-        structural_metadata["Devices"][structural_ophys_key]["name"] = "BrukerUltima"
-        structural_metadata["Devices"][structural_ophys_key][
-            "description"
-        ] = "Bruker Ultima two-photon microscope for line scan imaging. 810 nm excitation laser (Chameleon Ultra II, Coherent). Signals filtered at 2 kHz and digitized at 10 kHz."
-        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["name"] = f"ImagingPlane{location_id}"
-        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key][
-            "description"
-        ] = f"Line scan imaging plane for {location_id} using Alexa Fluor 568 structural dye. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
-        structural_metadata["Ophys"]["ImagingPlanes"][structural_ophys_key]["indicator"] = "Alexa Fluor 568"
+        # Write the three line-scan data products per channel via portable interfaces.
+        device_description = (
+            "Bruker Ultima two-photon microscope for line scan imaging. 810 nm excitation laser "
+            "(Chameleon Ultra II, Coherent). Signals filtered at 2 kHz and digitized at 10 kHz."
+        )
+        for channel_info in line_scan_channels:
+            channel = channel_info["channel"]
+            indicator = channel_info["indicator"]
+            display = channel_info["display"]
+            aligned_t_start = t_starts[recording_id][channel_info["t_start_key"]]
 
-        # Update PlaneSegmentations metadata for structural channel
-        structural_metadata["Ophys"]["PlaneSegmentations"][structural_ophys_key][
-            "name"
-        ] = f"PlaneSegmentation{recording_id}"
-        structural_metadata["Ophys"]["PlaneSegmentations"][structural_ophys_key][
-            "description"
-        ] = f"Line scan ROI segmentation for {location_id} structural imaging. Detected by Hamamatsu R3982 side-on PMT (580-620 nm)."
+            seg_key = f"linescan_{recording_id}_{display.lower()}"
+            kymo_key = f"{seg_key}_kymograph"
+            src_key = f"{seg_key}_source"
 
-        # Update RoiResponses metadata for structural channel
-        structural_metadata["Ophys"]["RoiResponses"][structural_ophys_key]["raw"][
-            "name"
-        ] = f"RoiResponseSeriesAlexa568{recording_id}"
-        structural_metadata["Ophys"]["RoiResponses"][structural_ophys_key]["raw"][
-            "description"
-        ] = f"Structural reference fluorescence from Alexa Fluor 568 hydrazide (50 μM) - {location_id}. Ca2+-insensitive dye to visualize dendrites."
+            # Segmentation interface (1D fluorescence profile)
+            seg_interface = BrukerLineScanInterface(
+                folder_path=recording_folder,
+                channel_name=channel,
+                metadata_key=seg_key,
+            )
+            seg_md = seg_interface.get_metadata(use_new_metadata_format=True)
+            seg_md["Devices"][seg_key]["name"] = "BrukerUltima"
+            seg_md["Devices"][seg_key]["description"] = device_description
+            seg_md["Ophys"]["ImagingPlanes"][seg_key]["name"] = f"ImagingPlane{location_id}"
+            seg_md["Ophys"]["ImagingPlanes"][seg_key]["description"] = (
+                f"Line scan imaging plane for {location_id} using {indicator}. "
+                "Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
+            )
+            seg_md["Ophys"]["ImagingPlanes"][seg_key]["indicator"] = indicator
+            seg_md["Ophys"]["PlaneSegmentations"][seg_key]["name"] = f"PlaneSegmentation{display}{recording_id}"
+            seg_md["Ophys"]["PlaneSegmentations"][seg_key]["description"] = (
+                f"Line scan ROI segmentation for {location_id} {indicator} imaging. "
+                f"Detected by {channel_info['pmt']}."
+            )
+            seg_md["Ophys"]["RoiResponses"][seg_key]["raw"]["name"] = f"RoiResponseSeries{display}{recording_id}"
+            seg_md["Ophys"]["RoiResponses"][seg_key]["raw"]["description"] = channel_info["trace_desc"]
+            aligned_seg_timestamps = seg_interface.segmentation_extractor.get_native_timestamps() + aligned_t_start
+            seg_interface.set_aligned_timestamps(aligned_seg_timestamps)
+            seg_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=seg_md)
 
-        # Update SourceImages metadata for structural channel
-        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
-            "name"
-        ] = f"ImageAlexa568{recording_id}"
-        structural_metadata["Acquisition"]["SourceImages"][structural_ophys_key][
-            "description"
-        ] = f"Source image for Alexa Fluor 568 structural reference - {location_id}. Field of view with scan line overlay."
+            # Raw kymograph (2D TIFF as TimeSeries in acquisition)
+            kymo_interface = BrukerLineScanKymographInterface(
+                folder_path=recording_folder,
+                channel_name=channel,
+                metadata_key=kymo_key,
+            )
+            kymo_interface.set_aligned_starting_time(aligned_t_start)
+            kymo_md = kymo_interface.get_metadata()
+            kymo_md["TimeSeries"][kymo_key]["name"] = f"TimeSeriesLineScanRaw{display}{recording_id}"
+            kymo_md["TimeSeries"][kymo_key]["description"] = (
+                f"Line scan raw data for {indicator} - {location_id}. " "Typical acquisition: 2500 lines (time points)."
+            )
+            kymo_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=kymo_md)
 
-        # Update MicroscopySeries metadata for structural channel (raw kymograph)
-        structural_metadata["Ophys"]["MicroscopySeries"][structural_ophys_key][
-            "name"
-        ] = f"TimeSeriesLineScanRawAlexa568{recording_id}"
-        structural_metadata["Ophys"]["MicroscopySeries"][structural_ophys_key][
-            "description"
-        ] = f"Line scan raw data for Alexa Fluor 568 structural reference - {location_id}. Typical acquisition: 2500 lines (time points)."
-
-        # Process calcium channel (Ch2/Fluo-4)
-        calcium_metadata = calcium_interface.get_metadata()
-        # Apply fluorophore-specific metadata
-        calcium_metadata["Devices"][calcium_ophys_key]["name"] = "BrukerUltima"
-        calcium_metadata["Devices"][calcium_ophys_key][
-            "description"
-        ] = "Bruker Ultima two-photon microscope for line scan imaging. 810 nm excitation laser (Chameleon Ultra II, Coherent). Signals filtered at 2 kHz and digitized at 10 kHz."
-        calcium_metadata["Ophys"]["ImagingPlanes"][calcium_ophys_key]["name"] = f"ImagingPlane{location_id}"
-        calcium_metadata["Ophys"]["ImagingPlanes"][calcium_ophys_key][
-            "description"
-        ] = f"Line scan imaging plane for {location_id} using Fluo-4 calcium indicator. Line scan parameters: 64 pixels per line, 10 μs dwell time, ~640 μs per line."
-        calcium_metadata["Ophys"]["ImagingPlanes"][calcium_ophys_key]["indicator"] = "Fluo-4"
-
-        # Update PlaneSegmentations metadata for calcium channel
-        calcium_metadata["Ophys"]["PlaneSegmentations"][calcium_ophys_key]["name"] = f"PlaneSegmentation{recording_id}"
-        calcium_metadata["Ophys"]["PlaneSegmentations"][calcium_ophys_key][
-            "description"
-        ] = f"Line scan ROI segmentation for {location_id} calcium imaging. Detected by Hamamatsu H7422P-40 GaAsP PMT (490-560 nm)."
-
-        # Update RoiResponses metadata for calcium channel
-        calcium_metadata["Ophys"]["RoiResponses"][calcium_ophys_key]["raw"][
-            "name"
-        ] = f"RoiResponseSeriesFluo4{recording_id}"
-        calcium_metadata["Ophys"]["RoiResponses"][calcium_ophys_key]["raw"][
-            "description"
-        ] = f"Calcium fluorescence from Fluo-4 (100 μM) - {location_id}. Ca2+-sensitive dye for measuring back-propagating action potential-evoked calcium transients. Magnitude serves as surrogate estimate of dendritic depolarization extent."
-
-        # Update SourceImages metadata for calcium channel
-        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key]["name"] = f"ImageFluo4{recording_id}"
-        calcium_metadata["Acquisition"]["SourceImages"][calcium_ophys_key][
-            "description"
-        ] = f"Source image for Fluo-4 calcium indicator - {location_id}. Field of view with scan line overlay."
-
-        # Update MicroscopySeries metadata for calcium channel (raw kymograph)
-        calcium_metadata["Ophys"]["MicroscopySeries"][calcium_ophys_key][
-            "name"
-        ] = f"TimeSeriesLineScanRawFluo4{recording_id}"
-        calcium_metadata["Ophys"]["MicroscopySeries"][calcium_ophys_key][
-            "description"
-        ] = f"Line scan raw data for Fluo-4 calcium indicator - {location_id}. Typical acquisition: 2500 lines (time points). Kymograph structure: (C, T, X) where C=channels, T=time/lines, X=pixels along scan line."
-
-        # Add both ophys channels to NWB file
-        structural_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=structural_metadata)
-        calcium_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=calcium_metadata)
+            # FOV snapshot with scan-line overlay (Image in shared Images container)
+            src_interface = BrukerLineScanSourceImageInterface(
+                folder_path=recording_folder,
+                channel_name=channel,
+                metadata_key=src_key,
+            )
+            src_md = src_interface.get_metadata()
+            src_md["Acquisition"]["SourceImages"][src_key]["name"] = f"Image{display}{recording_id}"
+            src_md["Acquisition"]["SourceImages"][src_key][
+                "description"
+            ] = f"Source image for {indicator} - {location_id}. Field of view with scan line overlay."
+            src_interface.add_to_nwbfile(nwbfile=nwbfile, metadata=src_md)
 
     # Build icephys table hierarchical structure using shared utility function
     build_dendritic_icephys_table_structure(
