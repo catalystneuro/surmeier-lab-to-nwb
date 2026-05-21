@@ -101,65 +101,71 @@ cell1-001/
 
 Example: `07062017_Cell1_dist1_trio-001`
 
-**Complete Directory Structure**:
+**Folder-name convention** (important; previously misread):
+- Each outer folder is `MMDD<letter>` (or `MMDD<letter><digit>` for the LID-on-with-SCH cohort).
+- **The date identifies the animal**: all folders sharing the same date come from the same mouse patched that day. Per-condition date counts match the paper's reported mouse Ns exactly (verified for figures 1, 6, and others against Zhai et al. 2025).
+- **The letter identifies the cell within that day** (a=Cell 1, b=Cell 2, c=Cell 3, d=Cell 4). The inner Prairie View filenames confirm this: `0202a/0202a1/02022017_Cell1_dist1_trio-001` (folder `0202a` contains `Cell1` recordings), `0203c/0203c2/02032017_Cell3_dist2_trio-001` (folder `0203c` contains `Cell3` recordings).
+- **A trailing digit after the letter** (e.g., `0411a2`, `0507b1`, `0503a3`) is the **location-pair index** for that cell, NOT a second cell or animal. Example: `0411a2/` contains only `04112019_Cell1_dist2_trio-*` and `04112019_Cell1_prox2_trio-*` (Cell 1, dendritic pair 2).
+- Inner numbered folders (`0202a1`, `0202a2`) are dendritic locations of the same cell (location 1, location 2).
+
 ```
 Figure 1/Dendritic excitability/
 ├── LID off-state/
-│   ├── 0202a/          # Feb 2nd, 2017, animal "a"
-│   │   ├── 0202a1/     # Cell 1 from animal "a"
-│   │   └── 0202a2/     # Cell 2 from animal "a"
-│   ├── 0203a/          # Feb 3rd, 2017, animal "a"
+│   ├── 0202a/          # Feb 2, 2017 — Cell 1 of that day's mouse
+│   │   ├── 0202a1/     # dendritic location 1 of Cell 1
+│   │   └── 0202a2/     # dendritic location 2 of Cell 1
+│   ├── 0203a/          # Feb 3 — Cell 1 (same mouse as 0203c)
 │   │   ├── 0203a1/, 0203a2/, 0203a3/
-│   ├── 0203c/          # Feb 3rd, 2017, animal "c"
+│   ├── 0203c/          # Feb 3 — Cell 3 of the same Feb-3 mouse
 │   │   ├── 0203c1/, 0203c2/
-│   ├── 0204a/          # Feb 4th, 2017, animal "a"
+│   ├── 0204a/          # Feb 4 — Cell 1 (same mouse as 0204b)
 │   │   ├── 0204a1/, 0204a2/
-│   ├── 0204b/          # Feb 4th, 2017, animal "b"
+│   ├── 0204b/          # Feb 4 — Cell 2 of the same Feb-4 mouse
 │   │   ├── 0204b1/, 0204b2/
-│   ├── 0812c/          # Aug 12th, 2016, animal "c"
+│   ├── 0812c/          # Aug 12, 2016 — Cell 3
 │   │   └── 0812c1/
-│   ├── 1111b/          # Nov 11th, 2016, animal "b"
+│   ├── 1111b/          # Nov 11, 2016 — Cell 2 (same mouse as 1111c)
 │   │   ├── 1111b1/, 1111b2/
-│   ├── 1111c/          # Nov 11th, 2016, animal "c"
+│   ├── 1111c/          # Nov 11, 2016 — Cell 3 of the same Nov-11 mouse
 │   │   └── 1111c2/
-│   ├── 1114a/          # Nov 14th, 2016, animal "a"
+│   ├── 1114a/          # Nov 14, 2016 — Cell 1
 │   │   ├── 1111a1/, 1111a2/, 1111a3/
-│   └── 1116c/          # Nov 16th, 2016, animal "c"
+│   └── 1116c/          # Nov 16, 2016 — Cell 3
 │       ├── 1116c1/, 1116c2/
 ├── LID on-state/
-│   ├── 0706a/          # July 6th, 2017, animal "a"
+│   ├── 0706a/          # July 6, 2017 — Cell 1 (same mouse as 0706b)
 │   │   ├── 0706a1/, 0706a2/
-│   ├── 0706b/          # July 6th, 2017, animal "b"
+│   ├── 0706b/          # July 6, 2017 — Cell 2 of the same July-6 mouse
 │   │   └── 0706b1/
-│   ├── 0707a/          # July 7th, 2017, animal "a"
+│   ├── 0707a/          # July 7, 2017 — Cell 1 (same mouse as 0707b)
 │   │   ├── 0707a1/, 0707a2/
-│   ├── 0707b/          # July 7th, 2017, animal "b"
+│   ├── 0707b/          # July 7, 2017 — Cell 2 of the same July-7 mouse
 │   │   └── [Recording folders with detailed file structures]
-│   ├── 0719a/          # July 19th, 2017, animal "a"
+│   ├── 0719a/          # July 19, 2017 — Cell 1 (same mouse as 0719b)
 │   │   ├── 0719a1/, 0719a2/
-│   ├── 0719b/          # July 19th, 2017, animal "b"
+│   ├── 0719b/          # July 19, 2017 — Cell 2 of the same July-19 mouse
 │   │   ├── 0719b1/, 0719b2/
-│   ├── 0720a/          # July 20th, 2017, animal "a"
+│   ├── 0720a/          # July 20, 2017 — Cell 1 (same mouse as 0720b)
 │   │   └── 0720a1/
-│   ├── 0720b/          # July 20th, 2017, animal "b"
+│   ├── 0720b/          # July 20, 2017 — Cell 2 of the same July-20 mouse
 │   │   ├── 0720b1/, 0720b2/
-│   ├── 0721a/          # July 21st, 2017, animal "a"
+│   ├── 0721a/          # July 21, 2017 — Cell 1 (same mouse as 0721b)
 │   │   ├── 0721a1/, 0721a2/
-│   └── 0721b/          # July 21st, 2017, animal "b"
+│   └── 0721b/          # July 21, 2017 — Cell 2 of the same July-21 mouse
 │       ├── 0721b1/, 0721b2/
 └── LID on-state with SCH/
-    ├── 0411a2/         # April 11th, 2019, animal "a", cell 2
-    ├── 0411b1/         # April 11th, 2019, animal "b", cell 1
-    ├── 0412a/          # April 12th, 2019, animal "a"
+    ├── 0411a2/         # April 11, 2019 — Cell 1, dendritic pair 2 (same mouse as 0411b1)
+    ├── 0411b1/         # April 11, 2019 — Cell 2, dendritic pair 1
+    ├── 0412a/          # April 12, 2019 — Cell 1 (same mouse as 0412b)
     │   ├── 0412a1/, 0412a2/
-    ├── 0412b/          # April 12th, 2019, animal "b"
+    ├── 0412b/          # April 12, 2019 — Cell 2 of the same April-12 mouse
     │   ├── 0412b1/, 0412b2/
-    ├── 0501b/          # May 1st, 2019, animal "b"
+    ├── 0501b/          # May 1, 2019 — Cell 2
     │   ├── 0501b1/, 0501b2/
-    ├── 0503a3/         # May 3rd, 2019, animal "a", cell 3
-    ├── 0503c/          # May 3rd, 2019, animal "c"
-    ├── 0507b1/         # May 7th, 2019, animal "b", cell 1
-    └── 0507c/          # May 7th, 2019, animal "c"
+    ├── 0503a3/         # May 3, 2019 — Cell 1, dendritic pair 3 (same mouse as 0503c)
+    ├── 0503c/          # May 3, 2019 — Cell 3 of the same May-3 mouse
+    ├── 0507b1/         # May 7, 2019 — Cell 2, dendritic pair 1 (same mouse as 0507c)
+    └── 0507c/          # May 7, 2019 — Cell 3 of the same May-7 mouse
 ```
 
 **Data Volume Summary**:

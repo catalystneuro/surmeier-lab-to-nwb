@@ -27,10 +27,16 @@ NWBFile:
   surgery: |
     Unilateral stereotaxic lesion: 1 µl of 6-hydroxydopamine
     (≈3 µg in 0.02 % ascorbate-saline) injected into the right
-    medial forebrain bundle (AP -0.7 mm, ML -1.2 mm, DV -4.75 mm
-    from bregma) under isoflurane anaesthesia; post-operative
-    meloxicam, saline, and warming provided. Lesion efficacy later
-    confirmed by drug-free forelimb-asymmetry (cylinder) test.
+    medial forebrain bundle. Stereotaxic coordinates per the lab's
+    6-OHDA lesion protocol: AP -0.7 mm and ML -1.2 mm from bregma;
+    DV -4.75 mm from the dura surface (NOT from bregma; the protocol
+    specifies that the needle is zeroed at bregma for the AP and ML
+    axes but at the dura surface for the DV axis, so AP and ML are
+    referenced to skull landmarks while DV is referenced to the
+    brain surface). Procedure performed under isoflurane anaesthesia;
+    post-operative meloxicam, saline, and warming provided. Lesion
+    efficacy later confirmed by drug-free forelimb-asymmetry
+    (cylinder) test.
   pharmacology: |
     Induction anaesthesia with isoflurane (5 % v/v for induction,
     2 % for maintenance). Pre-operative analgesia: meloxicam
