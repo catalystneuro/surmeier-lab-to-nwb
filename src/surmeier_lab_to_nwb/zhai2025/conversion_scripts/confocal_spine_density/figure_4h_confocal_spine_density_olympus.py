@@ -325,7 +325,7 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
             device_created = True
 
         # Create ImageInterface for this stack
-        interface = ImageInterface(file_paths=tiff_files, images_container_metadata_key=stack_info["container_name"])
+        interface = ImageInterface(file_paths=tiff_files, metadata_key=stack_info["container_name"])
 
         # Get base metadata from interface
         interface_metadata = interface.get_metadata()

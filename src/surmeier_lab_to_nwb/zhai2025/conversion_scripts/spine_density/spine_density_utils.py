@@ -441,7 +441,7 @@ class TiffImageStackInterface(ImageInterface):
             raise ValueError(f"Failed to parse XML metadata from {xml_file.name}")
 
         # Initialize parent ImageInterface
-        super().__init__(file_paths=tiff_files, images_container_metadata_key=container_info["container_name"])
+        super().__init__(file_paths=tiff_files, metadata_key=container_info["container_name"])
 
     def get_metadata(self) -> Dict[str, Any]:
         """
