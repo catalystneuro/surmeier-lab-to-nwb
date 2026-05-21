@@ -20,10 +20,10 @@ dependencies = [
   "xmltodict>=1.0.4",
   "tifffile>=2026.5.15",
   "roiextractors>=0.5.13",
-  "hdmf>=6.0.2",
+  "hdmf>=4.1.1",
   "astropy>=7.2.0",
   "ndx-optogenetics",
-  "pandas>=3.0.3",
+  "pandas>=2.2.3",
   "openpyxl>=3.1.5",
   "opencv-python-headless>=4.13.0.92",
   "tqdm>=4.67.3",
@@ -98,9 +98,9 @@ relative-imports-order = "closest-to-furthest"
 known-first-party = ["surmeier_lab_to_nwb"]
 
 [tool.uv.sources]
-neuroconv = { path = "../../work_repos/neuroconv", editable = true }
-roiextractors = { path = "../../work_repos/roiextractors", editable = true }
-ndx-optogenetics = { path = "../../work_repos/ndx_extensions/ndx-optogenetics", editable = true }
+neuroconv = { path = "/home/heberto/development/work_repos/neuroconv", editable = true }
+roiextractors = { path = "/home/heberto/development/work_repos/roiextractors", editable = true }
+ndx-optogenetics = { path = "/home/heberto/development/work_repos/ndx_extensions/ndx-optogenetics", editable = true }
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
