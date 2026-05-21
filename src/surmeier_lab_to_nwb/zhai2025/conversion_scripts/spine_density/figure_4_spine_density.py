@@ -109,7 +109,7 @@ if __name__ == "__main__":
     logging.getLogger("tifffile").setLevel(logging.ERROR)
 
     # Define the base path to the data - Figure 4 spine density (two-photon method, iSPNs)
-    base_path = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Spine density/")
+    base_path = Path("./link_to_raw_data/Figure 4_SF1B_SF5/Spine density/")
 
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root

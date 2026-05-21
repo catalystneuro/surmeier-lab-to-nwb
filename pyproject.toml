@@ -20,7 +20,7 @@ dependencies = [
   "xmltodict>=0.14.2",
   "tifffile>=2025.5.10",
   "roiextractors>=0.5.13",
-  "hdmf==4.0.0",
+  "hdmf>=4.1.1",
   "astropy>=6.1.7",
   "ndx-optogenetics",
   "pandas>=2.2.3",
@@ -28,7 +28,8 @@ dependencies = [
   "opencv-python-headless>=4.12.0.88",
   "tqdm>=4.67.1",
   "imagecodecs>=2025.3.30",
-  "dandi>=0.69.3",
+  "dandi>=0.74.0",
+  "ndx-ophys-devices>=0.3.1",
 ]
 # Astropy I use for the date
 
@@ -97,9 +98,9 @@ relative-imports-order = "closest-to-furthest"
 known-first-party = ["surmeier_lab_to_nwb"]
 
 [tool.uv.sources]
-neuroconv = { path = "../neuroconv", editable = true }
-roiextractors = { path = "../roiextractors", editable = true }
-ndx-optogenetics = { path = "../ndx-optogenetics", editable = true }
+neuroconv = { path = "../../work_repos/neuroconv", editable = true }
+roiextractors = { path = "../../work_repos/roiextractors", editable = true }
+ndx-optogenetics = { path = "../../work_repos/ndx_extensions/ndx-optogenetics", editable = true }
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }

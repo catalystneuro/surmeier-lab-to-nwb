@@ -224,16 +224,12 @@ if __name__ == "__main__":
     datasets = [
         {
             "name": "Fig4I",
-            "path": Path(
-                "/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4I/raw"
-            ),
+            "path": Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4I/raw"),
             "conditions": ["control", "6-OHDA", "off-state", "on-state"],
         },
         {
             "name": "Fig4J",
-            "path": Path(
-                "/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4J and Suppl Fig 5/raw"
-            ),
+            "path": Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4J and Suppl Fig 5/raw"),
             "conditions": ["control", "6-OHDA", "off-state", "on-state"],
         },
     ]

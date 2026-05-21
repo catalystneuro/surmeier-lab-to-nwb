@@ -369,9 +369,7 @@ if __name__ == "__main__":
     logging.getLogger("PIL").setLevel(logging.ERROR)
 
     # Define the path to Figure 4H data
-    fig4h_path = Path(
-        "/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4H/raw"
-    )
+    fig4h_path = Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4H/raw")
 
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root

@@ -125,8 +125,9 @@ def main():
     verbose = False  # Set to True for detailed output
 
     # Define raw data and output paths
-    raw_data_root = Path("/home/heberto/development/surmeier-lab-to-nwb/link_to_raw_data/Figure 4_SF1B_SF5/Sr-oEPSC")
-    output_root = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/optical_stimulation/figure_4")
+    raw_data_root = Path("./link_to_raw_data/Figure 4_SF1B_SF5/Sr-oEPSC")
+    root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
+    output_root = root_dir / "nwb_files" / "optical_stimulation" / "figure_4"
 
     # Create output directory
     output_root.mkdir(parents=True, exist_ok=True)

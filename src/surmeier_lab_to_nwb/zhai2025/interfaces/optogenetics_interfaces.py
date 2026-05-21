@@ -3,17 +3,19 @@ from pathlib import Path
 from typing import Optional
 
 import xmltodict
-from ndx_optogenetics import (
+from ndx_ophys_devices import (
+    Effector,
     ExcitationSource,
     ExcitationSourceModel,
-    OpticalFiber,
-    OpticalFiberLocationsTable,
-    OpticalFiberModel,
+    ViralVector,
+    ViralVectorInjection,
+)
+from ndx_optogenetics import (
+    OptogeneticEffectors,
     OptogeneticEpochsTable,
     OptogeneticExperimentMetadata,
-    OptogeneticVirus,
+    OptogeneticSitesTable,
     OptogeneticViruses,
-    OptogeneticVirusInjection,
     OptogeneticVirusInjections,
 )
 from neuroconv.basedatainterface import BaseDataInterface
@@ -160,14 +162,19 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             "excitation_source_model": {
                 "name": "LED470nmModel",
                 "description": "Blue LED model for 470nm optogenetic stimulation",
-                "illumination_type": "LED",
+                "manufacturer": "Unknown",  # Required by DeviceModel; actual manufacturer not documented
+                "source_type": "LED",
+                "excitation_mode": "one-photon",
                 "wavelength_range_in_nm": [455.0, 485.0],  # Typical blue LED FWHM range
             },
             "excitation_source": {
                 "name": "LED470nmSource",
-                "description": "Blue LED excitation source for ChR2 activation",
-                "wavelength_in_nm": 470.0,
+                "description": (
+                    "Blue LED excitation source for ChR2 activation. "
+                    "Wavelength (470 nm) specified per-epoch in OptogeneticEpochsTable."
+                ),
                 "power_in_W": 0.001,  # Placeholder - actual power unknown
+                "exposure_time_in_s": 0.0003,  # 0.3 ms LED pulse width
             },
             "virus": {
                 "name": "DefaultOptogeneticVirus",
@@ -191,32 +198,15 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
                 "volume_in_uL": 0.0,
                 "injection_date": None,
             },
-            "optical_fiber_model": {
-                "name": "PlaceholderFiberModel",
-                "description": "Placeholder fiber model - no actual optical fiber used in this experiment",
-                "fiber_name": "Whole-field LED (no fiber)",
-                "manufacturer": "Not applicable",
-                "numerical_aperture": 0.0,  # Not applicable for whole-field LED
-                "core_diameter_in_um": 0.0,  # Not applicable for whole-field LED
-            },
-            "optical_fiber": {
-                "name": "PlaceholderFiber",
-                "description": "Placeholder fiber device - no actual optical fiber used, LED provides whole-field illumination",
-            },
-            "stimulation_location": {
-                "reference": "Dorsal striatum slice preparation - Sr2+-oEPSC protocol",
-                "location": "dorsal striatum",
-                "hemisphere": "ipsilateral to 6-OHDA lesion",
-                "description": (
-                    "Whole-field LED illumination targeting ChR2-expressing corticostriatal terminals. "
-                    "Protocol: 0.3ms blue LED pulse at 20ms into 420ms sweep. "
-                    "Detection window: 40-400ms post-stimulus. "
-                    "Inter-sweep interval: 30 seconds for Sr2+ clearance. "
-                    "No optical fiber used - LED provides broad illumination of brain slice."
-                ),
-                "ap_in_mm": 0.0,  # Not applicable for slice preparation
-                "ml_in_mm": 0.0,  # Not applicable for slice preparation
-                "dv_in_mm": 0.0,  # Not applicable for slice preparation
+            # Note: no optical_fiber / optical_fiber_model / fiber_insertion entries.
+            # ndx-optogenetics 0.4.0+ makes the optical_fiber column optional in
+            # OptogeneticSitesTable, so whole-field LED experiments (no implanted fiber)
+            # can skip the placeholder fiber objects entirely.
+            "effector": {
+                "name": "ChR2_effector",
+                "description": "Excitatory channelrhodopsin expressed via AAV viral injection",
+                "label": "hChR2(H134R)-EYFP",
+                "manufacturer": "Addgene",
             },
         }
 
@@ -277,97 +267,55 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
         # Excitation source model
         excitation_source_model_info = ndx_metadata["excitation_source_model"]
         excitation_source_model_name = excitation_source_model_info["name"]
-        if excitation_source_model_name not in nwbfile.devices:
+        if excitation_source_model_name not in nwbfile.device_models:
             excitation_source_model = ExcitationSourceModel(
                 name=excitation_source_model_name,
                 description=excitation_source_model_info["description"],
-                illumination_type=excitation_source_model_info["illumination_type"],
+                manufacturer=excitation_source_model_info["manufacturer"],
+                source_type=excitation_source_model_info["source_type"],
+                excitation_mode=excitation_source_model_info["excitation_mode"],
                 wavelength_range_in_nm=excitation_source_model_info["wavelength_range_in_nm"],
             )
-            nwbfile.add_device(excitation_source_model)
+            nwbfile.add_device_model(excitation_source_model)
         else:
-            excitation_source_model = nwbfile.devices[excitation_source_model_name]
+            excitation_source_model = nwbfile.device_models[excitation_source_model_name]
 
-        # Excitation source
+        # Excitation source (wavelength_in_nm removed in ndx-optogenetics 0.3.0+;
+        # now specified per-epoch in OptogeneticEpochsTable)
         excitation_source_info = ndx_metadata["excitation_source"]
         excitation_source_name = excitation_source_info["name"]
         if excitation_source_name not in nwbfile.devices:
             excitation_source = ExcitationSource(
                 name=excitation_source_name,
                 description=excitation_source_info["description"],
-                wavelength_in_nm=excitation_source_info["wavelength_in_nm"],
                 power_in_W=excitation_source_info["power_in_W"],
+                exposure_time_in_s=excitation_source_info["exposure_time_in_s"],
                 model=excitation_source_model,
             )
             nwbfile.add_device(excitation_source)
         else:
             excitation_source = nwbfile.devices[excitation_source_name]
 
-        # Create placeholder optical fiber model (required by ndx-optogenetics API)
-        # NOTE: No actual optical fiber is used - this is a placeholder to satisfy API requirements
-        optical_fiber_model_info = ndx_metadata["optical_fiber_model"]
-        optical_fiber_model_name = optical_fiber_model_info["name"]
-        if optical_fiber_model_name not in nwbfile.devices:
-            optical_fiber_model = OpticalFiberModel(
-                name=optical_fiber_model_name,
-                description=optical_fiber_model_info["description"],
-                fiber_name=optical_fiber_model_info["fiber_name"],
-                manufacturer=optical_fiber_model_info["manufacturer"],
-                numerical_aperture=optical_fiber_model_info["numerical_aperture"],
-                core_diameter_in_um=optical_fiber_model_info["core_diameter_in_um"],
-            )
-            nwbfile.add_device(optical_fiber_model)
-        else:
-            optical_fiber_model = nwbfile.devices[optical_fiber_model_name]
+        # No optical fiber objects created: ndx-optogenetics 0.4.0 made the optical_fiber
+        # column in OptogeneticSitesTable optional, so whole-field LED experiments
+        # (no implanted fiber) no longer need placeholder OpticalFiberModel / OpticalFiber /
+        # FiberInsertion objects. The OptogeneticSitesTable row below records only the
+        # excitation source and the effector.
 
-        # Create placeholder optical fiber (required by ndx-optogenetics API)
-        # NOTE: No actual optical fiber is used - this is a placeholder to satisfy API requirements
-        optical_fiber_info = ndx_metadata["optical_fiber"]
-        optical_fiber_name = optical_fiber_info["name"]
-        if optical_fiber_name not in nwbfile.devices:
-            optical_fiber = OpticalFiber(
-                name=optical_fiber_name,
-                description=optical_fiber_info["description"],
-                model=optical_fiber_model,
-            )
-            nwbfile.add_device(optical_fiber)
-        else:
-            optical_fiber = nwbfile.devices[optical_fiber_name]
-
-        # Create OpticalFiberLocationsTable for excitation source tracking
-        # NOTE: This table is required by ndx-optogenetics but no actual optical fibers are used
-        # The table tracks the excitation source location for whole-field LED illumination
-        stimulation_location_info = ndx_metadata["stimulation_location"]
-        optical_fiber_locations_table = OpticalFiberLocationsTable(
-            name="optical_fiber_locations_table",
-            description="Stimulation location tracking for whole-field LED illumination (no optical fibers used)",
-            reference=stimulation_location_info["reference"],
-        )
-
-        # Add stimulation location data (excitation source and placeholder fiber)
-        optical_fiber_locations_table.add_row(
-            implanted_fiber_description=stimulation_location_info["description"],
-            location=stimulation_location_info["location"],
-            hemisphere=stimulation_location_info["hemisphere"],
-            ap_in_mm=stimulation_location_info["ap_in_mm"],
-            ml_in_mm=stimulation_location_info["ml_in_mm"],
-            dv_in_mm=stimulation_location_info["dv_in_mm"],
-            excitation_source=excitation_source,
-            optical_fiber=optical_fiber,  # Placeholder fiber to satisfy API requirements
-        )
-
-        # Create OptogeneticVirus and OptogeneticVirusInjection objects
+        # Create ViralVector and ViralVectorInjection objects
+        # (renamed from OptogeneticVirus / OptogeneticVirusInjection in ndx-optogenetics 0.3.0+,
+        # now defined in ndx-ophys-devices)
         virus_info = ndx_metadata["virus"]
         injection_info = ndx_metadata["virus_injection"]
 
-        # Create OptogeneticVirus object with comprehensive description
+        # Create ViralVector object with comprehensive description
         enhanced_virus_description = (
             f"{virus_info['description']} "
             f"Construct: {virus_info['construct_name']} from {virus_info['manufacturer']}. "
             f"Titer: {virus_info['titer_in_vg_per_ml']:.0e} vg/ml."
         )
 
-        optogenetic_virus = OptogeneticVirus(
+        viral_vector = ViralVector(
             name=virus_info["name"],
             construct_name=virus_info["construct_name"],
             description=enhanced_virus_description,
@@ -375,7 +323,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             titer_in_vg_per_ml=virus_info["titer_in_vg_per_ml"],
         )
 
-        # Create OptogeneticVirusInjection object with comprehensive description
+        # Create ViralVectorInjection object with comprehensive description
         enhanced_injection_description = (
             f"{injection_info['description']} "
             f"Coordinates: AP {injection_info['ap_in_mm']}mm, ML {injection_info['ml_in_mm']}mm, "
@@ -383,7 +331,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             f"Injection volume: {injection_info['volume_in_uL']}µL."
         )
 
-        optogenetic_virus_injection = OptogeneticVirusInjection(
+        viral_vector_injection = ViralVectorInjection(
             name=injection_info["name"],
             description=enhanced_injection_description,
             location=injection_info["location"],
@@ -397,22 +345,46 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             roll_in_deg=injection_info["roll_in_deg"],
             volume_in_uL=injection_info["volume_in_uL"],
             injection_date=injection_info["injection_date"],
-            virus=optogenetic_virus,
+            viral_vector=viral_vector,
         )
 
-        # Create OptogeneticViruses and OptogeneticVirusInjections containers
-        optogenetic_viruses = OptogeneticViruses(optogenetic_virus=[optogenetic_virus])
-        optogenetic_virus_injections = OptogeneticVirusInjections(
-            optogenetic_virus_injections=[optogenetic_virus_injection]
+        # Create Effector (new in ndx-optogenetics 0.3.0+): links the optogenetic effect
+        # (e.g., hChR2-EYFP) to the viral injection that delivered it
+        effector_info = ndx_metadata["effector"]
+        effector = Effector(
+            name=effector_info["name"],
+            description=effector_info["description"],
+            label=effector_info["label"],
+            manufacturer=effector_info["manufacturer"],
+            viral_vector_injection=viral_vector_injection,
+        )
+
+        # Create OptogeneticViruses, OptogeneticVirusInjections, OptogeneticEffectors containers
+        optogenetic_viruses = OptogeneticViruses(viral_vectors=[viral_vector])
+        optogenetic_virus_injections = OptogeneticVirusInjections(viral_vector_injections=[viral_vector_injection])
+        optogenetic_effectors = OptogeneticEffectors(effectors=[effector])
+
+        # Create OptogeneticSitesTable (replaces OpticalFiberLocationsTable in 0.3.0+).
+        # Only excitation_source and effector are recorded; optical_fiber is intentionally
+        # omitted because the experiment uses whole-field LED illumination, not an implanted
+        # fiber. The optical_fiber column is optional in ndx-optogenetics 0.4.0+.
+        optogenetic_sites_table = OptogeneticSitesTable(
+            name="optogenetic_sites_table",
+            description="Stimulation sites for whole-field LED illumination of corticostriatal terminals.",
+        )
+        optogenetic_sites_table.add_row(
+            excitation_source=excitation_source,
+            effector=effector,
         )
 
         # Create OptogeneticExperimentMetadata
         if "optogenetic_experiment_metadata" not in nwbfile.lab_meta_data:
             optogenetic_experiment_metadata = OptogeneticExperimentMetadata(
                 stimulation_software=ndx_metadata["stimulation_software"],
-                optical_fiber_locations_table=optical_fiber_locations_table,
+                optogenetic_sites_table=optogenetic_sites_table,
                 optogenetic_viruses=optogenetic_viruses,
                 optogenetic_virus_injections=optogenetic_virus_injections,
+                optogenetic_effectors=optogenetic_effectors,
             )
             nwbfile.add_lab_meta_data(optogenetic_experiment_metadata)
 
@@ -421,7 +393,7 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             optogenetic_epochs_table = OptogeneticEpochsTable(
                 name="optogenetic_epochs_table",
                 description="Optogenetic stimulation epochs with detailed parameters",
-                target_tables={"optical_fiber_locations": optical_fiber_locations_table},
+                target_tables={"optogenetic_sites": optogenetic_sites_table},
             )
 
             # Add custom column for stage name
@@ -471,7 +443,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             number_trains=-1,  # -1 when stimulation is off
             intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
             power_in_mW=0.0,  # No power during baseline
-            optical_fiber_locations=[0],  # References excitation source location
+            wavelength_in_nm=470.0,  # Blue LED wavelength (specified per-epoch in 0.3.0+)
+            optogenetic_sites=[0],  # References the OptogeneticSitesTable row
             stage_name="pre_stimulation",
         )
 
@@ -486,7 +459,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             number_trains=1,  # Single train per epoch
             intertrain_interval_in_ms=float("nan"),  # Not applicable for single train
             power_in_mW=float("nan"),  # Power not measured/known
-            optical_fiber_locations=[0],  # References excitation source location
+            wavelength_in_nm=470.0,  # Blue LED wavelength (specified per-epoch in 0.3.0+)
+            optogenetic_sites=[0],  # References the OptogeneticSitesTable row
             stage_name="stimulation",
         )
 
@@ -501,7 +475,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             number_trains=-1,  # -1 when stimulation is off
             intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
             power_in_mW=0.0,  # No power during detection
-            optical_fiber_locations=[0],  # References excitation source location
+            wavelength_in_nm=470.0,  # Blue LED wavelength (specified per-epoch in 0.3.0+)
+            optogenetic_sites=[0],  # References the OptogeneticSitesTable row
             stage_name="detection",
         )
 
@@ -516,7 +491,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
             number_trains=-1,  # -1 when stimulation is off
             intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
             power_in_mW=0.0,  # No power during post-detection
-            optical_fiber_locations=[0],  # References excitation source location
+            wavelength_in_nm=470.0,  # Blue LED wavelength (specified per-epoch in 0.3.0+)
+            optogenetic_sites=[0],  # References the OptogeneticSitesTable row
             stage_name="post_detection",
         )
 
@@ -533,7 +509,8 @@ class PrairieViewOptogeneticsInterface(BaseDataInterface):
                 number_trains=-1,  # -1 when stimulation is off
                 intertrain_interval_in_ms=float("nan"),  # NaN when stimulation is off
                 power_in_mW=0.0,  # No power during inter-sweep
-                optical_fiber_locations=[0],  # References excitation source location
+                wavelength_in_nm=470.0,  # Blue LED wavelength (specified per-epoch in 0.3.0+)
+                optogenetic_sites=[0],  # References the OptogeneticSitesTable row
                 stage_name="inter_sweep_interval",
             )
 
