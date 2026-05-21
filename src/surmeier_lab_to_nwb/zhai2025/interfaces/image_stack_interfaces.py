@@ -63,6 +63,8 @@ class NikonImageStackInterface(BaseDataInterface):
     def add_to_nwbfile(self, nwbfile: NWBFile, metadata: Optional[dict] = None):
         from pynwb.device import Device
 
+        from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_nikon_axr_model
+
         # Create confocal microscope device if not already present
         device_name = "NikonAXRConfocal"
         if device_name not in nwbfile.devices:
@@ -74,7 +76,10 @@ class NikonImageStackInterface(BaseDataInterface):
                 "using supervised learning algorithms for automated spine detection and manual validation."
             )
 
-            confocal_device = Device(name=device_name, description=device_description, manufacturer="Nikon")
+            # Link to the shared Nikon AXR DeviceModel rather than using the deprecated
+            # Device.manufacturer attribute (pynwb 3.1+ pattern).
+            nikon_model = get_or_create_nikon_axr_model(nwbfile)
+            confocal_device = Device(name=device_name, description=device_description, model=nikon_model)
             nwbfile.add_device(confocal_device)
 
         image_array = self.file_handle.asarray()

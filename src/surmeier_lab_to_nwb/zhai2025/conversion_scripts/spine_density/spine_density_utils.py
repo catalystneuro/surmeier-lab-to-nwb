@@ -25,6 +25,7 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     format_condition,
     generate_canonical_session_id,
 )
+from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
 
 
 def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -373,7 +374,10 @@ def create_microscope_device(nwbfile: NWBFile, xml_metadata: Dict[str, Any]) -> 
         f"Used for spine density imaging with 0.15 μm pixels and 0.3 μm z-steps."
     )
 
-    microscope_device = Device(name="TwoPhotonMicroscope", description=device_description, manufacturer="Bruker")
+    # Link to the shared Bruker Ultima DeviceModel rather than using the deprecated
+    # Device.manufacturer attribute (pynwb 3.1+ pattern).
+    bruker_model = get_or_create_bruker_ultima_model(nwbfile)
+    microscope_device = Device(name="TwoPhotonMicroscope", description=device_description, model=bruker_model)
 
     nwbfile.add_device(microscope_device)
     return microscope_device

@@ -14,6 +14,8 @@ from pynwb.ophys import (
     RoiResponseSeries,
 )
 
+from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
+
 from .prairie_view_utils import get_session_start_time, parse_prairie_view_xml
 
 # Channel-name to user-facing display mapping used in NWB object names.
@@ -244,7 +246,14 @@ class PrairieViewFluorescenceInterface(BaseDataInterface):
         device_name = device_entry["name"]
         if device_name in nwbfile.devices:
             return nwbfile.devices[device_name]
-        device = Device(name=device_name, description=device_entry.get("description"))
+        # Link to the shared Bruker Ultima DeviceModel rather than using the
+        # deprecated Device.manufacturer attribute (pynwb 3.1+ pattern).
+        bruker_model = get_or_create_bruker_ultima_model(nwbfile)
+        device = Device(
+            name=device_name,
+            description=device_entry.get("description"),
+            model=bruker_model,
+        )
         nwbfile.add_device(device)
         return device
 

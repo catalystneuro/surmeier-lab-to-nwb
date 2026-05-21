@@ -11,6 +11,7 @@ from neuroconv.basedatainterface import BaseDataInterface
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.utils import DeepDict, calculate_regular_series_rate
 from pynwb.base import TimeSeries
+from pynwb.device import Device
 from pynwb.file import NWBFile
 from pynwb.image import Image, Images
 from pynwb.ophys import (
@@ -19,6 +20,8 @@ from pynwb.ophys import (
     OpticalChannel,
     RoiResponseSeries,
 )
+
+from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
 
 from .prairie_view_utils import (
     get_pv_indexed,
@@ -282,7 +285,11 @@ class PrairieViewLineScanInterface(BaseDataInterface):
             device = nwbfile.devices[device_name]
         else:
             device_description = device_metadata["description"]
-            device = nwbfile.create_device(name=device_name, description=device_description)
+            # Link to the shared Bruker Ultima DeviceModel rather than using the
+            # deprecated Device.manufacturer attribute (pynwb 3.1+ pattern).
+            bruker_model = get_or_create_bruker_ultima_model(nwbfile)
+            device = Device(name=device_name, description=device_description, model=bruker_model)
+            nwbfile.add_device(device)
 
         # Create or get imaging plane
         imaging_plane_metadata = metadata["Ophys"]["ImagingPlanes"][self.ophys_metadata_key]

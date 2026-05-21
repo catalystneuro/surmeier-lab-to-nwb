@@ -26,6 +26,7 @@ from pynwb.device import Device
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
 )
+from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_olympus_fv10i_model
 
 
 def parse_pty_file(pty_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -198,7 +199,10 @@ def create_olympus_confocal_device(nwbfile: NWBFile, pty_metadata: Dict[str, Any
         f"approximately 2x more spines compared to standard two-photon microscopy."
     )
 
-    device = Device(name="OlympusFV10iConfocal", description=device_description, manufacturer="Olympus")
+    # Link to the shared Olympus FV10i-DUC DeviceModel rather than using the deprecated
+    # Device.manufacturer attribute (pynwb 3.1+ pattern).
+    olympus_model = get_or_create_olympus_fv10i_model(nwbfile)
+    device = Device(name="OlympusFV10iConfocal", description=device_description, model=olympus_model)
 
     nwbfile.add_device(device)
     return device
