@@ -178,3 +178,4 @@ notebooks/analysis_outputs/
 CLAUDE.md
 
 src/surmeier_lab_to_nwb/zhai2025/somatic_experiment/*
+dandi_001538_metadata.csv
