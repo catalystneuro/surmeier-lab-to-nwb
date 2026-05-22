@@ -116,6 +116,8 @@ dev = [
     "tabulate>=0.10.0",
     "remfile>=0.1.13",
     "python-dotenv>=1.2.2",
+    "nbconvert>=7.17.1",
+    "nbclient>=0.10.4",
 ]
 
 
