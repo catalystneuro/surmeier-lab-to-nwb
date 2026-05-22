@@ -31,7 +31,6 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.behavior_interfaces import (
     AIMBehavioralDynamicTableInterface,
-    AIMBehavioralTimeSeriesInterface,
     build_source_data_from_aim_excel_table,
 )
 
@@ -179,18 +178,10 @@ def convert_session_to_nwbfile(
         verbose=verbose,
     )
 
-    # Add behavioral data to NWB file using the DynamicTable interface
+    # Add behavioral data to NWB file using the DynamicTable interface.
+    # AIM ratings are discrete observation events at fixed timepoints (every 20 min)
+    # post-injection, not a continuous signal -- DynamicTable is the right container.
     aim_interface.add_to_nwbfile(nwbfile)
-
-    # Also add behavioral data as BehavioralTimeSeries for time-aligned analysis
-    timeseries_interface = AIMBehavioralTimeSeriesInterface(
-        processed_data_csv_path=processed_data_csv_path,
-        session_date=session_date,
-        session_number=session_number,
-        animal_id=animal_id,
-        verbose=verbose,
-    )
-    timeseries_interface.add_to_nwbfile(nwbfile)
 
     # Add experimental epochs for behavioral assessment time intervals
     epochs = TimeIntervals(
