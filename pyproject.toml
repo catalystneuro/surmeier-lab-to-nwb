@@ -125,31 +125,30 @@ executor.type = "uv"
 [tool.poe.tasks]
 # Main conversion tasks
 convert_all = { sequence = [
-    "convert_dendritic",
-    "convert_somatic",
+    "merge_patch_clamp",
     "convert_spine",
     "convert_confocal",
     "convert_behavior",
     "convert_videos",
     "convert_biosensor",
     "convert_optical",
-], help = "Run all conversion scripts (stub test mode - processes only first 2 files per condition)." }
+], help = "Run the full conversion: per-mouse-day merge for patch-clamp figures (F1, F3, F6, F7, F8) plus per-condition conversion for spine density, biosensor, AIM, videos, and Sr-oEPSC (stub test mode for those that support it)." }
 
 convert_all_full = { sequence = [
-    "convert_dendritic_full",
-    "convert_somatic_full",
+    "merge_patch_clamp",
     "convert_spine_full",
     "convert_confocal_full",
     "convert_behavior_full",
     "convert_videos_full",
     "convert_biosensor_full",
     "convert_optical_full",
-], help = "Run all conversion scripts (full processing mode - processes all files)." }
+], help = "Run the full conversion in full processing mode: per-mouse-day patch-clamp merge plus full-processing per-condition for everything else." }
 
 
-# Experiment type conversion tasks (stub test by default)
-convert_dendritic = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_1_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_3_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_6_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_oxoM_dendritic_excitability.py''', help = "Run all dendritic excitability conversion scripts (stub test)." }
-convert_somatic = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_1_somatic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_3_somatic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_6_somatic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_7_somatic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_8_somatic_excitability.py''', help = "Run all somatic excitability conversion scripts (stub test)." }
+# Per-mouse-day merge: patch-clamp figures (F1, F3, F6, F7, F8). Replaces
+# convert_dendritic and convert_somatic. Always processes all data (no stub mode);
+# total runtime is ~1 min for 58 mouse-day files at ~830 MB.
+merge_patch_clamp = { cmd = "python scripts/full_per_mouse_day_merge.py", help = "Run the per-mouse-day icephys merge across F1, F3, F6, F7, F8." }
 convert_spine = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py''', help = "Run all spine density conversion scripts (stub test)." }
 convert_confocal = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py''', help = "Run all confocal spine density conversion scripts (stub test)." }
 convert_behavior = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py''', help = "Run all AIM behavior conversion scripts (stub test)." }
@@ -158,8 +157,6 @@ convert_biosensor = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversio
 convert_optical = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_2_optical_stimuli.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_4_optical_stimuli.py''', help = "Run all optical stimulation conversion scripts (stub test)." }
 
 # Full processing tasks (process all files)
-convert_dendritic_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_1_dendritic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_3_dendritic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_6_dendritic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_dendritic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_oxoM_dendritic_excitability.py --stub-test=False''', help = "Run all dendritic excitability conversion scripts (full processing)." }
-convert_somatic_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_1_somatic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_3_somatic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_6_somatic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_7_somatic_excitability.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_8_somatic_excitability.py --stub-test=False''', help = "Run all somatic excitability conversion scripts (full processing)." }
 convert_spine_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py --stub-test=False''', help = "Run all spine density conversion scripts (full processing)." }
 convert_confocal_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py --stub-test=False''', help = "Run all confocal spine density conversion scripts (full processing)." }
 convert_behavior_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py --stub-test=False''', help = "Run all AIM behavior conversion scripts (full processing)." }
@@ -167,13 +164,14 @@ convert_videos_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conve
 convert_biosensor_full = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py --stub-test=False''', help = "Run acetylcholine biosensor conversion script (full processing)." }
 convert_optical_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_2_optical_stimuli.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_4_optical_stimuli.py --stub-test=False''', help = "Run all optical stimulation conversion scripts (full processing)." }
 
-# Figure-based tasks (stub test by default)
-convert_fig1 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_1_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_1_somatic_excitability.py''', help = "Run figure 1 conversion scripts." }
-convert_fig2 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_2_optical_stimuli.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py''', help = "Run figure 2 conversion scripts." }
-convert_fig3 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_3_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_3_somatic_excitability.py''', help = "Run figure 3 conversion scripts." }
-convert_fig4 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_4_optical_stimuli.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py''', help = "Run figure 4 conversion scripts." }
-convert_fig5 = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py''', help = "Run figure 5 conversion scripts." }
-convert_fig6 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_6_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_6_somatic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py''', help = "Run figure 6 conversion scripts." }
-convert_fig7 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/figure_7_behavioral_videos.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_oxoM_dendritic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_7_somatic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py''', help = "Run figure 7 conversion scripts." }
-convert_fig8 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_8_somatic_excitability.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py''', help = "Run figure 8 conversion scripts." }
-convert_supfig3 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py''', help = "Run supplementary figure 3 conversion scripts." }
+# Figure-based tasks. Patch-clamp data (somatic + dendritic excitability) is now
+# handled per-mouse-day by `merge_patch_clamp`, so the per-figure tasks below
+# cover only the non-patch-clamp scripts unique to each figure. Run
+# `merge_patch_clamp` separately if you need the patch-clamp files for that figure.
+convert_fig2 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_2_optical_stimuli.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py''', help = "Run figure 2 non-patch-clamp scripts (Sr-oEPSC + spine density)." }
+convert_fig4 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_4_optical_stimuli.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py''', help = "Run figure 4 non-patch-clamp scripts (Sr-oEPSC + 2P spine density + confocal Nikon + Olympus)." }
+convert_fig5 = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py''', help = "Run figure 5 acetylcholine biosensor conversion." }
+convert_fig6 = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py''', help = "Run figure 6 non-patch-clamp scripts (spine density)." }
+convert_fig7 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/figure_7_behavioral_videos.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py''', help = "Run figure 7 non-patch-clamp scripts (AIM + videos + spine density)." }
+convert_fig8 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py''', help = "Run figure 8 non-patch-clamp scripts (AIM + spine density)." }
+convert_supfig3 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py''', help = "Run supplementary figure 3 video conversion." }

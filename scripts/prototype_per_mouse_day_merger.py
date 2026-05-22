@@ -58,7 +58,6 @@ from pynwb.icephys import (
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (
     MouseDayBundle,
-    build_figure_bundles,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -813,37 +812,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     return output_path
 
 
-def main():
-    f1_bundles = build_figure_bundles("F1")
-    f3_bundles = build_figure_bundles("F3")
-    # Build prototypes for:
-    # - F1 plain LID-off
-    # - F1 paired-recording ON+SCH (dSPN)
-    # - F3 plain LID-off (iSPN)
-    # - F3 paired-recording ON+sul (iSPN)
-    targets = [
-        next((b for b in f1_bundles if "20170202LIDOFFtDTomato" in b.subject_entry.subject_id), None),
-        next((b for b in f1_bundles if "20190411LIDONtDTomato" in b.subject_entry.subject_id), None),
-        next((b for b in f3_bundles if "LIDOFFeGFP" in b.subject_entry.subject_id), None),
-        next((b for b in f3_bundles if "20190426LIDONeGFP" in b.subject_entry.subject_id), None),
-    ]
-    if any(t is None for t in targets):
-        print("One or more target mouse-days not found.")
-        return 1
-    output_dir = REPO_ROOT / "nwb_files" / "prototype"
-    for target in targets:
-        print(f"\nBuilding merged NWB for {target.subject_entry.subject_id}")
-        print(f"  cells: {target.cell_indices()}")
-        print(f"  session_start_time: {target.session_start_time}")
-        print(f"  paired conditions: {target.has_paired_conditions()}")
-        output_path = output_dir / f"{target.subject_entry.subject_id}.nwb"
-        final_path = merge_one_mouse_day(target, output_path)
-        size_mb = final_path.stat().st_size / 1024 / 1024
-        print(f"  Wrote: {final_path.name}  ({size_mb:.1f} MB)")
-    return 0
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.exit(main())
+# Library module: `merge_one_mouse_day` is imported by the production runner
+# (`scripts/full_per_mouse_day_merge.py`). No `main()` here — running the
+# production runner is the right entry point for both single mouse-days and
+# the whole dataset.
