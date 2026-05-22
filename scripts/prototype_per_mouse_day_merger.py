@@ -44,9 +44,10 @@ warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
 
 import numpy as np
 import pandas as pd
+from hdmf.common import DynamicTable, DynamicTableRegion, VectorData
 from neuroconv.utils import load_dict_from_file
 from pynwb import NWBHDF5IO, NWBFile
-from pynwb.base import TimeSeries
+from pynwb.base import TimeSeries, TimeSeriesReference, TimeSeriesReferenceVectorData
 from pynwb.device import Device
 from pynwb.file import Subject
 from pynwb.icephys import (
@@ -557,6 +558,21 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # rows rather than collapsing into one.
     irt_rows_per_sequential: dict[tuple[int, str, str], list[int]] = defaultdict(list)
 
+    # Per-IRT-row metadata for the RecordingsIndexTable built post-chain.
+    # Maps irt_row_idx -> dict(cell_id, condition_subfolder, dendrite_type, dendrite_distance_um,
+    #                          stimulus_current_pA, sweep_start_time_s).
+    index_row_metadata: dict[int, dict] = {}
+
+    # Buffer for per-sweep line-scan kymographs to consolidate later.
+    # Key: (cell_id, location_type, location_number, channel_name)
+    # Value: list of (irt_row_idx, kymo_data_2d, rate_hz_or_None, sweep_start_time_s)
+    # After all dendritic IRT rows are added, we concatenate each buffer along axis 0
+    # (the time/lines axis) to make one TimeSeries per (cell, location, channel) -- Pattern B
+    # for line scans. Per-sweep slice info is preserved for the RecordingsIndexTable.
+    line_scan_buffer: dict[tuple[int, str, int, str], list[tuple[int, np.ndarray, float | None, float]]] = defaultdict(
+        list
+    )
+
     # Add custom columns to IntracellularRecordingsTable BEFORE adding rows.
     # The `electrodes` aligned sub-table doesn't exist until the first add; using
     # the convenience add_intracellular_recording call below pre-creates it.
@@ -590,14 +606,6 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     irt.add_column(
         name="stimulus_protocol_name",
         description="Stimulus protocol label from Bruker VoltageOutput XML (e.g., 'Step 5_-40 pA').",
-    )
-    irt.add_column(
-        name="line_scan_ts_names",
-        description=(
-            "Comma-separated names of the paired line-scan TimeSeries acquisitions (Ch1 = Alexa "
-            "reference / R0, Ch2 = Fluo-4 / calcium signal). Empty for somatic sweeps; populated "
-            "for dendritic sweeps that have paired line scans."
-        ),
     )
     irt.add_column(
         name="condition_subfolder",
@@ -638,10 +646,18 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     sweep_start_time=sweep_start_time,
                     stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
                     stimulus_protocol_name=protocol.name if protocol else "",
-                    line_scan_ts_names="",  # Somatic sweeps have no paired imaging.
                     condition_subfolder=sw.condition_subfolder,
                 )
                 irt_rows_per_sequential[(cell_index, "soma_fi_curve", sw.condition_subfolder)].append(row_idx)
+                # Per-row metadata for the RecordingsIndexTable (built post-chain).
+                index_row_metadata[row_idx] = {
+                    "cell_id": cell_index,
+                    "condition_subfolder": sw.condition_subfolder,
+                    "dendrite_type": "Soma",
+                    "dendrite_distance_um": 0.0,
+                    "stimulus_current_pA": protocol.amplitude_pA if protocol else 0.0,
+                    "sweep_start_time_s": float(sweep_start_time),
+                }
 
         # Dendritic block: group sweeps by (compartment, location_number) so each
         # location becomes one SequentialRecordings row.
@@ -688,35 +704,6 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             dendrite_type = "Proximal" if sw.dendrite_location == "prox" else "Distal"
             dendrite_distance = 40.0 if sw.dendrite_location == "prox" else 90.0
 
-            # Read line-scan kymographs FIRST so we can populate the line_scan_ts_names column.
-            # The TimeSeries' starting_time is the wall-clock offset; kymograph rows are
-            # line repetitions over time, columns are pixels along the scan line.
-            kymos = _line_scan_kymographs(sw.recording_path)
-            line_scan_names: list[str] = []
-            # We need a tentative IRT row index to make TimeSeries names unique. Use the
-            # current count of intracellular_recordings + 1 (the IRT row hasn't been added yet).
-            tentative_row = len(nwbfile.intracellular_recordings)
-            for chan_name, (data, rate) in kymos.items():
-                ts_name = (
-                    f"LineScanCell{cell_index}_{dendrite_type}{sw.location_number}_{chan_name}_{tentative_row:03d}"
-                )
-                description = (
-                    f"Bruker line-scan kymograph for Cell {cell_index} {dendrite_type} location "
-                    f"{sw.location_number}, channel {chan_name}. Rows are line repetitions over time, "
-                    f"columns are pixels along the scan line. Paired with dendritic patch sweep at "
-                    f"IRT row {tentative_row} (sweep_start_time={sweep_start_time:.1f}s)."
-                )
-                ts_kwargs = {
-                    "name": ts_name,
-                    "description": description,
-                    "data": data,
-                    "unit": "a.u.",
-                    "starting_time": float(sweep_start_time),
-                    "rate": float(rate) if rate is not None else 1.0,
-                }
-                nwbfile.add_acquisition(TimeSeries(**ts_kwargs))
-                line_scan_names.append(ts_name)
-
             row_idx = nwbfile.add_intracellular_recording(
                 electrode=electrode,
                 stimulus=dend_stim,
@@ -731,12 +718,77 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 sweep_start_time=sweep_start_time,
                 stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
                 stimulus_protocol_name=protocol.name if protocol else "",
-                line_scan_ts_names=",".join(line_scan_names),
                 condition_subfolder=sw.condition_subfolder,
             )
             protocol_label = f"dend_{sw.dendrite_location}{sw.location_number}"
             irt_rows_per_sequential[(cell_index, protocol_label, sw.condition_subfolder)].append(row_idx)
+            index_row_metadata[row_idx] = {
+                "cell_id": cell_index,
+                "condition_subfolder": sw.condition_subfolder,
+                "dendrite_type": dendrite_type,
+                "dendrite_distance_um": dendrite_distance,
+                "stimulus_current_pA": protocol.amplitude_pA if protocol else 0.0,
+                "sweep_start_time_s": float(sweep_start_time),
+            }
 
+            # Buffer line-scan kymographs for later Pattern B consolidation.
+            # Each sweep contributes its kymo to the (cell, location, channel) buffer;
+            # we'll concatenate along axis 0 and write one TimeSeries per buffer.
+            kymos = _line_scan_kymographs(sw.recording_path)
+            for chan_name, (data, rate) in kymos.items():
+                buffer_key = (cell_index, sw.dendrite_location, sw.location_number, chan_name)
+                line_scan_buffer[buffer_key].append((row_idx, data, rate, float(sweep_start_time)))
+
+    # ---- Pattern B for line scans -----------------------------------------------
+    # Consolidate buffered per-sweep kymographs into one TimeSeries per
+    # (cell, location, channel). Each contributing sweep gets a slice (idx_start, count)
+    # into the consolidated array; we record these for the RecordingsIndexTable.
+    # Per-sweep slice info: irt_row_idx -> channel_name -> (timeseries, idx_start, count)
+    line_scan_slices: dict[int, dict[str, tuple[TimeSeries, int, int]]] = defaultdict(dict)
+    for buffer_key, entries in line_scan_buffer.items():
+        cell_index, loc_type, loc_num, chan_name = buffer_key
+        # Sort entries chronologically so concat order matches wall-clock.
+        entries.sort(key=lambda e: e[3])  # sort by sweep_start_time_s
+        arrays = [e[1] for e in entries]
+        # Sanity: all kymos for one (cell, location, channel) should share the
+        # same pixel-along-line dimension. Drop any with mismatched widths.
+        ref_width = arrays[0].shape[1] if arrays[0].ndim == 2 else None
+        clean: list[tuple[int, np.ndarray, float | None, float]] = []
+        for e in entries:
+            arr = e[1]
+            if arr.ndim != 2 or (ref_width is not None and arr.shape[1] != ref_width):
+                continue
+            clean.append(e)
+        if not clean:
+            continue
+        concat = np.concatenate([e[1] for e in clean], axis=0)
+        rate = clean[0][2] if clean[0][2] is not None else 1.0
+        first_start = clean[0][3]
+        dendrite_type_pretty = "Proximal" if loc_type == "prox" else "Distal"
+        ts_name = f"LineScanCell{cell_index}_{dendrite_type_pretty}{loc_num}_{chan_name}"
+        ts_description = (
+            f"Bruker line-scan kymograph for Cell {cell_index} {dendrite_type_pretty} location "
+            f"{loc_num}, channel {chan_name}. All trio sweeps at this location concatenated along "
+            f"the time axis (rows = line repetitions, columns = pixels along the scan line). Per-sweep "
+            f"slices are exposed via processing/recordings_index/RecordingsIndexTable (line_scan_{chan_name.lower()} "
+            f"column). starting_time is the wall-clock of the first contributing sweep relative to session_start_time."
+        )
+        ts = TimeSeries(
+            name=ts_name,
+            description=ts_description,
+            data=concat,
+            unit="a.u.",
+            starting_time=float(first_start),
+            rate=float(rate),
+        )
+        nwbfile.add_acquisition(ts)
+        cumulative = 0
+        for irt_idx, data, _rate, _start in clean:
+            n_lines = data.shape[0]
+            line_scan_slices[irt_idx][chan_name] = (ts, cumulative, n_lines)
+            cumulative += n_lines
+
+    # ---- icephys hierarchical chain --------------------------------------------
     # Build the chain on top of the IRT rows.
     # 1. SimultaneousRecordings: one row per IRT row (single-electrode rig).
     simultaneous_indices_per_irt: dict[int, int] = {}
@@ -749,6 +801,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # Paired-recording cells with both baseline and post-drug sweeps will get TWO
     # sequential rows for their soma_fi_curve protocol (one per condition).
     sequential_indices_per_key: dict[tuple[int, str, str], int] = {}
+    sequential_index_per_irt: dict[int, int] = {}
     for key, irt_indices in irt_rows_per_sequential.items():
         sim_indices = [simultaneous_indices_per_irt[i] for i in irt_indices]
         cell_id, protocol, condition_sub = key
@@ -761,6 +814,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             stimulus_type=stimulus_type,
         )
         sequential_indices_per_key[key] = seq_idx
+        for irt_idx in irt_indices:
+            sequential_index_per_irt[irt_idx] = seq_idx
 
     # 3. Repetitions: one per (cell, protocol family, condition).
     repetitions_table = nwbfile.get_icephys_repetitions()
@@ -781,6 +836,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     )
     # Track which repetitions belong to which condition for the ExperimentalConditions table.
     repetitions_per_condition: dict[str, list[int]] = defaultdict(list)
+    repetition_index_per_irt: dict[int, int] = {}
     for key, seq_idx in sequential_indices_per_key.items():
         cell_id, protocol, condition_sub = key
         rep_idx = nwbfile.add_icephys_repetition(
@@ -790,6 +846,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             condition_subfolder=condition_sub,
         )
         repetitions_per_condition[condition_sub].append(rep_idx)
+        for irt_idx in irt_rows_per_sequential[key]:
+            repetition_index_per_irt[irt_idx] = rep_idx
 
     # 4. ExperimentalConditions: one row per unique condition across the mouse-day.
     # For non-paired mouse-days this collapses to a single row. For paired (e.g., ON+SCH)
@@ -800,16 +858,226 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             name="condition",
             description="Paper-prose label for the experimental condition.",
         )
-    for condition_sub, rep_indices in repetitions_per_condition.items():
+    ec_index_per_condition: dict[str, int] = {}
+    for ec_idx, (condition_sub, rep_indices) in enumerate(repetitions_per_condition.items()):
         nwbfile.add_icephys_experimental_condition(
             repetitions=rep_indices,
             condition=_condition_label(condition_sub),
         )
+        ec_index_per_condition[condition_sub] = ec_idx
+
+    # ---- RecordingsIndexTable -------------------------------------------------
+    # Denormalized lookup that pre-joins the icephys chain for analyst convenience.
+    # One row per IRT row; carries all the cross-references and per-sweep metadata
+    # in flat columns. The canonical chain is still authoritative; this is a query
+    # helper.
+    _build_recordings_index_table(
+        nwbfile,
+        irt_table=irt,
+        sr_table=nwbfile.icephys_simultaneous_recordings,
+        seq_table=nwbfile.icephys_sequential_recordings,
+        reps_table=nwbfile.icephys_repetitions,
+        ec_table=nwbfile.icephys_experimental_conditions,
+        index_row_metadata=index_row_metadata,
+        simultaneous_index_per_irt=simultaneous_indices_per_irt,
+        sequential_index_per_irt=sequential_index_per_irt,
+        repetition_index_per_irt=repetition_index_per_irt,
+        ec_index_per_condition=ec_index_per_condition,
+        line_scan_slices=line_scan_slices,
+    )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with NWBHDF5IO(output_path, "w") as io:
         io.write(nwbfile)
     return output_path
+
+
+def _build_recordings_index_table(
+    nwbfile,
+    *,
+    irt_table,
+    sr_table,
+    seq_table,
+    reps_table,
+    ec_table,
+    index_row_metadata: dict[int, dict],
+    simultaneous_index_per_irt: dict[int, int],
+    sequential_index_per_irt: dict[int, int],
+    repetition_index_per_irt: dict[int, int],
+    ec_index_per_condition: dict[str, int],
+    line_scan_slices: dict[int, dict[str, tuple[TimeSeries, int, int]]],
+) -> None:
+    """Build and attach the RecordingsIndexTable.
+
+    The table denormalizes one row per IRT row with the cross-references from
+    the icephys hierarchical chain plus paired line-scan slice references.
+    For sweeps without line scans (somatic), line_scan_ch1/ch2 entries use
+    idx_start=-1, count=-1 (null-reference convention).
+    """
+    n_rows = len(irt_table)
+    if n_rows == 0:
+        return
+
+    # Find any line-scan TimeSeries to use as a placeholder for null entries.
+    # TimeSeriesReferenceVectorData requires a valid TimeSeries field even for
+    # null entries; we use idx_start=-1 to signal "no actual reference here".
+    fallback_ts: TimeSeries | None = None
+    for slices in line_scan_slices.values():
+        for ts, _, _ in slices.values():
+            fallback_ts = ts
+            break
+        if fallback_ts is not None:
+            break
+
+    # Build columns
+    cell_id_col: list[int] = []
+    condition_col: list[str] = []
+    dendrite_type_col: list[str] = []
+    dendrite_distance_col: list[float] = []
+    stim_pA_col: list[float] = []
+    sweep_start_col: list[float] = []
+    irt_indices_col: list[int] = []
+    sr_indices_col: list[int] = []
+    seq_indices_col: list[int] = []
+    rep_indices_col: list[int] = []
+    ec_indices_col: list[int] = []
+    line_scan_ch1_refs: list[TimeSeriesReference] = []
+    line_scan_ch2_refs: list[TimeSeriesReference] = []
+
+    for irt_idx in range(n_rows):
+        meta = index_row_metadata.get(irt_idx, {})
+        cell_id_col.append(int(meta.get("cell_id", -1)))
+        condition_col.append(str(meta.get("condition_subfolder", "")))
+        dendrite_type_col.append(str(meta.get("dendrite_type", "")))
+        dendrite_distance_col.append(float(meta.get("dendrite_distance_um", 0.0)))
+        stim_pA_col.append(float(meta.get("stimulus_current_pA", 0.0)))
+        sweep_start_col.append(float(meta.get("sweep_start_time_s", 0.0)))
+        irt_indices_col.append(irt_idx)
+        sr_indices_col.append(int(simultaneous_index_per_irt.get(irt_idx, -1)))
+        seq_indices_col.append(int(sequential_index_per_irt.get(irt_idx, -1)))
+        rep_indices_col.append(int(repetition_index_per_irt.get(irt_idx, -1)))
+        condition_sub = meta.get("condition_subfolder", "")
+        ec_indices_col.append(int(ec_index_per_condition.get(condition_sub, -1)))
+
+        slices = line_scan_slices.get(irt_idx, {})
+        for chan_name, target_list in (("Ch1", line_scan_ch1_refs), ("Ch2", line_scan_ch2_refs)):
+            entry = slices.get(chan_name)
+            if entry is not None:
+                ts, idx_start, count = entry
+                target_list.append(TimeSeriesReference(int(idx_start), int(count), ts))
+            elif fallback_ts is not None:
+                # Null reference: idx_start=-1, count=-1
+                target_list.append(TimeSeriesReference(-1, -1, fallback_ts))
+            else:
+                target_list.append(None)  # type: ignore[arg-type]
+
+    # Build the DynamicTable. Need to construct columns before passing to
+    # DynamicTable so DynamicTableRegion can reference the icephys tables.
+    columns: list = [
+        VectorData(name="cell_id", description="Cell index within the mouse-day.", data=cell_id_col),
+        VectorData(
+            name="condition_subfolder",
+            description="Raw lab condition subfolder for this sweep (e.g., 'LID off-state').",
+            data=condition_col,
+        ),
+        VectorData(
+            name="dendrite_type",
+            description="Compartment of the recording electrode: Soma, Proximal, or Distal.",
+            data=dendrite_type_col,
+        ),
+        VectorData(
+            name="dendrite_distance_um",
+            description="Approximate distance from soma in micrometers (0 for Soma, 40 for Proximal, 90 for Distal).",
+            data=dendrite_distance_col,
+        ),
+        VectorData(
+            name="stimulus_current_pA",
+            description="Commanded current-step amplitude in picoamperes for this sweep.",
+            data=stim_pA_col,
+        ),
+        VectorData(
+            name="sweep_start_time_s",
+            description="Wall-clock start time of this sweep in seconds, relative to session_start_time.",
+            data=sweep_start_col,
+        ),
+        DynamicTableRegion(
+            name="irt_row",
+            description="Reference to the corresponding row in IntracellularRecordingsTable.",
+            data=irt_indices_col,
+            table=irt_table,
+        ),
+        DynamicTableRegion(
+            name="simultaneous_row",
+            description="Reference to the corresponding row in icephys_simultaneous_recordings.",
+            data=sr_indices_col,
+            table=sr_table,
+        ),
+        DynamicTableRegion(
+            name="sequential_row",
+            description="Reference to the corresponding row in icephys_sequential_recordings.",
+            data=seq_indices_col,
+            table=seq_table,
+        ),
+        DynamicTableRegion(
+            name="repetition_row",
+            description="Reference to the corresponding row in icephys_repetitions.",
+            data=rep_indices_col,
+            table=reps_table,
+        ),
+        DynamicTableRegion(
+            name="experimental_condition_row",
+            description="Reference to the corresponding row in icephys_experimental_conditions.",
+            data=ec_indices_col,
+            table=ec_table,
+        ),
+    ]
+
+    # Line-scan columns only if at least one sweep has line-scan slices.
+    if fallback_ts is not None:
+        columns.append(
+            TimeSeriesReferenceVectorData(
+                name="line_scan_ch1",
+                description=(
+                    "Reference to the paired Alexa Fluor 568 reference channel slice (R0 for ratiometric "
+                    "Ca2+ calculations). idx_start=-1 for sweeps without line-scan imaging (somatic)."
+                ),
+                data=line_scan_ch1_refs,
+            )
+        )
+        columns.append(
+            TimeSeriesReferenceVectorData(
+                name="line_scan_ch2",
+                description=(
+                    "Reference to the paired Fluo-4 calcium signal channel slice (G in (G-G0)/G0R0). "
+                    "idx_start=-1 for sweeps without line-scan imaging (somatic)."
+                ),
+                data=line_scan_ch2_refs,
+            )
+        )
+
+    table = DynamicTable(
+        name="RecordingsIndexTable",
+        description=(
+            "Denormalized lookup for fast analyst queries. One row per icephys sweep, mirroring the order "
+            "of IntracellularRecordingsTable. Carries per-sweep metadata (cell_id, condition_subfolder, "
+            "dendrite_type, dendrite_distance_um, stimulus_current_pA, sweep_start_time_s) plus "
+            "DynamicTableRegion pointers to the full icephys hierarchical chain "
+            "(irt_row, simultaneous_row, sequential_row, repetition_row, experimental_condition_row) "
+            "and TimeSeriesReference slices into the paired line-scan TimeSeries (line_scan_ch1, line_scan_ch2). "
+            "This is a query helper; the canonical icephys chain is still authoritative."
+        ),
+        columns=columns,
+    )
+
+    module = nwbfile.create_processing_module(
+        name="recordings_index",
+        description=(
+            "Cross-modality and cross-table lookup helpers for the per-mouse-day icephys data. "
+            "Contains the RecordingsIndexTable that denormalizes the canonical icephys chain "
+            "for one-stop pandas-style filtering."
+        ),
+    )
+    module.add(table)
 
 
 # Library module: `merge_one_mouse_day` is imported by the production runner
