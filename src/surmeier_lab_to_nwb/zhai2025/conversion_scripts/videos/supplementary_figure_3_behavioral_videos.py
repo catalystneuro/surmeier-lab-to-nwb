@@ -231,18 +231,15 @@ def convert_session_to_nwbfile(
     condition_camel_case = "M1RCRISPR" if standardized_condition == "knockout" else "Control"
     condition_human_readable = "M1R CRISPR" if standardized_condition == "knockout" else "control"
 
-    # Create canonical session ID with explicit parameters
-    timestamp = session_start_time.strftime("%Y%m%d")
+    date_token = session_start_time.strftime("%Y%m%d")
 
     # All supplementary figure 3 videos are M1R CRISPR animals during L-DOPA treatment (ON state)
     session_id = generate_canonical_session_id(
-        fig="SF3",  # Supplementary Figure 3
-        meas_comp="video",  # Raw video
         cell_type="pan",  # Non cell-specific
         state="ON",  # All videos are during L-DOPA treatment
         pharm="none",  # No pharmacology
         geno="M1RCRISPR",  # M1R CRISPR
-        timestamp=timestamp,
+        date=date_token,
     )
 
     # Create session-specific metadata from template with runtime substitutions

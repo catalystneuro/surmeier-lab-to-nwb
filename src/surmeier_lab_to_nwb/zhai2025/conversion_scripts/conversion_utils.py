@@ -357,9 +357,10 @@ def extract_condition_from_session_id(session_id: str) -> Optional[str]:
     """
     Extract experimental condition from NWB session ID.
 
-    Supports both legacy and revised session ID formats:
-    - Legacy: "Figure1++SomaticExcitability++LIDOffState++20170202153933"
-    - Revised: "F1++SomExc++dSPN++OnState++D1RaSch++WT++20170202153933"
+    Supports the mouse-day session-id schema (current) plus two legacy schemas:
+    - Mouse-day (current): "dSPN++OnState++D1RaSch++WT++20190411"
+    - Per-session revised: "F1++SomExc++dSPN++OnState++D1RaSch++WT++20170202153933"
+    - Per-session legacy:  "Figure1++SomaticExcitability++LIDOffState++20170202153933"
 
     Parameters
     ----------
@@ -371,40 +372,39 @@ def extract_condition_from_session_id(session_id: str) -> Optional[str]:
     Optional[str]
         Paper condition name (e.g., "LID off-state"), or None if not found
     """
-    # Try revised schema first: fig++measComp++cellType++state++pharm++geno++timestamp
+    condition_mapping = {
+        ("OffState", "none"): "LID off-state",
+        ("OnState", "none"): "LID on-state",
+        ("OnState", "D1RaSch"): "LID on-state with SCH",
+        ("OnState", "D2RaSul"): "LID on-state with sul (iSPN)",
+        ("LesionedControl", "none"): "control",
+        ("LesionedControl", "M1RaTri"): "M1R antagonist",
+    }
+
+    # Current schema: cellType++state++pharm++geno++YYYYMMDD (5 tokens)
+    mouse_day_pattern = r"^(\w+)\+\+(\w+)\+\+(\w+)\+\+(\w+)\+\+(\d{8})$"
+    match = re.match(mouse_day_pattern, session_id)
+    if match:
+        state_token = match.group(2)
+        pharm_token = match.group(3)
+        if (state_token, pharm_token) in condition_mapping:
+            return condition_mapping[(state_token, pharm_token)]
+
+    # Legacy per-session revised schema: fig++measComp++cellType++state++pharm++geno++timestamp
     revised_pattern = r"F\d\+\+\w+\+\+\w+\+\+(\w+)\+\+(\w+)\+\+\w+\+\+\d{14}"
     match = re.search(revised_pattern, session_id)
-
     if match:
-        state_token = match.group(1)  # OnState, OffState, etc.
-        pharm_token = match.group(2)  # none, D1RaSch, etc.
-
-        # Map state + pharm combination to paper condition
-        condition_mapping = {
-            ("OffState", "none"): "LID off-state",
-            ("OnState", "none"): "LID on-state",
-            ("OnState", "D1RaSch"): "LID on-state with SCH",
-            ("OnState", "D2RaSul"): "LID on-state with sul (iSPN)",
-            ("LesionedControl", "none"): "control",
-            ("LesionedControl", "M1RaTri"): "M1R antagonist",
-            # Add more mappings as needed for other figures
-        }
-
-        condition_key = (state_token, pharm_token)
+        condition_key = (match.group(1), match.group(2))
         if condition_key in condition_mapping:
             return condition_mapping[condition_key]
 
-    # Fallback to legacy pattern matching
-    # Pattern 1: Figure[N]++ExperimentType++Condition++Timestamp (somatic/dendritic excitability)
+    # Legacy per-session schema: Figure[N]++ExperimentType++Condition++Timestamp
     pattern1 = r"Figure\d\+\+\w+\+\+(\w+)\+\+\d{14}"
     match = re.search(pattern1, session_id)
-
     if match:
-        camel_case_condition = match.group(1)
-        return CAMELCASE_TO_PAPER_CONDITION.get(camel_case_condition)
+        return CAMELCASE_TO_PAPER_CONDITION.get(match.group(1))
 
-    # Pattern 2: More flexible pattern to catch variations
-    # Look for any known camel case condition in the session ID
+    # Most flexible fallback: any known camel-case condition substring
     for camel_case_condition in CAMELCASE_TO_PAPER_CONDITION.keys():
         if camel_case_condition in session_id:
             return CAMELCASE_TO_PAPER_CONDITION[camel_case_condition]
@@ -413,54 +413,53 @@ def extract_condition_from_session_id(session_id: str) -> Optional[str]:
 
 
 def generate_canonical_session_id(
-    fig: str,
-    meas_comp: str,
     cell_type: str,
     state: str,
     pharm: str,
     geno: str,
-    timestamp: str,
+    date: str,
 ) -> str:
     """
-    Generate a canonical session ID following the revised 6-token format plus timestamp.
+    Generate a canonical session ID at the mouse-day level.
 
-    Revised schema: fig++measComp++cellType++state++pharm++geno++timestamp
+    The dataset uses per-mouse-day NWB files (one file collects all cells patched
+    from one mouse on one experimental day across all modalities), so the
+    session_id reflects mouse-day attributes only. Per-cell, per-modality, and
+    per-figure information lives inside the file via the icephys hierarchical
+    tables and the electrode column on IntracellularRecordingsTable.
+
+    Schema: cellType++state++pharm++geno++date
 
     Parameters
     ----------
-    fig : str
-        Figure code: F1, F2, F3, F4, F5, F6, F7, F8, Fconf
-    meas_comp : str
-        Measurement + Compartment (CamelCase): SomExc, DendExc, DendSpine,
-        DendConfSpine, DendOEPSC, StriAChFP, BehavAIMs, BehavRot, BehavVideo
     cell_type : str
         Cell type: dSPN, iSPN, pan
     state : str
         Levodopa/disease state: OnState, OffState, LesionedControl, UnlesionedControl
     pharm : str
         Pharmacology (CamelCase): none, D1RaSch, D2RaSul, M1RaTri
+        For paired-recording cells (baseline + post-drug on the same cell), use
+        the most distinguishing token (e.g., D1RaSch for ON+SCH days). The
+        ExperimentalConditions table inside the file carries both rows.
     geno : str
         Genotype (CamelCase): WT, CDGIKO, iSPNM1RKO
-    timestamp : str
-        Session timestamp (YYYYMMDDHHMMSS format)
+    date : str
+        Recording day in YYYYMMDD format (matches the subject_id date).
 
     Returns
     -------
     str
-        Canonical session ID with format: fig++measComp++cellType++state++pharm++geno++timestamp
+        Canonical session ID with format: cellType++state++pharm++geno++date
 
     Examples
     --------
-    >>> generate_canonical_session_id("F1", "SomExc", "dSPN", "OnState", "D1RaSch", "WT", "20250730142740")
-    'F1++SomExc++dSPN++OnState++D1RaSch++WT++20250730142740'
+    >>> generate_canonical_session_id("dSPN", "OnState", "D1RaSch", "WT", "20190411")
+    'dSPN++OnState++D1RaSch++WT++20190411'
 
-    >>> generate_canonical_session_id("F5", "StriAChFP", "WholeStriatum", "OffState", "none", "WT", "20250730153000")
-    'F5++StriAChFP++WholeStriatum++OffState++none++WT++20250730153000'
+    >>> generate_canonical_session_id("iSPN", "OffState", "none", "WT", "20170202")
+    'iSPN++OffState++none++WT++20170202'
     """
-    # Build the canonical session ID with revised token order
-    session_id = f"{fig}++{meas_comp}++{cell_type}++{state}++{pharm}++{geno}++{timestamp}"
-
-    return session_id
+    return f"{cell_type}++{state}++{pharm}++{geno}++{date}"
 
 
 def str_to_bool(v):

@@ -131,14 +131,13 @@ def convert_session_to_nwbfile(
         genotype_canonical = "WT"
 
     # All AIM behavioral experiments are performed after L-DOPA administration (ON state)
+    date_token = timestamp[:8]
     session_id = generate_canonical_session_id(
-        fig="F8",
-        meas_comp="AIMs",  # AIM scoring
         cell_type="pan",  # Non cell-specific
         state="ON",  # AIM scoring is during L-DOPA treatment (ON state)
         pharm="none",  # No pharmacology
         geno=genotype_canonical,
-        timestamp=timestamp,
+        date=date_token,
     )
 
     # Create session-specific metadata from template with runtime substitutions

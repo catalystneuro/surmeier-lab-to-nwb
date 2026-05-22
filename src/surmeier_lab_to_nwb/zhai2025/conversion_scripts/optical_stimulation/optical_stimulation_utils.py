@@ -207,20 +207,17 @@ def convert_optical_stimulation_session_to_nwbfile(
 
     # Extract date from actual session start time and update session info
     session_date_str = session_start_time.strftime("%Y-%m-%d")
-    timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
+    date_token = session_start_time.strftime("%Y%m%d")
 
     # Create canonical session ID with explicit parameters
     condition_human_readable = format_condition[condition]["human_readable"]
 
-    # Use session ID parameters passed by the calling script (revised schema)
     session_id = generate_canonical_session_id(
-        fig=session_id_parameters["fig"],
-        meas_comp=session_id_parameters["meas_comp"],
         cell_type=session_id_parameters["cell_type"],
         state=session_id_parameters["state"],
         pharm=session_id_parameters["pharm"],
         geno=session_id_parameters["geno"],
-        timestamp=timestamp,
+        date=date_token,
     )
 
     session_info.update(

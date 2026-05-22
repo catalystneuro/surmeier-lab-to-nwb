@@ -187,18 +187,20 @@ def convert_somatic_excitability_session_to_nwbfile(
     # Use earliest time as session start time for NWB file
     session_start_time = earliest_time
 
-    # Create canonical session ID with explicit parameters
+    # Build the mouse-day session_id from the date portion of session_start_time.
+    # session_id intentionally carries no fig/meas_comp/cell tokens: those are
+    # captured inside the file via the icephys hierarchical chain and the
+    # electrode column on IntracellularRecordingsTable. `timestamp` is preserved
+    # for the legacy `SubjectRecordedAt{timestamp}` subject_id assembly downstream;
+    # the full per-mouse-day subject_id refactor replaces both.
     timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-
-    # Use session ID parameters passed by the calling script (revised schema)
+    date_token = session_start_time.strftime("%Y%m%d")
     session_id = generate_canonical_session_id(
-        fig=session_id_parameters["fig"],
-        meas_comp=session_id_parameters["meas_comp"],
         cell_type=session_id_parameters["cell_type"],
         state=session_id_parameters["state"],
         pharm=session_id_parameters["pharm"],
         geno=session_id_parameters["geno"],
-        timestamp=timestamp,
+        date=date_token,
     )
 
     # Load general and session-specific metadata from YAML files

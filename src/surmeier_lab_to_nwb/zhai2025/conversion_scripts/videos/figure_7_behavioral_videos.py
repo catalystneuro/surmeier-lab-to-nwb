@@ -212,21 +212,18 @@ def convert_session_to_nwbfile(
     # For video data, we don't need the format_condition lookup since we have fixed genotype
     condition_human_readable = "CDGI knockout"
 
-    # Create canonical session ID with explicit parameters
-    timestamp = session_start_time.strftime("%Y%m%d")
+    date_token = session_start_time.strftime("%Y%m%d")
 
     # Map condition to state - CDGI KO videos capture behavior during ON state
     # All Figure 7 videos are from L-DOPA treated animals (ON state)
     state = "ON"  # All videos are during L-DOPA treatment
 
     session_id = generate_canonical_session_id(
-        fig="F7",
-        meas_comp="video",  # Raw video
         cell_type="pan",  # Non cell-specific
         state=state,
         pharm="none",  # No pharmacology
         geno="CDGIKO",  # CDGI knock-out
-        timestamp=timestamp,
+        date=date_token,
     )
 
     # Load general and session-specific metadata from YAML files

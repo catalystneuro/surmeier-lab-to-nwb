@@ -363,13 +363,11 @@ def convert_slice_session_to_nwbfile(slice_folder: Path, condition: str, session
 
     # Create canonical session ID with explicit parameters
     session_id = generate_canonical_session_id(
-        fig="F5",
-        meas_comp="AChFP",  # GRAB-ACh fiber-photometry
         cell_type="pan",  # Non cell-specific bulk signal
         state=state,
         pharm="none",  # No acute pharmacology
         geno="WT",  # Wild-type
-        timestamp=session_start_time.strftime("%Y%m%d%H%M%S"),
+        date=session_start_time.strftime("%Y%m%d"),
     )
 
     # Handle surgery and pharmacology from template

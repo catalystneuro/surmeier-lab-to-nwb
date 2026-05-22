@@ -148,14 +148,13 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     else:
         raise ValueError(f"Unknown condition: {condition}")
 
+    date_token = timestamp[:8]
     session_id = generate_canonical_session_id(
-        fig="F4",
-        meas_comp="ConfSpine",  # confocal spine density
         cell_type="iSPN",  # Indirect pathway SPN
         state=state,
         pharm="none",  # No pharmacology
         geno="WT",  # Wild-type
-        timestamp=timestamp,
+        date=date_token,
     )
 
     base_session_id = session_id  # Keep for compatibility

@@ -707,18 +707,17 @@ def convert_spine_density_session_to_nwbfile(
     # Parse session information
     session_info = parse_session_info(session_folder_path)
 
-    # Create canonical session ID with explicit parameters
+    # Build the mouse-day session_id from the date portion of session_start_time.
+    # `timestamp` is preserved for the legacy `SubjectRecordedAt{timestamp}` subject_id
+    # downstream; the full per-mouse-day subject_id refactor replaces both.
     timestamp = session_info["session_start_time"].strftime("%Y%m%d%H%M%S")
-
-    # Use session ID parameters passed by the calling script (revised schema)
+    date_token = session_info["session_start_time"].strftime("%Y%m%d")
     session_id = generate_canonical_session_id(
-        fig=session_id_parameters["fig"],
-        meas_comp=session_id_parameters["meas_comp"],
         cell_type=session_id_parameters["cell_type"],
         state=session_id_parameters["state"],
         pharm=session_id_parameters["pharm"],
         geno=session_id_parameters["geno"],
-        timestamp=timestamp,
+        date=date_token,
     )
 
     # Add session_id to session_info

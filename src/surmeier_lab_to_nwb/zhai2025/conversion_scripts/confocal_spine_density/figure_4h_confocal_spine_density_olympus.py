@@ -250,14 +250,13 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
         timestamp = session_start_time.strftime("%Y%m%d")
 
     # For methodological validation, we use control state
+    date_token = timestamp[:8]
     session_id = generate_canonical_session_id(
-        fig="F4",
-        meas_comp="ConfSpine",  # confocal spine density
         cell_type="iSPN",  # Indirect pathway SPN
         state="CTRL",  # Control for methodological validation
         pharm="none",  # No pharmacology
         geno="WT",  # Wild-type
-        timestamp=timestamp,
+        date=date_token,
     )
 
     # Load general and session-specific metadata from YAML files
