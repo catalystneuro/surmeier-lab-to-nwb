@@ -588,6 +588,24 @@ if __name__ == "__main__":
     logging.getLogger("tifffile").setLevel(logging.ERROR)
     warnings.filterwarnings("ignore", message="invalid value encountered in divide")
     warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
+    # Silence the FutureWarning emitted when `BrukerTiffSinglePlaneConverter`
+    # (used below to ingest the per-trial OME-TIFF imaging frames as TwoPhotonSeries)
+    # instantiates its internal `BrukerTiffSinglePlaneImagingExtractor`. roiextractors
+    # marked that extractor deprecated in favour of `BrukerTiffImagingExtractor`
+    # (single + multi-plane unified) for removal in October 2026, but the neuroconv
+    # converter we call still wraps the deprecated class internally. The deprecation
+    # is upstream of our code: there is no parameter on `BrukerTiffSinglePlaneConverter`
+    # to switch it to the new extractor, and writing a local replacement would
+    # duplicate the converter's metadata aggregation just to silence the warning.
+    # When neuroconv updates the converter to use `BrukerTiffImagingExtractor` (or
+    # ships a `BrukerTiffConverter` replacement), remove this filter. The warning
+    # is informational; the deprecated extractor continues to function until
+    # roiextractors removes it post October 2026.
+    warnings.filterwarnings(
+        "ignore",
+        message="BrukerTiffSinglePlaneImagingExtractor is deprecated.*",
+        category=FutureWarning,
+    )
 
     # Define the base path to the data
     base_path = Path(
