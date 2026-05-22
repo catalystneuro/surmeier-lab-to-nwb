@@ -136,7 +136,7 @@ class BrukerLineScanInterface(BaseSegmentationExtractorInterface):
                     "device_metadata_key": self.metadata_key,
                     "excitation_lambda": np.nan,
                     "indicator": "unknown",
-                    "location": "unknown",
+                    "location": "Caudoputamen",
                     "optical_channel": [
                         {
                             "name": f"OpticalChannel{self.channel_name}",

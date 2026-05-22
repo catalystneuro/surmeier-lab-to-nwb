@@ -149,7 +149,7 @@ class BrukerBOTSegmentationInterface(BaseSegmentationExtractorInterface):
                     "device_metadata_key": self.metadata_key,
                     "excitation_lambda": np.nan,
                     "indicator": "unknown",
-                    "location": "unknown",
+                    "location": "Caudoputamen",
                     "optical_channel": [
                         {
                             "name": f"OpticalChannel{channel_label}",
