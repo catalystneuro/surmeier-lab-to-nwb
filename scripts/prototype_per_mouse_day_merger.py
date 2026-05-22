@@ -75,6 +75,108 @@ def _general_metadata() -> dict:
     return _GENERAL_METADATA_CACHE
 
 
+# --------- reading per-sweep line-scan field-of-view + pixel-mask + ROI ---------------------
+
+
+def _read_dendritic_artifacts(sweep_path: Path, channel: str) -> dict | None:
+    """Read source image, pixel mask, and ROI response for one dendritic sweep + channel.
+
+    Delegates to the project's existing `BrukerLineScanSegmentationExtractor` for
+    line endpoints, pixel mask, ROI fluorescence profile, and frame shape — keeping
+    a single source of truth for the Bruker XML / CSV parsing. The source TIFF is
+    resolved from the same XML the extractor already loaded.
+
+    Returns a dict with keys:
+        source_image: ndarray (H, W) grayscale (or None if not found)
+        pixel_mask_image: ndarray (H, W) bool — True at line-scan pixel locations
+        frame_shape: (H, W)
+        roi_response: 1D ndarray (samples,) — fluorescence-along-line vs time
+        rate: float Hz
+        pixel_xs / pixel_ys: 1D int arrays of line pixel coords
+    Returns None if the sweep folder can't be parsed (missing XML/CSV, etc.).
+    """
+    import tifffile
+
+    from surmeier_lab_to_nwb.zhai2025.extractors.bruker_line_scan_segmentation_extractor import (
+        BrukerLineScanSegmentationExtractor,
+    )
+
+    try:
+        extractor = BrukerLineScanSegmentationExtractor(folder_path=sweep_path, channel_name=channel)
+    except Exception:
+        return None
+
+    frame_h, frame_w = extractor.get_frame_shape()
+    pixel_mask_image = np.squeeze(extractor._roi_masks.data).astype(bool)
+
+    # Recover line endpoints from the extractor for the line-pixel array.
+    sx, sy = extractor._line_start_x, extractor._line_start_y
+    ex, ey = extractor._line_stop_x, extractor._line_stop_y
+    if sy == ey:
+        xs = np.arange(min(sx, ex), max(sx, ex) + 1)
+        ys = np.full_like(xs, sy)
+    elif sx == ex:
+        ys = np.arange(min(sy, ey), max(sy, ey) + 1)
+        xs = np.full_like(ys, sx)
+    else:
+        n_steps = max(abs(ex - sx), abs(ey - sy)) + 1
+        xs = np.round(np.linspace(sx, ex, n_steps)).astype(int)
+        ys = np.round(np.linspace(sy, ey, n_steps)).astype(int)
+    xs = np.clip(xs, 0, frame_w - 1)
+    ys = np.clip(ys, 0, frame_h - 1)
+
+    # ROI response trace + sample rate from the extractor.
+    roi_response = None
+    roi_rate = None
+    if extractor._roi_responses:
+        traces = extractor._roi_responses[0].data
+        roi_response = np.squeeze(np.asarray(traces, dtype=np.float32))
+        if extractor._sampling_frequency:
+            roi_rate = float(extractor._sampling_frequency)
+        elif len(extractor._timestamps) > 1:
+            roi_rate = 1.0 / float(np.mean(np.diff(extractor._timestamps)))
+
+    # Source TIFF: resolve filename from the already-parsed XML on the extractor.
+    source_image = None
+    try:
+        sequence = extractor._xml_metadata["PVScan"]["Sequence"]
+        if isinstance(sequence, list):
+            sequence = next((s for s in sequence if int(s.get("@cycle", 0)) == extractor.cycle), sequence[0])
+        frame_meta = sequence["Frame"]
+        if isinstance(frame_meta, list):
+            frame_meta = frame_meta[0]
+        file_entries = frame_meta["File"]
+        if not isinstance(file_entries, list):
+            file_entries = [file_entries]
+        source_filename = next(
+            (e["@source"] for e in file_entries if e.get("@channelName") == channel and "@source" in e),
+            None,
+        )
+        if source_filename:
+            source_path = sweep_path / source_filename
+            if source_path.is_file():
+                arr = tifffile.imread(source_path)
+                if arr.ndim == 3:
+                    arr = (
+                        np.mean(arr[:, :, :3], axis=2).astype(np.float32)
+                        if arr.shape[2] >= 3
+                        else arr[:, :, 0].astype(np.float32)
+                    )
+                source_image = np.asarray(arr, dtype=np.float32)
+    except Exception:
+        source_image = None
+
+    return {
+        "source_image": source_image,
+        "pixel_mask_image": pixel_mask_image,
+        "frame_shape": (frame_h, frame_w),
+        "roi_response": roi_response,
+        "rate": roi_rate,
+        "pixel_xs": xs.astype(int),
+        "pixel_ys": ys.astype(int),
+    }
+
+
 # --------- reading per-sweep line-scan kymographs -------------------------------------------
 
 
@@ -559,19 +661,33 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     irt_rows_per_sequential: dict[tuple[int, str, str], list[int]] = defaultdict(list)
 
     # Per-IRT-row metadata for the RecordingsIndexTable built post-chain.
-    # Maps irt_row_idx -> dict(cell_id, condition_subfolder, dendrite_type, dendrite_distance_um,
+    # Maps irt_row_index -> dict(cell_id, condition_subfolder, dendrite_type, dendrite_distance_um,
     #                          stimulus_current_pA, sweep_start_time_s).
     index_row_metadata: dict[int, dict] = {}
 
     # Buffer for per-sweep line-scan kymographs to consolidate later.
     # Key: (cell_id, location_type, location_number, channel_name)
-    # Value: list of (irt_row_idx, kymo_data_2d, rate_hz_or_None, sweep_start_time_s)
+    # Value: list of (irt_row_index, kymo_data_2d, rate_hz_or_None, sweep_start_time_s)
     # After all dendritic IRT rows are added, we concatenate each buffer along axis 0
     # (the time/lines axis) to make one TimeSeries per (cell, location, channel) -- Pattern B
     # for line scans. Per-sweep slice info is preserved for the RecordingsIndexTable.
     line_scan_buffer: dict[tuple[int, str, int, str], list[tuple[int, np.ndarray, float | None, float]]] = defaultdict(
         list
     )
+
+    # Parallel buffers for the rich line-scan objects:
+    # - ROI responses: Pattern B-consolidated per (cell, location, channel) — time-series data
+    #   benefits from continuous concatenation across trios.
+    # - Source images: kept per-trial (one image per sweep × channel) so cross-trial FOV
+    #   verification is possible. Static reference data, cheap to keep separately.
+    # - Pixel masks: per (cell, location, channel) — the scan line geometry doesn't change
+    #   across trios at the same location.
+    roi_response_buffer: dict[tuple[int, str, int, str], list[tuple[int, np.ndarray, float | None, float]]] = (
+        defaultdict(list)
+    )
+    # source_image_buffer[(cell, loc, num, chan)] -> list of (irt_row_index, sweep_start, image_array)
+    source_image_buffer: dict[tuple[int, str, int, str], list[tuple[int, float, np.ndarray]]] = defaultdict(list)
+    pixel_mask_buffer: dict[tuple[int, str, int, str], dict] = {}  # mask_image, xs, ys, frame_shape
 
     # Add custom columns to IntracellularRecordingsTable BEFORE adding rows.
     # The `electrodes` aligned sub-table doesn't exist until the first add; using
@@ -632,7 +748,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             response, stim, sweep_slices = soma_result
             sorted_soma = sorted(bundle.sweeps_for(cell_index, "soma_excitability"), key=lambda s: s.pv_scan_date)
             for sw, (idx_start, count, sweep_start_time, protocol) in zip(sorted_soma, sweep_slices):
-                row_idx = nwbfile.add_intracellular_recording(
+                row_index = nwbfile.add_intracellular_recording(
                     electrode=soma_electrode,
                     stimulus=stim,
                     stimulus_start_index=idx_start,
@@ -648,9 +764,9 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     stimulus_protocol_name=protocol.name if protocol else "",
                     condition_subfolder=sw.condition_subfolder,
                 )
-                irt_rows_per_sequential[(cell_index, "soma_fi_curve", sw.condition_subfolder)].append(row_idx)
+                irt_rows_per_sequential[(cell_index, "soma_fi_curve", sw.condition_subfolder)].append(row_index)
                 # Per-row metadata for the RecordingsIndexTable (built post-chain).
-                index_row_metadata[row_idx] = {
+                index_row_metadata[row_index] = {
                     "cell_id": cell_index,
                     "condition_subfolder": sw.condition_subfolder,
                     "dendrite_type": "Soma",
@@ -704,7 +820,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             dendrite_type = "Proximal" if sw.dendrite_location == "prox" else "Distal"
             dendrite_distance = 40.0 if sw.dendrite_location == "prox" else 90.0
 
-            row_idx = nwbfile.add_intracellular_recording(
+            row_index = nwbfile.add_intracellular_recording(
                 electrode=electrode,
                 stimulus=dend_stim,
                 stimulus_start_index=idx_start,
@@ -721,8 +837,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 condition_subfolder=sw.condition_subfolder,
             )
             protocol_label = f"dend_{sw.dendrite_location}{sw.location_number}"
-            irt_rows_per_sequential[(cell_index, protocol_label, sw.condition_subfolder)].append(row_idx)
-            index_row_metadata[row_idx] = {
+            irt_rows_per_sequential[(cell_index, protocol_label, sw.condition_subfolder)].append(row_index)
+            index_row_metadata[row_index] = {
                 "cell_id": cell_index,
                 "condition_subfolder": sw.condition_subfolder,
                 "dendrite_type": dendrite_type,
@@ -737,13 +853,36 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             kymos = _line_scan_kymographs(sw.recording_path)
             for chan_name, (data, rate) in kymos.items():
                 buffer_key = (cell_index, sw.dendrite_location, sw.location_number, chan_name)
-                line_scan_buffer[buffer_key].append((row_idx, data, rate, float(sweep_start_time)))
+                line_scan_buffer[buffer_key].append((row_index, data, rate, float(sweep_start_time)))
+
+            # Also buffer rich artifacts: source image, pixel mask, and ROI response.
+            # Source image and pixel mask are per-location (constant across trials at the
+            # same location), so we keep ONE per buffer_key. ROI responses get
+            # Pattern B-consolidated across trials at each location.
+            for chan_name in ("Ch1", "Ch2"):
+                art = _read_dendritic_artifacts(sw.recording_path, chan_name)
+                if art is None:
+                    continue
+                buffer_key = (cell_index, sw.dendrite_location, sw.location_number, chan_name)
+                if art["source_image"] is not None:
+                    source_image_buffer[buffer_key].append((row_index, float(sweep_start_time), art["source_image"]))
+                if buffer_key not in pixel_mask_buffer:
+                    pixel_mask_buffer[buffer_key] = {
+                        "mask_image": art["pixel_mask_image"],
+                        "xs": art["pixel_xs"],
+                        "ys": art["pixel_ys"],
+                        "frame_shape": art["frame_shape"],
+                    }
+                if art["roi_response"] is not None:
+                    roi_response_buffer[buffer_key].append(
+                        (row_index, art["roi_response"], art["rate"], float(sweep_start_time))
+                    )
 
     # ---- Pattern B for line scans -----------------------------------------------
     # Consolidate buffered per-sweep kymographs into one TimeSeries per
     # (cell, location, channel). Each contributing sweep gets a slice (idx_start, count)
     # into the consolidated array; we record these for the RecordingsIndexTable.
-    # Per-sweep slice info: irt_row_idx -> channel_name -> (timeseries, idx_start, count)
+    # Per-sweep slice info: irt_row_index -> channel_name -> (timeseries, idx_start, count)
     line_scan_slices: dict[int, dict[str, tuple[TimeSeries, int, int]]] = defaultdict(dict)
     for buffer_key, entries in line_scan_buffer.items():
         cell_index, loc_type, loc_num, chan_name = buffer_key
@@ -783,19 +922,33 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         )
         nwbfile.add_acquisition(ts)
         cumulative = 0
-        for irt_idx, data, _rate, _start in clean:
+        for irt_index, data, _rate, _start in clean:
             n_lines = data.shape[0]
-            line_scan_slices[irt_idx][chan_name] = (ts, cumulative, n_lines)
+            line_scan_slices[irt_index][chan_name] = (ts, cumulative, n_lines)
             cumulative += n_lines
+
+    # ---- Rich line-scan objects: source images + pixel masks + ROI responses --------
+    # Source images go in `acquisition/ImageLineScanSource` (Images container).
+    # Pixel masks go in `processing/ophys/ImageSegmentation` (PlaneSegmentation).
+    # ROI responses (consolidated Pattern B) go in `processing/ophys/Fluorescence`.
+    roi_response_slices: dict[int, dict[str, tuple]] = defaultdict(dict)
+    if source_image_buffer or pixel_mask_buffer or roi_response_buffer:
+        _build_line_scan_rich_objects(
+            nwbfile,
+            source_image_buffer=source_image_buffer,
+            pixel_mask_buffer=pixel_mask_buffer,
+            roi_response_buffer=roi_response_buffer,
+            roi_response_slices=roi_response_slices,
+        )
 
     # ---- icephys hierarchical chain --------------------------------------------
     # Build the chain on top of the IRT rows.
     # 1. SimultaneousRecordings: one row per IRT row (single-electrode rig).
     simultaneous_indices_per_irt: dict[int, int] = {}
     for irt_indices in irt_rows_per_sequential.values():
-        for irt_idx in irt_indices:
-            sim_idx = nwbfile.add_icephys_simultaneous_recording(recordings=[irt_idx])
-            simultaneous_indices_per_irt[irt_idx] = sim_idx
+        for irt_index in irt_indices:
+            sim_index = nwbfile.add_icephys_simultaneous_recording(recordings=[irt_index])
+            simultaneous_indices_per_irt[irt_index] = sim_index
 
     # 2. SequentialRecordings: one per (cell, protocol family, condition).
     # Paired-recording cells with both baseline and post-drug sweeps will get TWO
@@ -809,13 +962,13 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             stimulus_type = "F-I_curve"
         else:
             stimulus_type = "dendritic_trio"
-        seq_idx = nwbfile.add_icephys_sequential_recording(
+        seq_index = nwbfile.add_icephys_sequential_recording(
             simultaneous_recordings=sim_indices,
             stimulus_type=stimulus_type,
         )
-        sequential_indices_per_key[key] = seq_idx
-        for irt_idx in irt_indices:
-            sequential_index_per_irt[irt_idx] = seq_idx
+        sequential_indices_per_key[key] = seq_index
+        for irt_index in irt_indices:
+            sequential_index_per_irt[irt_index] = seq_index
 
     # 3. Repetitions: one per (cell, protocol family, condition).
     repetitions_table = nwbfile.get_icephys_repetitions()
@@ -837,17 +990,17 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # Track which repetitions belong to which condition for the ExperimentalConditions table.
     repetitions_per_condition: dict[str, list[int]] = defaultdict(list)
     repetition_index_per_irt: dict[int, int] = {}
-    for key, seq_idx in sequential_indices_per_key.items():
+    for key, seq_index in sequential_indices_per_key.items():
         cell_id, protocol, condition_sub = key
-        rep_idx = nwbfile.add_icephys_repetition(
-            sequential_recordings=[seq_idx],
+        rep_index = nwbfile.add_icephys_repetition(
+            sequential_recordings=[seq_index],
             cell_id=cell_id,
             protocol=protocol,
             condition_subfolder=condition_sub,
         )
-        repetitions_per_condition[condition_sub].append(rep_idx)
-        for irt_idx in irt_rows_per_sequential[key]:
-            repetition_index_per_irt[irt_idx] = rep_idx
+        repetitions_per_condition[condition_sub].append(rep_index)
+        for irt_index in irt_rows_per_sequential[key]:
+            repetition_index_per_irt[irt_index] = rep_index
 
     # 4. ExperimentalConditions: one row per unique condition across the mouse-day.
     # For non-paired mouse-days this collapses to a single row. For paired (e.g., ON+SCH)
@@ -859,12 +1012,12 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             description="Paper-prose label for the experimental condition.",
         )
     ec_index_per_condition: dict[str, int] = {}
-    for ec_idx, (condition_sub, rep_indices) in enumerate(repetitions_per_condition.items()):
+    for ec_index, (condition_sub, rep_indices) in enumerate(repetitions_per_condition.items()):
         nwbfile.add_icephys_experimental_condition(
             repetitions=rep_indices,
             condition=_condition_label(condition_sub),
         )
-        ec_index_per_condition[condition_sub] = ec_idx
+        ec_index_per_condition[condition_sub] = ec_index
 
     # ---- RecordingsIndexTable -------------------------------------------------
     # Denormalized lookup that pre-joins the icephys chain for analyst convenience.
@@ -884,12 +1037,209 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         repetition_index_per_irt=repetition_index_per_irt,
         ec_index_per_condition=ec_index_per_condition,
         line_scan_slices=line_scan_slices,
+        roi_response_slices=roi_response_slices,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with NWBHDF5IO(output_path, "w") as io:
         io.write(nwbfile)
     return output_path
+
+
+def _build_line_scan_rich_objects(
+    nwbfile,
+    *,
+    source_image_buffer: dict,
+    pixel_mask_buffer: dict,
+    roi_response_buffer: dict,
+    roi_response_slices: dict,
+) -> None:
+    """Add the line-scan source images, pixel-mask PlaneSegmentations, and Pattern B
+    consolidated RoiResponseSeries to the NWB file.
+
+    Parameters
+    ----------
+    source_image_buffer
+        Map (cell, location_type, location_num, channel) -> 2D ndarray (the field-of-view
+        image with the scan line overlay drawn by Prairie View).
+    pixel_mask_buffer
+        Map same-key -> dict with 'mask_image' (HxW bool), 'xs', 'ys', 'frame_shape'.
+    roi_response_buffer
+        Map same-key -> list of (irt_index, 1D roi_response, rate_hz, sweep_start_s) tuples
+        across trials at that location.
+    roi_response_slices
+        Output dict, irt_index -> {channel_name: (timeseries, idx_start, count)}, populated
+        by this function so the caller can wire it into the RecordingsIndexTable.
+    """
+    from pynwb.device import Device as _Device
+    from pynwb.image import Image, Images
+    from pynwb.ophys import (
+        Fluorescence,
+        ImageSegmentation,
+        OpticalChannel,
+        RoiResponseSeries,
+    )
+
+    # Source images -> nwbfile.acquisition['ImageLineScanSource']
+    # One image per TRIAL (per cell, channel, location, trio sweep). Multiple images
+    # at the same (cell, channel, location) capture potential FOV drift across trios.
+    if source_image_buffer:
+        if "ImageLineScanSource" not in nwbfile.acquisition:
+            container = Images(
+                name="ImageLineScanSource",
+                description=(
+                    "Source images for line scan experiments: field of view snapshots with "
+                    "scan-line overlay, used to identify the recorded region. One image per "
+                    "trio sweep per channel (cell, channel, dendrite location, trial)."
+                ),
+            )
+            nwbfile.add_acquisition(container)
+        else:
+            container = nwbfile.acquisition["ImageLineScanSource"]
+        for key in sorted(source_image_buffer.keys()):
+            cell, loc, num, chan = key
+            entries = source_image_buffer[key]
+            entries.sort(key=lambda e: e[1])  # by sweep_start_time
+            dendrite_type_pretty = "Proximal" if loc == "prox" else "Distal"
+            indicator = "Alexa568" if chan == "Ch1" else "Fluo4"
+            for trial_index, (row_index, sweep_start, arr) in enumerate(entries, start=1):
+                name = f"Image{indicator}Cell{cell}{dendrite_type_pretty}{num}Trial{trial_index:03d}"
+                if name in container.images:
+                    continue
+                container.add_image(
+                    Image(
+                        name=name,
+                        description=(
+                            f"Source image (field of view with scan line overlay) for Cell {cell} "
+                            f"{dendrite_type_pretty} location {num}, channel {chan}, trio sweep {trial_index} "
+                            f"(IRT row {row_index}, sweep_start_time={sweep_start:.1f}s)."
+                        ),
+                        data=arr,
+                    )
+                )
+
+    # Need an ImagingPlane for the PlaneSegmentations. Use a single shared one.
+    if pixel_mask_buffer or roi_response_buffer:
+        ophys_module = nwbfile.processing.get("ophys")
+        if ophys_module is None:
+            ophys_module = nwbfile.create_processing_module(
+                name="ophys",
+                description=(
+                    "Optical physiology data: line-scan ROI responses + pixel-mask segmentations "
+                    "for dendritic excitability recordings."
+                ),
+            )
+
+        # Find or create a device + imaging plane
+        device_name = "BrukerFluorescenceMicroscope"
+        if device_name in nwbfile.devices:
+            device = nwbfile.devices[device_name]
+        else:
+            device = _Device(name=device_name, description="Bruker Prairie View two-photon microscope.")
+            nwbfile.add_device(device)
+
+        imaging_plane_name = "ImagingPlaneLineScan"
+        if imaging_plane_name in nwbfile.imaging_planes:
+            imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
+        else:
+            optical_channel = OpticalChannel(
+                name="OpticalChannelLineScan",
+                description="Composite optical channel for two-channel line-scan recording.",
+                emission_lambda=float("nan"),
+            )
+            imaging_plane = nwbfile.create_imaging_plane(
+                name=imaging_plane_name,
+                description=("Two-photon line-scan imaging plane in the dorsolateral striatum (Caudoputamen)."),
+                device=device,
+                excitation_lambda=810.0,
+                indicator="Fluo-4 (Ca2+) + Alexa Fluor 568 (reference)",
+                location="Caudoputamen",
+                optical_channel=optical_channel,
+            )
+
+    # PlaneSegmentation with pixel masks: one row per (cell, channel, location)
+    plane_seg_row_for_key: dict[tuple, int] = {}
+    if pixel_mask_buffer:
+        # Find or create ImageSegmentation in ophys
+        if "ImageSegmentation" in ophys_module.data_interfaces:
+            img_seg = ophys_module["ImageSegmentation"]
+        else:
+            img_seg = ImageSegmentation(name="ImageSegmentation")
+            ophys_module.add(img_seg)
+
+        ps_name = "PlaneSegmentationLineScan"
+        if ps_name in img_seg.plane_segmentations:
+            plane_seg = img_seg.plane_segmentations[ps_name]
+        else:
+            plane_seg = img_seg.create_plane_segmentation(
+                name=ps_name,
+                description=(
+                    "Line-scan ROIs: each row is the scan line for one (cell, channel, "
+                    "dendrite location). The pixel_mask gives the (x, y, weight) coords of "
+                    "the line on the source image."
+                ),
+                imaging_plane=imaging_plane,
+            )
+        for key in sorted(pixel_mask_buffer.keys()):
+            cell, loc, num, chan = key
+            info = pixel_mask_buffer[key]
+            xs = info["xs"]
+            ys = info["ys"]
+            # pixel_mask is a list of (x, y, weight) tuples
+            pixel_mask = [(int(x), int(y), 1.0) for x, y in zip(xs, ys)]
+            plane_seg_row_for_key[key] = len(plane_seg.id)
+            plane_seg.add_roi(pixel_mask=pixel_mask)
+
+    # Fluorescence with consolidated RoiResponseSeries — Pattern B per (cell, location, channel)
+    if roi_response_buffer:
+        if "Fluorescence" in ophys_module.data_interfaces:
+            fluo = ophys_module["Fluorescence"]
+        else:
+            fluo = Fluorescence(name="Fluorescence")
+            ophys_module.add(fluo)
+
+        for key in sorted(roi_response_buffer.keys()):
+            cell, loc, num, chan = key
+            entries = roi_response_buffer[key]
+            entries.sort(key=lambda e: e[3])
+            arrays = [e[1] for e in entries]
+            concat = np.concatenate(arrays, axis=0)
+            rate = entries[0][2] if entries[0][2] else 1.0
+            first_start = entries[0][3]
+
+            dendrite_type_pretty = "Proximal" if loc == "prox" else "Distal"
+            indicator = "Alexa568" if chan == "Ch1" else "Fluo4"
+            rrs_name = f"RoiResponseSeries{indicator}Cell{cell}{dendrite_type_pretty}{num}"
+
+            # Build a DynamicTableRegion pointing at this row of PlaneSegmentationLineScan
+            ps_row = plane_seg_row_for_key.get(key)
+            if ps_row is None:
+                continue  # no pixel mask, skip
+            rois_region = plane_seg.create_roi_table_region(
+                description=f"Line-scan ROI for Cell {cell} {dendrite_type_pretty} loc {num}",
+                region=[ps_row],
+            )
+            rrs = RoiResponseSeries(
+                name=rrs_name,
+                description=(
+                    f"Line-scan fluorescence profile (average across pixels along the scan line) "
+                    f"for Cell {cell} {dendrite_type_pretty} location {num}, channel {chan}. "
+                    f"All trio sweeps at this location concatenated; per-sweep slices via "
+                    f"processing/recordings_index/RecordingsIndexTable."
+                ),
+                data=concat.astype(np.float32),
+                rois=rois_region,
+                unit="a.u.",
+                starting_time=float(first_start),
+                rate=float(rate),
+            )
+            fluo.add_roi_response_series(rrs)
+
+            cumulative = 0
+            for irt_index, data, _rate, _start in entries:
+                n = data.shape[0]
+                roi_response_slices[irt_index][chan] = (rrs, cumulative, n)
+                cumulative += n
 
 
 def _build_recordings_index_table(
@@ -906,14 +1256,17 @@ def _build_recordings_index_table(
     repetition_index_per_irt: dict[int, int],
     ec_index_per_condition: dict[str, int],
     line_scan_slices: dict[int, dict[str, tuple[TimeSeries, int, int]]],
+    roi_response_slices: dict[int, dict[str, tuple]] | None = None,
 ) -> None:
     """Build and attach the RecordingsIndexTable.
 
     The table denormalizes one row per IRT row with the cross-references from
-    the icephys hierarchical chain plus paired line-scan slice references.
-    For sweeps without line scans (somatic), line_scan_ch1/ch2 entries use
-    idx_start=-1, count=-1 (null-reference convention).
+    the icephys hierarchical chain plus paired line-scan slice references
+    (raw kymographs AND ROI responses).
+    For sweeps without line scans (somatic), line_scan_ch1/ch2 and
+    roi_response_ch1/ch2 entries use idx_start=-1, count=-1 (null-reference).
     """
+    roi_response_slices = roi_response_slices or {}
     n_rows = len(irt_table)
     if n_rows == 0:
         return
@@ -943,23 +1296,34 @@ def _build_recordings_index_table(
     ec_indices_col: list[int] = []
     line_scan_ch1_refs: list[TimeSeriesReference] = []
     line_scan_ch2_refs: list[TimeSeriesReference] = []
+    roi_response_ch1_refs: list[TimeSeriesReference] = []
+    roi_response_ch2_refs: list[TimeSeriesReference] = []
 
-    for irt_idx in range(n_rows):
-        meta = index_row_metadata.get(irt_idx, {})
+    # Find a fallback ROI response TimeSeries for null entries (same pattern as kymo fallback).
+    fallback_rrs = None
+    for slices in roi_response_slices.values():
+        for ts, _, _ in slices.values():
+            fallback_rrs = ts
+            break
+        if fallback_rrs is not None:
+            break
+
+    for irt_index in range(n_rows):
+        meta = index_row_metadata.get(irt_index, {})
         cell_id_col.append(int(meta.get("cell_id", -1)))
         condition_col.append(str(meta.get("condition_subfolder", "")))
         dendrite_type_col.append(str(meta.get("dendrite_type", "")))
         dendrite_distance_col.append(float(meta.get("dendrite_distance_um", 0.0)))
         stim_pA_col.append(float(meta.get("stimulus_current_pA", 0.0)))
         sweep_start_col.append(float(meta.get("sweep_start_time_s", 0.0)))
-        irt_indices_col.append(irt_idx)
-        sr_indices_col.append(int(simultaneous_index_per_irt.get(irt_idx, -1)))
-        seq_indices_col.append(int(sequential_index_per_irt.get(irt_idx, -1)))
-        rep_indices_col.append(int(repetition_index_per_irt.get(irt_idx, -1)))
+        irt_indices_col.append(irt_index)
+        sr_indices_col.append(int(simultaneous_index_per_irt.get(irt_index, -1)))
+        seq_indices_col.append(int(sequential_index_per_irt.get(irt_index, -1)))
+        rep_indices_col.append(int(repetition_index_per_irt.get(irt_index, -1)))
         condition_sub = meta.get("condition_subfolder", "")
         ec_indices_col.append(int(ec_index_per_condition.get(condition_sub, -1)))
 
-        slices = line_scan_slices.get(irt_idx, {})
+        slices = line_scan_slices.get(irt_index, {})
         for chan_name, target_list in (("Ch1", line_scan_ch1_refs), ("Ch2", line_scan_ch2_refs)):
             entry = slices.get(chan_name)
             if entry is not None:
@@ -968,6 +1332,17 @@ def _build_recordings_index_table(
             elif fallback_ts is not None:
                 # Null reference: idx_start=-1, count=-1
                 target_list.append(TimeSeriesReference(-1, -1, fallback_ts))
+            else:
+                target_list.append(None)  # type: ignore[arg-type]
+
+        roi_slices = roi_response_slices.get(irt_index, {})
+        for chan_name, target_list in (("Ch1", roi_response_ch1_refs), ("Ch2", roi_response_ch2_refs)):
+            entry = roi_slices.get(chan_name)
+            if entry is not None:
+                ts, idx_start, count = entry
+                target_list.append(TimeSeriesReference(int(idx_start), int(count), ts))
+            elif fallback_rrs is not None:
+                target_list.append(TimeSeriesReference(-1, -1, fallback_rrs))
             else:
                 target_list.append(None)  # type: ignore[arg-type]
 
@@ -1052,6 +1427,26 @@ def _build_recordings_index_table(
                     "idx_start=-1 for sweeps without line-scan imaging (somatic)."
                 ),
                 data=line_scan_ch2_refs,
+            )
+        )
+    if fallback_rrs is not None:
+        columns.append(
+            TimeSeriesReferenceVectorData(
+                name="roi_response_ch1",
+                description=(
+                    "Reference to the paired Alexa Fluor 568 ROI response slice (mean fluorescence "
+                    "along the scan line per time sample). idx_start=-1 for sweeps without imaging."
+                ),
+                data=roi_response_ch1_refs,
+            )
+        )
+        columns.append(
+            TimeSeriesReferenceVectorData(
+                name="roi_response_ch2",
+                description=(
+                    "Reference to the paired Fluo-4 ROI response slice. idx_start=-1 for sweeps " "without imaging."
+                ),
+                data=roi_response_ch2_refs,
             )
         )
 
