@@ -24,13 +24,23 @@ What this prototype SKIPS for now (add later):
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
+import warnings
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+# Bruker Prairie View leaves UIC CreateTime/LastSavedTime as julianday=0 in the
+# line-scan TIFFs. tifffile warns when parsing these unparsable fields, but the
+# pixel data reads correctly and the real acquisition timestamp lives in the
+# PVScan @date attribute of the master XML (which we read separately). Suppress
+# the noise.
+logging.getLogger("tifffile").setLevel(logging.ERROR)
+warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
 
 import numpy as np
 import pandas as pd
