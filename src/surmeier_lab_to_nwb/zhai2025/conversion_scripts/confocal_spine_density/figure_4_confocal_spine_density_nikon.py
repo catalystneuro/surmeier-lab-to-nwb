@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
     # Control verbose output
     verbose = False  # Set to True for detailed output
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
+    stub_test = False  # Set to True to process only first 2 files per condition for testing
 
     logging.getLogger("nd2").setLevel(logging.ERROR)
 
