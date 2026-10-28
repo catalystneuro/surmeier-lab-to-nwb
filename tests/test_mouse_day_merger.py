@@ -35,3 +35,31 @@ def test_line_scans_kept_when_the_scan_line_changes_length(tmp_path):
             assert missing == [], f"dendritic rows without a {column} reference: {missing}"
         assert nwbfile.acquisition["LineScanCell1_Proximal2_Ch1_Line1"].data.shape[1] == 21
         assert nwbfile.acquisition["LineScanCell1_Proximal2_Ch1_Line2"].data.shape[1] == 19
+
+
+def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
+    # Cells 1 and 3 of this mouse-day each have a location whose scan line moves between trials.
+    bundle = next(
+        b for b in build_figure_bundles("F1") if b.subject_entry.subject_id == "Subject20161111LIDOFFtDTomato"
+    )
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        dendrite_type = nwbfile.intracellular_recordings["dendrite_type"].data[:]
+        index = nwbfile.processing["recordings_index"]["RecordingsIndexTable"]
+        for row, kind in enumerate(dendrite_type):
+            if kind == "Soma":
+                continue
+            for channel in ("ch1", "ch2"):
+                kymograph = index[f"line_scan_{channel}"][row].timeseries
+                rois = index[f"roi_response_{channel}"][row].timeseries.rois
+                n_pixels = len(rois.table["pixel_mask"][rois.data[0]])
+                assert n_pixels == kymograph.data.shape[1], f"row {row} {channel}: ROI has {n_pixels} pixels"
+        # Cell 3 Proximal 2 keeps its 21-pixel length but the line moves, so it gets two ROIs.
+        fluorescence = nwbfile.processing["ophys"]["Fluorescence"]
+        pixel_masks = []
+        for line in ("Line1", "Line2"):
+            rois = fluorescence[f"RoiResponseSeriesAlexa568Cell3Proximal2{line}"].rois
+            pixel_masks.append([tuple(pixel) for pixel in rois.table["pixel_mask"][rois.data[0]]])
+        assert pixel_masks[0] != pixel_masks[1]
