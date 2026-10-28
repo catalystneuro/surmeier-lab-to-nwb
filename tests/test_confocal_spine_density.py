@@ -1,0 +1,27 @@
+"""Tests for the Nikon confocal spine-density conversion. They read the lab's raw data through link_to_raw_data."""
+
+from pathlib import Path
+
+import pytest
+
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.confocal_spine_density.figure_4_confocal_spine_density_nikon import (
+    convert_session_to_nwbfile,
+)
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+FIGURE_4J = REPO_ROOT / "link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4J and Suppl Fig 5/raw"
+
+pytestmark = pytest.mark.skipif(not (REPO_ROOT / "link_to_raw_data").exists(), reason="needs the lab's raw data")
+
+
+def test_dendrites_of_one_cell_get_their_own_session_ids():
+    # Cell 1 of slide 1, slice 2 of mouse 8038 has two imaged dendrites.
+    first = convert_session_to_nwbfile(FIGURE_4J / "control/8038-slide 1-slice 2-cell 1 proxi_0001.nd2", "control")
+    second = convert_session_to_nwbfile(FIGURE_4J / "control/8038-slide 1-slice 2-cell 1 den2 proxi.nd2", "control")
+    assert first.session_id.endswith("_Slide1_Slice2_Cell1_Dendrite1")
+    assert second.session_id.endswith("_Slide1_Slice2_Cell1_Dendrite2")
+
+
+def test_session_id_leaves_out_a_slide_the_file_name_does_not_give():
+    nwbfile = convert_session_to_nwbfile(FIGURE_4J / "on-state/5108-slice 2-cell 1 den3 proxi.nd2", "on-state")
+    assert nwbfile.session_id == "iSPN++ON++none++WT++20230901_Slice2_Cell1_Dendrite3"

@@ -58,9 +58,14 @@ def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
     slice_match = re.search(r"slice\s+(\d+)", filename, re.IGNORECASE)
     cell_match = re.search(r"cell\s+(\d+)", filename, re.IGNORECASE)
 
-    slide_num = slide_match.group(1) if slide_match else "1"
+    # Some file names leave out the slide (e.g., "5108-slice 2-cell 1 den3 proxi.nd2")
+    slide_num = slide_match.group(1) if slide_match else None
     slice_num = slice_match.group(1) if slice_match else "1"
     cell_num = cell_match.group(1) if cell_match else "1"
+
+    # Dendrite number from "den2", "den 2" or "1den2"; a file without it holds the cell's first dendrite
+    dendrite_match = re.search(r"den\s*(\d+)", filename, re.IGNORECASE)
+    dendrite_num = dendrite_match.group(1) if dendrite_match else "1"
 
     # Extract dendrite information
     dendrite_info = ""
@@ -74,6 +79,8 @@ def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
     # Extract location (proximal/distal)
     location = "proximal" if "proxi" in filename.lower() else "unknown"
 
+    slide_and_slice = f"slide {slide_num}, slice {slice_num}" if slide_num else f"slice {slice_num}"
+
     # Create container name - simplified format
     container_name = f"ImagesCell{cell_num}"
     if dendrite_info:
@@ -85,12 +92,13 @@ def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
         "slice_number": slice_num,
         "cell_number": cell_num,
         "dendrite_info": dendrite_info,
+        "dendrite_number": dendrite_num,
         "location": location,
         "container_name": container_name,
         "description": (
             f"High-resolution confocal image stack of {location} dendrite from iSPN cell {cell_num} "
             f"({dendrite_info if dendrite_info else 'primary dendrite'}). "
-            f"Acquired from slide {slide_num}, slice {slice_num} using Nikon AXR confocal microscope "
+            f"Acquired from {slide_and_slice} using Nikon AXR confocal microscope "
             f"with 60x oil immersion objective (NA=1.49), 0.09 μm pixels, 0.125 μm z-steps. "
             f"Images processed with Nikon NIS-Elements and analyzed using Imaris 10.0.0 for "
             f"spine density quantification with supervised learning algorithms."
@@ -159,6 +167,13 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
 
     base_session_id = session_id  # Keep for compatibility
 
+    # Slide, slice, cell and dendrite, from largest to smallest
+    stack_location = (
+        f"Slice{file_info['slice_number']}_Cell{file_info['cell_number']}_Dendrite{file_info['dendrite_number']}"
+    )
+    if file_info["slide_number"] is not None:
+        stack_location = f"Slide{file_info['slide_number']}_{stack_location}"
+
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
     general_metadata = load_dict_from_file(general_metadata_path)
@@ -176,7 +191,7 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
                 cell_number=file_info["cell_number"],
             ),
             "session_start_time": session_start_time,
-            "session_id": f"{base_session_id}_Cell{file_info['cell_number']}_Slide{file_info['slide_number']}_Slice{file_info['slice_number']}",
+            "session_id": f"{base_session_id}_{stack_location}",
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
