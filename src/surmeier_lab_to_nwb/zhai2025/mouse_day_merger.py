@@ -116,6 +116,7 @@ class SweepRecord:
     pv_scan_date: datetime  # absolute wall-clock from PVScan @date
     dendrite_location: str | None = None  # "prox", "dist", or None for somatic
     location_number: int | None = None  # e.g., 1 for "prox1", 2 for "dist2"
+    site_label: str | None = None  # site as written in the folder name, e.g., "prox1", "realprox1", "dist1real"
     suffix: str | None = None  # e.g., "SCH" for cell1_SCH-NNN folders
 
 
@@ -184,7 +185,8 @@ _RE_YYYYMMDD_LETTER_OUTER = re.compile(r"^(\d{4})(\d{2})(\d{2})([a-d])$")
 #   - Date in MMDDYYYY or YYYYMMDD order
 #   - "Cell" or "cell" (case-insensitive)
 #   - "trio" or "Trio" (case-insensitive)
-#   - Location: prox, dist, or realprox/realdist (Fig 3 has "realprox" — re-imaged proximal location)
+#   - Location: prox, dist, with "real" before or after the site (realprox1, dist1real) for a
+#     second patch of dendrite the lab recorded at that site after moving the microscope
 #   - Optional trailing pharm suffix: `_trio_SCH-NNN`, `_trio_sul-NNN`
 #   - "Cell<N>_<loc><N>_trio[_pharm]" OR "cell<N>_trio_<loc><N>" (lab swapped order in 2023)
 #   - Optional trailing digit on the location (some leaves have `trio_dist` without digit)
@@ -192,8 +194,8 @@ _RE_DENDRITIC_LEAF_FLEX = re.compile(
     # Date: 8 or 9 digits (9 allows for lab typos like `007182016`).
     r"^(?P<date>\d{8,9})_[Cc]ell(?P<cell>\d+)_"
     r"(?:"
-    r"(?P<loc1>real(?:prox|dist)|prox|dist)(?P<num1>\d+)_[Tt]rio(?:_[A-Za-z]+)?"  # Cell1_dist1_trio or Cell1_dist1_trio_SCH
-    r"|[Tt]rio_(?P<loc2>real(?:prox|dist)|prox|dist)(?P<num2>\d*)"  # Cell1_trio_dist1
+    r"(?P<site1>(?P<loc1>real(?:prox|dist)|prox|dist)(?P<num1>\d+)(?:real)?)_[Tt]rio(?:_[A-Za-z]+)?"  # Cell1_dist1_trio or Cell1_dist1_trio_SCH
+    r"|[Tt]rio_(?P<site2>(?P<loc2>real(?:prox|dist)|prox|dist)(?P<num2>\d*))"  # Cell1_trio_dist1
     r")"
     r"-(?P<seq>\d+)$"
 )
@@ -202,9 +204,10 @@ _RE_DENDRITIC_LEAF_FLEX = re.compile(
 def _match_dendritic_leaf(name: str):
     """Match a dendritic leaf folder name across all observed lab naming variations.
 
-    Returns a tuple (cell_in_name, loc_type, loc_num) or None if no match.
-    The loc_type is normalized: "realprox" -> "prox", "realdist" -> "dist" (the lab's
-    "real" prefix indicates re-imaged after objective re-positioning; same compartment).
+    Returns a tuple (cell_in_name, loc_type, loc_num, site_label) or None if no match.
+    The loc_type is normalized: "realprox" -> "prox", "realdist" -> "dist". The lab's
+    "real" marks a second patch of dendrite recorded at the site after moving the
+    microscope; it is kept in site_label, the site as written in the folder name.
     """
     m = _RE_DENDRITIC_LEAF_FLEX.match(name)
     if m:
@@ -214,7 +217,8 @@ def _match_dendritic_leaf(name: str):
         loc_type = raw_loc.replace("real", "")
         num_str = m.group("num1") or m.group("num2") or "1"
         loc_num = int(num_str) if num_str else 1
-        return cell, loc_type, loc_num
+        site_label = m.group("site1") or m.group("site2")
+        return cell, loc_type, loc_num, site_label
     return None
 
 
@@ -439,7 +443,7 @@ def _walk_dendritic_mmdd_letter(
                     parsed = _match_dendritic_leaf(leaf_dir.name)
                     if parsed is None:
                         return
-                    cell_in_name, loc_type, loc_num = parsed
+                    cell_in_name, loc_type, loc_num, site_label = parsed
                     xml_path = leaf_dir / f"{leaf_dir.name}.xml"
                     pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                     if pv_date is None:
@@ -453,6 +457,7 @@ def _walk_dendritic_mmdd_letter(
                             pv_scan_date=pv_date,
                             dendrite_location=loc_type,
                             location_number=loc_num,
+                            site_label=site_label,
                         )
                     )
 
@@ -478,7 +483,7 @@ def _walk_dendritic_mmdd_letter(
                 parsed = _match_dendritic_leaf(leaf_dir.name)
                 if parsed is None:
                     return
-                cell_in_name, loc_type, loc_num = parsed
+                cell_in_name, loc_type, loc_num, site_label = parsed
                 xml_path = leaf_dir / f"{leaf_dir.name}.xml"
                 pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                 if pv_date is None:
@@ -492,6 +497,7 @@ def _walk_dendritic_mmdd_letter(
                         pv_scan_date=pv_date,
                         dendrite_location=loc_type,
                         location_number=loc_num,
+                        site_label=site_label,
                     )
                 )
 

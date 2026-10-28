@@ -63,3 +63,20 @@ def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
             rois = fluorescence[f"RoiResponseSeriesAlexa568Cell3Proximal2{line}"].rois
             pixel_masks.append([tuple(pixel) for pixel in rois.table["pixel_mask"][rois.data[0]]])
         assert pixel_masks[0] != pixel_masks[1]
+
+
+def test_real_trials_kept_apart_from_the_first_patch(tmp_path):
+    # At Distal 1 of cell 2 the lab recorded three trials, moved the microscope to another patch of the same
+    # dendrite and recorded three more in folders marked "dist1real".
+    bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20160524LIDOFFeGFP")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        assert nwbfile.acquisition["LineScanCell2_Distal1_Ch1"].data.shape == (7500, 29)
+        assert nwbfile.acquisition["LineScanCell2_Distal1Real_Ch1"].data.shape == (7500, 24)
+        cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
+        site_label = nwbfile.intracellular_recordings["site_label"].data[:]
+        cell_2_sites = [site for cell, site in zip(cell_id, site_label) if cell == 2]
+        assert cell_2_sites.count("dist1") == 3
+        assert cell_2_sites.count("dist1real") == 3
