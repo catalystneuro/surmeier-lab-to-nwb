@@ -15,6 +15,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
+from zoneinfo import ZoneInfo
 
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools import configure_and_write_nwbfile
@@ -236,8 +237,14 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     # Extract animal ID (first part before space or dash)
     animal_id = session_name.split()[0] if " " in session_name else session_name.split("-")[0]
 
-    # Use current date as session start time (OIF files don't contain reliable timestamps)
-    session_start_time = datetime.now().astimezone()
+    # The first tile's OIF file records when the mosaic was started, in the lab's local time
+    oif_text = oif_files[0].read_text(encoding="utf-16")
+    capture_match = re.search(r"^ImageCaputreDate='([^']+)'", oif_text, re.MULTILINE)  # codespell:ignore caputre
+    if capture_match is None:
+        raise ValueError(f"No capture date in {oif_files[0]}")
+    session_start_time = datetime.strptime(capture_match.group(1), "%Y-%m-%d %H:%M:%S").replace(
+        tzinfo=ZoneInfo("America/Chicago")
+    )
 
     # Create canonical session ID with explicit parameters
     # This script processes methodological validation data (no experimental conditions)
