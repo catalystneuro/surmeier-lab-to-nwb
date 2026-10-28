@@ -212,6 +212,13 @@ _DYE_DESCRIPTION = {
 }
 
 
+# What one dendritic trial is (lab protocol step 23 and the paper's methods); the lab calls it a "trio".
+_DENDRITIC_TRIAL = (
+    " In each trial, three 2 nA current injections of 2 ms at 50 Hz at the cell body make the cell fire spikes "
+    "that travel back into the dendrites."
+)
+
+
 def _spot_sentence(spot: str) -> str:
     """Description sentence for a site the lab imaged at two spots of the dendrite; empty for one spot."""
     if not spot:
@@ -402,6 +409,15 @@ def _series_name(cell_index: int, modality: str, neurodata_type: str = "CurrentC
     return f"{neurodata_type}Cell{cell_index}{suffix}"
 
 
+def _protocol_description(protocol_label: str) -> str:
+    """Readable protocol for the repetitions table from the internal label ('soma_fi_curve', 'dend_prox1')."""
+    if protocol_label == "soma_fi_curve":
+        return "F-I curve"
+    site = protocol_label.removeprefix("dend_")
+    dendrite_type = "Proximal" if site.startswith("prox") else "Distal"
+    return f"back-propagating spikes at {dendrite_type}{site[4:]}"
+
+
 def _condition_label(condition_subfolder: str) -> str:
     """Map raw condition subfolder name to the paper's prose label."""
     return {
@@ -420,7 +436,7 @@ def _ensure_devices(nwbfile: NWBFile) -> tuple[Device, Device]:
     else:
         bruker = Device(
             name=bruker_name,
-            description="Bruker Ultima In Vitro multiphoton microscope (mouse-day merge prototype).",
+            description="Bruker Ultima In Vitro multiphoton microscope.",
             model=bruker_model,
         )
         nwbfile.add_device(bruker)
@@ -539,6 +555,10 @@ def _build_concatenated_series(
     data_concat = np.concatenate(voltage_chunks)
     stim_concat = np.concatenate(stim_chunks)
     series_name = _series_name(cell_index, modality)
+    if modality == "soma_excitability":
+        recording = "while current steps were injected at the cell body to measure its firing (F-I curve)."
+    else:
+        recording = "during dendritic imaging." + _DENDRITIC_TRIAL
     response = CurrentClampSeries(
         name=series_name,
         data=data_concat,
@@ -547,9 +567,9 @@ def _build_concatenated_series(
         rate=float(sample_rate),
         starting_time=sweep_slices[0][2],
         description=(
-            f"Concatenated current-clamp recordings for Cell {cell_index} {modality}. "
-            f"{len(sweep_slices)} sweeps merged end-to-end (Pattern B). "
-            "Per-sweep wall-clock offsets stored in IntracellularRecordingsTable.sweep_start_time."
+            f"Current-clamp recordings from cell {cell_index}, {recording} The {len(sweep_slices)} sweeps are "
+            "stored back to back; each sweep's start time is in the sweep_start_time column of the intracellular "
+            "recordings table."
         ),
     )
     nwbfile.add_acquisition(response)
@@ -708,7 +728,9 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # The `electrodes` aligned sub-table doesn't exist until the first add; using
     # the convenience add_intracellular_recording call below pre-creates it.
     irt = nwbfile.get_intracellular_recordings()
-    irt.add_column(name="cell_id", description="Cell index within the mouse-day (1, 2, 3, 4).")
+    irt.add_column(
+        name="cell_id", description="Cell number within this file (the cells recorded from this mouse on this day)."
+    )
     irt.add_column(
         name="dendrite_type",
         description="Compartment of the recording electrode: Soma, Proximal, or Distal.",
@@ -932,10 +954,10 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         ts_name = f"LineScan{dye}Cell{cell_index}{dendrite_type_pretty}{loc_num}{spot}"
         ts_description = (
             f"Bruker line-scan kymograph for Cell {cell_index} {dendrite_type_pretty} location "
-            f"{loc_num}, {_DYE_DESCRIPTION[chan_name]}. All trio sweeps at this location concatenated along "
-            f"the time axis (rows = line repetitions, columns = pixels along the scan line). Per-sweep "
-            f"slices are exposed via processing/recordings_index/RecordingsIndexTable (line_scan_{dye.lower()} "
-            f"column). starting_time is the wall-clock of the first contributing sweep relative to session_start_time."
+            f"{loc_num}, {_DYE_DESCRIPTION[chan_name]}. All trials at this site, concatenated in recording order "
+            f"along the time axis (rows = line repetitions, columns = pixels along the scan line); each trial's slice "
+            f"is in the line_scan_{dye.lower()} column of processing/recordings_index/RecordingsIndexTable. "
+            f"starting_time is the start of the first trial.{_DENDRITIC_TRIAL}"
         )
         ts_description += _spot_sentence(spot)
         n_scan_lines = len(scan_lines_per_location[(cell_index, loc_type, loc_num, spot)])
@@ -994,9 +1016,9 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         sim_indices = [simultaneous_indices_per_irt[i] for i in irt_indices]
         cell_id, protocol, condition_sub = key
         if "soma" in protocol:
-            stimulus_type = "F-I_curve"
+            stimulus_type = "F-I curve"
         else:
-            stimulus_type = "dendritic_trio"
+            stimulus_type = "back-propagating spikes"
         seq_index = nwbfile.add_icephys_sequential_recording(
             simultaneous_recordings=sim_indices,
             stimulus_type=stimulus_type,
@@ -1009,11 +1031,14 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     repetitions_table = nwbfile.get_icephys_repetitions()
     repetitions_table.add_column(
         name="cell_id",
-        description="Cell index within the mouse-day this repetition belongs to.",
+        description="Cell number within this file that this repetition belongs to.",
     )
     repetitions_table.add_column(
         name="protocol",
-        description="Protocol family identifier: soma_fi_curve | dend_proxN | dend_distN.",
+        description=(
+            "Protocol of this repetition: 'F-I curve' (current steps at the cell body) or 'back-propagating spikes' "
+            "followed by the dendritic site imaged (e.g., 'back-propagating spikes at Proximal1')."
+        ),
     )
     repetitions_table.add_column(
         name="condition_subfolder",
@@ -1030,7 +1055,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         rep_index = nwbfile.add_icephys_repetition(
             sequential_recordings=[seq_index],
             cell_id=cell_id,
-            protocol=protocol,
+            protocol=_protocol_description(protocol),
             condition_subfolder=condition_sub,
         )
         repetitions_per_condition[condition_sub].append(rep_index)
@@ -1044,7 +1069,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     if "condition" not in ec_table.colnames:
         ec_table.add_column(
             name="condition",
-            description="Paper-prose label for the experimental condition.",
+            description="Experimental condition as named in the paper (e.g., 'LID off-state').",
         )
     ec_index_per_condition: dict[str, int] = {}
     for ec_index, (condition_sub, rep_indices) in enumerate(repetitions_per_condition.items()):
@@ -1132,7 +1157,7 @@ def _build_line_scan_rich_objects(
                 description=(
                     "Source images for line scan experiments: field of view snapshots with "
                     "scan-line overlay, used to identify the recorded region. One image per "
-                    "trio sweep per channel (cell, channel, dendrite location, trial)."
+                    "trial and dye."
                 ),
             )
             nwbfile.add_acquisition(container)
@@ -1154,7 +1179,7 @@ def _build_line_scan_rich_objects(
                             f"Source image (field of view with scan line overlay) for Cell {cell} "
                             f"{dendrite_type_pretty} location {num}{spot_note}, {_DYE_DESCRIPTION[chan]}, trial {trial_index} "
                             f"of {len(entries)} in recording order "
-                            f"(IRT row {row_index}, sweep_start_time={sweep_start:.1f}s)."
+                            f"(row {row_index} of the intracellular recordings table, start time {sweep_start:.1f} s)."
                         ),
                         data=arr,
                     )
@@ -1255,8 +1280,9 @@ def _build_line_scan_rich_objects(
             rrs_description = (
                 f"Line-scan fluorescence profile (average across pixels along the scan line) "
                 f"for Cell {cell} {dendrite_type_pretty} location {num}, {_DYE_DESCRIPTION[chan]}. "
-                f"All trio sweeps at this location concatenated; per-sweep slices via "
-                f"processing/recordings_index/RecordingsIndexTable."
+                f"All trials at this site, concatenated in recording order; each trial's slice is in the "
+                f"roi_response_{indicator.lower()} column of processing/recordings_index/RecordingsIndexTable."
+                f"{_DENDRITIC_TRIAL}"
             )
             rrs_description += _spot_sentence(spot)
             n_scan_lines = len(scan_lines_per_location[(cell, loc, num, spot)])
@@ -1270,7 +1296,7 @@ def _build_line_scan_rich_objects(
 
             # Build a DynamicTableRegion pointing at this row of PlaneSegmentationLineScan
             rois_region = plane_seg.create_roi_table_region(
-                description=f"Line-scan ROI for Cell {cell} {dendrite_type_pretty} loc {num}",
+                description=f"Line-scan ROI for Cell {cell} {dendrite_type_pretty} location {num}",
                 region=[plane_seg_row_for_key[key]],
             )
             rrs = RoiResponseSeries(
@@ -1400,7 +1426,7 @@ def _build_recordings_index_table(
     # Build the DynamicTable. Need to construct columns before passing to
     # DynamicTable so DynamicTableRegion can reference the icephys tables.
     columns: list = [
-        VectorData(name="cell_id", description="Cell index within the mouse-day.", data=cell_id_col),
+        VectorData(name="cell_id", description="Cell number within this file.", data=cell_id_col),
         VectorData(
             name="condition_subfolder",
             description="Raw lab condition subfolder for this sweep (e.g., 'LID off-state').",
@@ -1434,31 +1460,31 @@ def _build_recordings_index_table(
         ),
         DynamicTableRegion(
             name="irt_row",
-            description="Reference to the corresponding row in IntracellularRecordingsTable.",
+            description="This sweep's row in the intracellular recordings table.",
             data=irt_indices_col,
             table=irt_table,
         ),
         DynamicTableRegion(
             name="simultaneous_row",
-            description="Reference to the corresponding row in icephys_simultaneous_recordings.",
+            description="This sweep's row in the simultaneous recordings table.",
             data=sr_indices_col,
             table=sr_table,
         ),
         DynamicTableRegion(
             name="sequential_row",
-            description="Reference to the corresponding row in icephys_sequential_recordings.",
+            description="This sweep's row in the sequential recordings table.",
             data=seq_indices_col,
             table=seq_table,
         ),
         DynamicTableRegion(
             name="repetition_row",
-            description="Reference to the corresponding row in icephys_repetitions.",
+            description="This sweep's row in the repetitions table.",
             data=rep_indices_col,
             table=reps_table,
         ),
         DynamicTableRegion(
             name="experimental_condition_row",
-            description="Reference to the corresponding row in icephys_experimental_conditions.",
+            description="This sweep's row in the experimental conditions table.",
             data=ec_indices_col,
             table=ec_table,
         ),
@@ -1470,8 +1496,8 @@ def _build_recordings_index_table(
             TimeSeriesReferenceVectorData(
                 name="line_scan_alexa568",
                 description=(
-                    "Reference to the paired Alexa Fluor 568 reference channel slice (R0 for ratiometric "
-                    "Ca2+ calculations). idx_start=-1 for sweeps without line-scan imaging (somatic)."
+                    "This sweep's slice of the Alexa Fluor 568 line scan (structural dye). Somatic sweeps have no "
+                    "line scan and hold idx_start=-1."
                 ),
                 data=line_scan_ch1_refs,
             )
@@ -1480,8 +1506,8 @@ def _build_recordings_index_table(
             TimeSeriesReferenceVectorData(
                 name="line_scan_fluo4",
                 description=(
-                    "Reference to the paired Fluo-4 calcium signal channel slice (G in (G-G0)/G0R0). "
-                    "idx_start=-1 for sweeps without line-scan imaging (somatic)."
+                    "This sweep's slice of the Fluo-4 line scan (calcium indicator). Somatic sweeps have no line scan "
+                    "and hold idx_start=-1."
                 ),
                 data=line_scan_ch2_refs,
             )
@@ -1491,8 +1517,8 @@ def _build_recordings_index_table(
             TimeSeriesReferenceVectorData(
                 name="roi_response_alexa568",
                 description=(
-                    "Reference to the paired Alexa Fluor 568 ROI response slice (mean fluorescence "
-                    "along the scan line per time sample). idx_start=-1 for sweeps without imaging."
+                    "This sweep's slice of the Alexa Fluor 568 fluorescence (mean along the scan line). Somatic "
+                    "sweeps have no imaging and hold idx_start=-1."
                 ),
                 data=roi_response_ch1_refs,
             )
@@ -1501,7 +1527,8 @@ def _build_recordings_index_table(
             TimeSeriesReferenceVectorData(
                 name="roi_response_fluo4",
                 description=(
-                    "Reference to the paired Fluo-4 ROI response slice. idx_start=-1 for sweeps " "without imaging."
+                    "This sweep's slice of the Fluo-4 fluorescence (mean along the scan line). Somatic sweeps have "
+                    "no imaging and hold idx_start=-1."
                 ),
                 data=roi_response_ch2_refs,
             )
@@ -1510,13 +1537,12 @@ def _build_recordings_index_table(
     table = DynamicTable(
         name="RecordingsIndexTable",
         description=(
-            "Denormalized lookup for fast analyst queries. One row per icephys sweep, mirroring the order "
-            "of IntracellularRecordingsTable. Carries per-sweep metadata (cell_id, condition_subfolder, "
-            "dendrite_type, dendrite_distance_um, site, stimulus_current_pA, sweep_start_time_s) plus "
-            "DynamicTableRegion pointers to the full icephys hierarchical chain "
-            "(irt_row, simultaneous_row, sequential_row, repetition_row, experimental_condition_row) "
-            "and TimeSeriesReference slices into the paired line-scan TimeSeries (line_scan_alexa568, line_scan_fluo4). "
-            "This is a query helper; the canonical icephys chain is still authoritative."
+            "One row per sweep, in the order of the intracellular recordings table, so a sweep can be looked up "
+            "in one place. Each row holds the sweep's details (cell_id, condition_subfolder, dendrite_type, "
+            "dendrite_distance_um, site, stimulus_current_pA, sweep_start_time_s), its rows in the intracellular "
+            "recordings, simultaneous recordings, sequential recordings, repetitions and experimental conditions "
+            "tables, and, for dendritic sweeps, its slices of the line-scan and fluorescence series. The same "
+            "information is also held in those tables and series."
         ),
         columns=columns,
     )
@@ -1524,9 +1550,8 @@ def _build_recordings_index_table(
     module = nwbfile.create_processing_module(
         name="recordings_index",
         description=(
-            "Cross-modality and cross-table lookup helpers for the per-mouse-day icephys data. "
-            "Contains the RecordingsIndexTable that denormalizes the canonical icephys chain "
-            "for one-stop pandas-style filtering."
+            "RecordingsIndexTable, which gathers for each sweep its details, its rows in the intracellular tables "
+            "and its slices of the line-scan and fluorescence series."
         ),
     )
     module.add(table)
