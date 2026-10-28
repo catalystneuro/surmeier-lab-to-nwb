@@ -118,3 +118,15 @@ def test_misspelled_proxt2_folders_are_converted(tmp_path):
         cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
         site = nwbfile.intracellular_recordings["site"].data[:]
         assert [name for cell, name in zip(cell_id, site) if cell == 3].count("Proximal2") == 3
+
+
+def test_trio_folders_named_without_trio_are_converted(tmp_path):
+    # The lab named the Proximal 1 folders of cell 3 "20160608_Cell3_prox1-NNN", without "_trio".
+    bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20160608LIDONeGFP")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
+        site = nwbfile.intracellular_recordings["site"].data[:]
+        assert [name for cell, name in zip(cell_id, site) if cell == 3].count("Proximal1") == 3

@@ -190,11 +190,13 @@ _RE_YYYYMMDD_LETTER_OUTER = re.compile(r"^(\d{4})(\d{2})(\d{2})([a-d])$")
 #   - Optional trailing pharm suffix: `_trio_SCH-NNN`, `_trio_sul-NNN`
 #   - "Cell<N>_<loc><N>_trio[_pharm]" OR "cell<N>_trio_<loc><N>" (lab swapped order in 2023)
 #   - Optional trailing digit on the location (some leaves have `trio_dist` without digit)
+#   - `_trio` missing when nothing else follows the site (2016-06-08 cell 3 prox1, 2017-06-19 cell 2 dist1);
+#     other suffixes without `_trio`, like the `_bsl` baseline scans, do not match
 _RE_DENDRITIC_LEAF_FLEX = re.compile(
     # Date: 8 or 9 digits (9 allows for lab typos like `007182016`).
     r"^(?P<date>\d{8,9})_[Cc]ell(?P<cell>\d+)_"
     r"(?:"
-    r"(?P<site1>(?P<loc1>real(?:prox|dist)|prox|dist)(?P<num1>\d+)(?:real)?)_[Tt]rio(?:_[A-Za-z]+)?"  # Cell1_dist1_trio or Cell1_dist1_trio_SCH
+    r"(?P<site1>(?P<loc1>real(?:prox|dist)|prox|dist)(?P<num1>\d+)(?:real)?)(?:_[Tt]rio(?:_[A-Za-z]+)?)?"  # Cell1_dist1_trio or Cell1_dist1_trio_SCH
     r"|[Tt]rio_(?P<site2>(?P<loc2>real(?:prox|dist)|prox|dist)(?P<num2>\d*))"  # Cell1_trio_dist1
     r")"
     r"-(?P<seq>\d+)$"
