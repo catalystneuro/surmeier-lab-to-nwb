@@ -80,3 +80,14 @@ def test_real_trials_kept_apart_from_the_first_patch(tmp_path):
         cell_2_sites = [name for cell, name in zip(cell_id, site) if cell == 2]
         assert cell_2_sites.count("Distal1Spot1") == 3
         assert cell_2_sites.count("Distal1Spot2") == 3
+
+
+def test_sulpiride_folders_are_one_condition(tmp_path):
+    # The lab named the sulpiride folders "LID on-state with sul" (dendritic) and "... with sul (iSPN)" (somatic).
+    bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20190509LIDONeGFP")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        assert list(nwbfile.icephys_experimental_conditions["condition"].data[:]) == ["LID on-state with sulpiride"]
+        assert set(nwbfile.intracellular_recordings["condition"].data[:]) == {"LID on-state with sulpiride"}

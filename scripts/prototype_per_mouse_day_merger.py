@@ -418,13 +418,21 @@ def _protocol_description(protocol_label: str) -> str:
     return f"back-propagating spikes at {dendrite_type}{site[4:]}"
 
 
-def _condition_label(condition_subfolder: str) -> str:
-    """Map raw condition subfolder name to the paper's prose label."""
-    return {
-        "LID off-state": "LID off-state",
-        "LID on-state": "LID on-state",
-        "LID on-state with SCH": "LID on-state with SCH",
-    }.get(condition_subfolder, condition_subfolder)
+# The lab's condition folders, named as in the paper's figure legends. The lab named the sulpiride
+# folders differently for somatic and dendritic recordings; both are one condition.
+_CONDITION_LABEL = {
+    "LID off-state": "LID off-state",
+    "LID on-state": "LID on-state",
+    "LID on-state with SCH": "LID on-state with SCH 23390",
+    "LID on-state with sul": "LID on-state with sulpiride",
+    "LID on-state with sul (iSPN)": "LID on-state with sulpiride",
+    "KO off-state": "CDGI knockout, LID off-state",
+    "KO on-state": "CDGI knockout, LID on-state",
+    "control": "LID off-state, vehicle control",
+    "M1R antagonist": "LID off-state with M1R antagonists",
+    "interleaved control": "LID off-state, control (gRNA only)",
+    "M1R CRISPR": "LID off-state, M1R deletion",
+}
 
 
 def _ensure_devices(nwbfile: NWBFile) -> tuple[Device, Device]:
@@ -684,14 +692,14 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     _bruker, amp = _ensure_devices(nwbfile)
 
     # icephys chain bookkeeping
-    # Key: (cell_id, protocol_family, condition_subfolder) -> list of IRT row indices.
-    # The condition subfolder is included so paired-recording cells (baseline + post-drug
+    # Key: (cell_id, protocol_family, condition) -> list of IRT row indices.
+    # The condition is included so paired-recording cells (baseline + post-drug
     # sweeps on the same cell) split into separate Sequential/Repetition/ExperimentalConditions
     # rows rather than collapsing into one.
     irt_rows_per_sequential: dict[tuple[int, str, str], list[int]] = defaultdict(list)
 
     # Per-IRT-row metadata for the RecordingsIndexTable built post-chain.
-    # Maps irt_row_index -> dict(cell_id, condition_subfolder, dendrite_type, dendrite_distance_um,
+    # Maps irt_row_index -> dict(cell_id, condition, dendrite_type, dendrite_distance_um,
     #                          site, stimulus_current_pA, sweep_start_time_s).
     index_row_metadata: dict[int, dict] = {}
 
@@ -761,11 +769,11 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         description="Stimulus protocol label from Bruker VoltageOutput XML (e.g., 'Step 5_-40 pA').",
     )
     irt.add_column(
-        name="condition_subfolder",
+        name="condition",
         description=(
-            "Raw condition subfolder this sweep came from (e.g., 'LID off-state', 'LID on-state', "
-            "'LID on-state with SCH'). For paired-recording mouse-days, distinguishes baseline vs "
-            "post-drug sweeps within the same file."
+            "Experimental condition, named as in the paper's figure legends (e.g., 'LID on-state', "
+            "'LID on-state with sulpiride'). Where a cell was recorded before and after a drug, its sweeps "
+            "differ here."
         ),
     )
     irt.add_column(
@@ -793,6 +801,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             response, stim, sweep_slices = soma_result
             sorted_soma = sorted(bundle.sweeps_for(cell_index, "soma_excitability"), key=lambda s: s.pv_scan_date)
             for sw, (idx_start, count, sweep_start_time, protocol) in zip(sorted_soma, sweep_slices):
+                condition = _CONDITION_LABEL[sw.condition_subfolder]
                 row_index = nwbfile.add_intracellular_recording(
                     electrode=soma_electrode,
                     stimulus=stim,
@@ -807,14 +816,14 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     sweep_start_time=sweep_start_time,
                     stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
                     stimulus_protocol_name=protocol.name if protocol else "",
-                    condition_subfolder=sw.condition_subfolder,
+                    condition=condition,
                     site="Soma",
                 )
-                irt_rows_per_sequential[(cell_index, "soma_fi_curve", sw.condition_subfolder)].append(row_index)
+                irt_rows_per_sequential[(cell_index, "soma_fi_curve", condition)].append(row_index)
                 # Per-row metadata for the RecordingsIndexTable (built post-chain).
                 index_row_metadata[row_index] = {
                     "cell_id": cell_index,
-                    "condition_subfolder": sw.condition_subfolder,
+                    "condition": condition,
                     "dendrite_type": "Soma",
                     "dendrite_distance_um": 0.0,
                     "site": "Soma",
@@ -874,6 +883,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             if (sw.dendrite_location, sw.location_number) in sites_with_two_spots:
                 spot = "Spot2" if "real" in sw.site_label else "Spot1"
             site = f"{dendrite_type}{sw.location_number}{spot}"
+            condition = _CONDITION_LABEL[sw.condition_subfolder]
 
             row_index = nwbfile.add_intracellular_recording(
                 electrode=electrode,
@@ -889,14 +899,14 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 sweep_start_time=sweep_start_time,
                 stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
                 stimulus_protocol_name=protocol.name if protocol else "",
-                condition_subfolder=sw.condition_subfolder,
+                condition=condition,
                 site=site,
             )
             protocol_label = f"dend_{sw.dendrite_location}{sw.location_number}"
-            irt_rows_per_sequential[(cell_index, protocol_label, sw.condition_subfolder)].append(row_index)
+            irt_rows_per_sequential[(cell_index, protocol_label, condition)].append(row_index)
             index_row_metadata[row_index] = {
                 "cell_id": cell_index,
-                "condition_subfolder": sw.condition_subfolder,
+                "condition": condition,
                 "dendrite_type": dendrite_type,
                 "dendrite_distance_um": dendrite_distance,
                 "site": site,
@@ -1014,7 +1024,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     sequential_index_per_irt: dict[int, int] = {}
     for key, irt_indices in irt_rows_per_sequential.items():
         sim_indices = [simultaneous_indices_per_irt[i] for i in irt_indices]
-        cell_id, protocol, condition_sub = key
+        cell_id, protocol, condition = key
         if "soma" in protocol:
             stimulus_type = "F-I curve"
         else:
@@ -1041,24 +1051,24 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         ),
     )
     repetitions_table.add_column(
-        name="condition_subfolder",
+        name="condition",
         description=(
-            "Raw lab condition subfolder this repetition belongs to. For paired-recording "
-            "cells, the same protocol can have multiple repetitions across conditions (baseline + post-drug)."
+            "Experimental condition of this repetition, named as in the paper's figure legends. A cell recorded "
+            "before and after a drug has one repetition per condition for the same protocol."
         ),
     )
     # Track which repetitions belong to which condition for the ExperimentalConditions table.
     repetitions_per_condition: dict[str, list[int]] = defaultdict(list)
     repetition_index_per_irt: dict[int, int] = {}
     for key, seq_index in sequential_indices_per_key.items():
-        cell_id, protocol, condition_sub = key
+        cell_id, protocol, condition = key
         rep_index = nwbfile.add_icephys_repetition(
             sequential_recordings=[seq_index],
             cell_id=cell_id,
             protocol=_protocol_description(protocol),
-            condition_subfolder=condition_sub,
+            condition=condition,
         )
-        repetitions_per_condition[condition_sub].append(rep_index)
+        repetitions_per_condition[condition].append(rep_index)
         for irt_index in irt_rows_per_sequential[key]:
             repetition_index_per_irt[irt_index] = rep_index
 
@@ -1069,15 +1079,15 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     if "condition" not in ec_table.colnames:
         ec_table.add_column(
             name="condition",
-            description="Experimental condition as named in the paper (e.g., 'LID off-state').",
+            description="Experimental condition, named as in the paper's figure legends (e.g., 'LID off-state').",
         )
     ec_index_per_condition: dict[str, int] = {}
-    for ec_index, (condition_sub, rep_indices) in enumerate(repetitions_per_condition.items()):
+    for ec_index, (condition, rep_indices) in enumerate(repetitions_per_condition.items()):
         nwbfile.add_icephys_experimental_condition(
             repetitions=rep_indices,
-            condition=_condition_label(condition_sub),
+            condition=condition,
         )
-        ec_index_per_condition[condition_sub] = ec_index
+        ec_index_per_condition[condition] = ec_index
 
     # ---- RecordingsIndexTable -------------------------------------------------
     # Denormalized lookup that pre-joins the icephys chain for analyst convenience.
@@ -1387,7 +1397,7 @@ def _build_recordings_index_table(
     for irt_index in range(n_rows):
         meta = index_row_metadata.get(irt_index, {})
         cell_id_col.append(int(meta.get("cell_id", -1)))
-        condition_col.append(str(meta.get("condition_subfolder", "")))
+        condition_col.append(str(meta.get("condition", "")))
         dendrite_type_col.append(str(meta.get("dendrite_type", "")))
         dendrite_distance_col.append(float(meta.get("dendrite_distance_um", 0.0)))
         site_col.append(str(meta.get("site", "")))
@@ -1397,8 +1407,7 @@ def _build_recordings_index_table(
         sr_indices_col.append(int(simultaneous_index_per_irt.get(irt_index, -1)))
         seq_indices_col.append(int(sequential_index_per_irt.get(irt_index, -1)))
         rep_indices_col.append(int(repetition_index_per_irt.get(irt_index, -1)))
-        condition_sub = meta.get("condition_subfolder", "")
-        ec_indices_col.append(int(ec_index_per_condition.get(condition_sub, -1)))
+        ec_indices_col.append(int(ec_index_per_condition.get(meta.get("condition", ""), -1)))
 
         slices = line_scan_slices.get(irt_index, {})
         for chan_name, target_list in (("Ch1", line_scan_ch1_refs), ("Ch2", line_scan_ch2_refs)):
@@ -1428,8 +1437,8 @@ def _build_recordings_index_table(
     columns: list = [
         VectorData(name="cell_id", description="Cell number within this file.", data=cell_id_col),
         VectorData(
-            name="condition_subfolder",
-            description="Raw lab condition subfolder for this sweep (e.g., 'LID off-state').",
+            name="condition",
+            description="Experimental condition of this sweep; see the same column in the intracellular recordings table.",
             data=condition_col,
         ),
         VectorData(
@@ -1538,7 +1547,7 @@ def _build_recordings_index_table(
         name="RecordingsIndexTable",
         description=(
             "One row per sweep, in the order of the intracellular recordings table, so a sweep can be looked up "
-            "in one place. Each row holds the sweep's details (cell_id, condition_subfolder, dendrite_type, "
+            "in one place. Each row holds the sweep's details (cell_id, condition, dendrite_type, "
             "dendrite_distance_um, site, stimulus_current_pA, sweep_start_time_s), its rows in the intracellular "
             "recordings, simultaneous recordings, sequential recordings, repetitions and experimental conditions "
             "tables, and, for dendritic sweeps, its slices of the line-scan and fluorescence series. The same "
