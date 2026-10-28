@@ -393,17 +393,6 @@ def _read_sweep_voltage(sweep_path: Path) -> tuple[np.ndarray, float]:
 # --------- core merger logic ---------------------------------------------------
 
 
-def _electrode_name(cell_index: int, compartment: str, location_number: int | None = None) -> str:
-    """Stable name for an IntracellularElectrode."""
-    if compartment == "soma":
-        return f"Cell{cell_index}_Soma"
-    if compartment == "prox":
-        return f"Cell{cell_index}_Proximal{location_number}"
-    if compartment == "dist":
-        return f"Cell{cell_index}_Distal{location_number}"
-    raise ValueError(f"Unknown compartment: {compartment}")
-
-
 def _series_name(cell_index: int, modality: str, neurodata_type: str = "CurrentClampSeries") -> str:
     suffix = "Somatic" if modality == "soma_excitability" else "Dendritic"
     return f"{neurodata_type}Cell{cell_index}{suffix}"
@@ -461,42 +450,18 @@ def _ensure_devices(nwbfile: NWBFile) -> tuple[Device, Device]:
     return bruker, amp
 
 
-def _build_electrode(
-    nwbfile: NWBFile,
-    cell_index: int,
-    compartment: str,
-    location_number: int | None,
-    device: Device,
-) -> IntracellularElectrode:
-    name = _electrode_name(cell_index, compartment, location_number)
+def _build_electrode(nwbfile: NWBFile, cell_index: int, device: Device) -> IntracellularElectrode:
+    """The cell's whole-cell patch pipette, at the cell body; the dendritic sites were only imaged."""
+    name = f"ElectrodeCell{cell_index}"
     if name in nwbfile.icephys_electrodes:
         return nwbfile.icephys_electrodes[name]
-    if compartment == "soma":
-        description = (
-            f"Patch-clamp electrode at the soma of Cell {cell_index}, "
-            "recorded as part of the mouse-day icephys merge."
-        )
-        location = "Caudoputamen"
-    elif compartment == "prox":
-        description = (
-            f"Patch-clamp electrode at proximal dendrite location {location_number} "
-            f"of Cell {cell_index} (~40 um from soma)."
-        )
-        location = "Caudoputamen"
-    else:  # dist
-        description = (
-            f"Patch-clamp electrode at distal dendrite location {location_number} "
-            f"of Cell {cell_index} (~90 um from soma)."
-        )
-        location = "Caudoputamen"
-    electrode = nwbfile.create_icephys_electrode(
+    return nwbfile.create_icephys_electrode(
         name=name,
-        description=description,
+        description=f"Whole-cell patch pipette at the cell body of cell {cell_index}.",
         device=device,
-        location=location,
+        location="Caudoputamen",
         cell_id=f"Cell{cell_index}",
     )
-    return electrode
 
 
 def _build_concatenated_series(
@@ -741,11 +706,13 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     )
     irt.add_column(
         name="dendrite_type",
-        description="Compartment of the recording electrode: Soma, Proximal, or Distal.",
+        description="Dendritic region imaged during the sweep (Proximal or Distal); Soma for somatic sweeps, "
+        "which have no imaging. The recording electrode is always at the cell body.",
     )
     irt.add_column(
         name="dendrite_distance_um",
-        description="Approximate distance from soma in micrometers (0 for soma).",
+        description="Approximate distance of the imaged site from the cell body in micrometers: 40 for Proximal and "
+        "90 for Distal, as set in the lab protocol; 0 for somatic sweeps.",
     )
     irt.add_column(
         name="sweep_start_time",
@@ -787,14 +754,15 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
 
     # Process each cell.
     for cell_index in bundle.cell_indices():
+        # One pipette per cell, at the cell body, for both the somatic and the dendritic sweeps.
+        cell_electrode = _build_electrode(nwbfile, cell_index, amp)
         # Somatic block (one PatchClampSeries for all somatic sweeps of this cell).
-        soma_electrode = _build_electrode(nwbfile, cell_index, "soma", None, amp)
         soma_result = _build_concatenated_series(
             nwbfile,
             bundle,
             cell_index,
             "soma_excitability",
-            soma_electrode,
+            cell_electrode,
             session_start_time_naive,
         )
         if soma_result is not None:
@@ -803,7 +771,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             for sw, (idx_start, count, sweep_start_time, protocol) in zip(sorted_soma, sweep_slices):
                 condition = _CONDITION_LABEL[sw.condition_subfolder]
                 row_index = nwbfile.add_intracellular_recording(
-                    electrode=soma_electrode,
+                    electrode=cell_electrode,
                     stimulus=stim,
                     stimulus_start_index=idx_start,
                     stimulus_index_count=count,
@@ -843,31 +811,19 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             subject_entry=bundle.subject_entry,
             cells={cell_index: dend_sweeps},
         )
-        # Need an electrode per (location_type, location_number); create them all up front.
-        location_electrodes: dict[tuple[str, int], IntracellularElectrode] = {}
-        for sw in dend_sweeps:
-            key = (sw.dendrite_location, sw.location_number)
-            if key not in location_electrodes:
-                location_electrodes[key] = _build_electrode(
-                    nwbfile, cell_index, sw.dendrite_location, sw.location_number, amp
-                )
-
         # Single concatenated dendritic series for the whole cell.
         dend_result = _build_concatenated_series(
             nwbfile,
             dend_subbundle,
             cell_index,
             "dend_excitability",
-            # The "electrode" arg on the series is required but mostly informational.
-            # Use the first electrode encountered; the IRT row's electrode column is
-            # the load-bearing one for per-sweep electrode identity.
-            next(iter(location_electrodes.values())),
+            cell_electrode,
             session_start_time_naive,
         )
         if dend_result is None:
             continue
         dend_response, dend_stim, dend_sweep_slices = dend_result
-        # Add IRT rows with correct per-sweep electrode (from location).
+        # Add IRT rows.
         # The sweep order in dend_sweep_slices matches the chronological order used
         # in _build_concatenated_series (which sorts by pv_scan_date).
         sorted_sweeps = sorted(dend_sweeps, key=lambda s: s.pv_scan_date)
@@ -876,7 +832,6 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             (sw.dendrite_location, sw.location_number) for sw in dend_sweeps if "real" in sw.site_label
         }
         for sw, (idx_start, count, sweep_start_time, protocol) in zip(sorted_sweeps, dend_sweep_slices):
-            electrode = location_electrodes[(sw.dendrite_location, sw.location_number)]
             dendrite_type = "Proximal" if sw.dendrite_location == "prox" else "Distal"
             dendrite_distance = 40.0 if sw.dendrite_location == "prox" else 90.0
             spot = ""
@@ -886,7 +841,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             condition = _CONDITION_LABEL[sw.condition_subfolder]
 
             row_index = nwbfile.add_intracellular_recording(
-                electrode=electrode,
+                electrode=cell_electrode,
                 stimulus=dend_stim,
                 stimulus_start_index=idx_start,
                 stimulus_index_count=count,
@@ -1439,12 +1394,13 @@ def _build_recordings_index_table(
         ),
         VectorData(
             name="dendrite_type",
-            description="Compartment of the recording electrode: Soma, Proximal, or Distal.",
+            description="Dendritic region imaged during the sweep (Proximal or Distal); Soma for somatic sweeps.",
             data=dendrite_type_col,
         ),
         VectorData(
             name="dendrite_distance_um",
-            description="Approximate distance from soma in micrometers (0 for Soma, 40 for Proximal, 90 for Distal).",
+            description="Approximate distance of the imaged site from the cell body in micrometers (0 for Soma, 40 for "
+            "Proximal, 90 for Distal).",
             data=dendrite_distance_col,
         ),
         VectorData(
