@@ -212,6 +212,17 @@ _DYE_DESCRIPTION = {
 }
 
 
+def _spot_sentence(spot: str) -> str:
+    """Description sentence for a site the lab imaged at two spots of the dendrite; empty for one spot."""
+    if not spot:
+        return ""
+    sentence = (
+        " The lab imaged this site at two spots on the dendrite, moving the microscope in between; "
+        f"this series holds the trials at spot {spot[-1]}"
+    )
+    return sentence + (", which the lab's files mark 'real'." if spot == "Spot2" else ".")
+
+
 def _read_scan_line_rate(sweep_path: Path) -> float | None:
     """Extract the line-scan sample rate (lines/second) from the master XML.
 
@@ -386,9 +397,9 @@ def _electrode_name(cell_index: int, compartment: str, location_number: int | No
     raise ValueError(f"Unknown compartment: {compartment}")
 
 
-def _series_name(cell_index: int, modality: str) -> str:
+def _series_name(cell_index: int, modality: str, neurodata_type: str = "CurrentClampSeries") -> str:
     suffix = "Somatic" if modality == "soma_excitability" else "Dendritic"
-    return f"CurrentClampSeries_Cell{cell_index}_{suffix}"
+    return f"{neurodata_type}Cell{cell_index}{suffix}"
 
 
 def _condition_label(condition_subfolder: str) -> str:
@@ -544,7 +555,7 @@ def _build_concatenated_series(
     nwbfile.add_acquisition(response)
 
     stim = CurrentClampStimulusSeries(
-        name=f"{series_name}_Stimulus",
+        name=_series_name(cell_index, modality, "CurrentClampStimulusSeries"),
         data=stim_concat,
         electrode=electrode,
         gain=1.0,
@@ -661,22 +672,22 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
 
     # Per-IRT-row metadata for the RecordingsIndexTable built post-chain.
     # Maps irt_row_index -> dict(cell_id, condition_subfolder, dendrite_type, dendrite_distance_um,
-    #                          site_label, stimulus_current_pA, sweep_start_time_s).
+    #                          site, stimulus_current_pA, sweep_start_time_s).
     index_row_metadata: dict[int, dict] = {}
 
     # The scan line at a location sometimes moves or changes length between trials.
-    # scan_lines_per_location[(cell_id, location_type, location_number, real)] maps each distinct
+    # scan_lines_per_location[(cell_id, location_type, location_number, spot)] maps each distinct
     # line (its pixel coordinates) to its number at that location, in order of first use.
-    # real is True for the second patch of dendrite the lab marked "real" at a site.
-    scan_lines_per_location: dict[tuple[int, str, int, bool], dict[tuple, int]] = defaultdict(dict)
+    # spot is "" for a site imaged at one spot, "Spot1" or "Spot2" for a site imaged at two.
+    scan_lines_per_location: dict[tuple[int, str, int, str], dict[tuple, int]] = defaultdict(dict)
 
     # Buffer for per-sweep line-scan kymographs to consolidate later.
-    # Key: (cell_id, location_type, location_number, real, scan_line_number, channel_name)
+    # Key: (cell_id, location_type, location_number, spot, scan_line_number, channel_name)
     # Value: list of (irt_row_index, kymo_data_2d, rate_hz, sweep_start_time_s)
     # After all dendritic IRT rows are added, we concatenate each buffer along axis 0
     # (the time/lines axis) to make one TimeSeries per (cell, location, scan line, channel) -- Pattern B
     # for line scans. Per-sweep slice info is preserved for the RecordingsIndexTable.
-    line_scan_buffer: dict[tuple[int, str, int, bool, int, str], list[tuple[int, np.ndarray, float, float]]] = (
+    line_scan_buffer: dict[tuple[int, str, int, str, int, str], list[tuple[int, np.ndarray, float, float]]] = (
         defaultdict(list)
     )
 
@@ -686,12 +697,12 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # - Source images: kept per-trial (one image per sweep × channel) so cross-trial FOV
     #   verification is possible. Static reference data, cheap to keep separately.
     # - Pixel masks: per (cell, location, scan line, channel).
-    roi_response_buffer: dict[tuple[int, str, int, bool, int, str], list[tuple[int, np.ndarray, float, float]]] = (
+    roi_response_buffer: dict[tuple[int, str, int, str, int, str], list[tuple[int, np.ndarray, float, float]]] = (
         defaultdict(list)
     )
-    # source_image_buffer[(cell, loc, num, real, chan)] -> list of (irt_row_index, sweep_start, image_array)
-    source_image_buffer: dict[tuple[int, str, int, bool, str], list[tuple[int, float, np.ndarray]]] = defaultdict(list)
-    pixel_mask_buffer: dict[tuple[int, str, int, bool, int, str], dict] = {}  # mask_image, xs, ys, frame_shape
+    # source_image_buffer[(cell, loc, num, spot, chan)] -> list of (irt_row_index, sweep_start, image_array)
+    source_image_buffer: dict[tuple[int, str, int, str, str], list[tuple[int, float, np.ndarray]]] = defaultdict(list)
+    pixel_mask_buffer: dict[tuple[int, str, int, str, int, str], dict] = {}  # mask_image, xs, ys, frame_shape
 
     # Add custom columns to IntracellularRecordingsTable BEFORE adding rows.
     # The `electrodes` aligned sub-table doesn't exist until the first add; using
@@ -736,11 +747,11 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         ),
     )
     irt.add_column(
-        name="site_label",
+        name="site",
         description=(
-            "Dendritic site as written in the sweep's folder name (e.g., 'prox1', 'dist2'); empty for somatic "
-            "sweeps. At a few sites the lab recorded a second patch of dendrite after moving the microscope "
-            "and marked it 'real' (e.g., 'realprox1', 'dist1real')."
+            "Recording site, named like the line-scan series: 'Soma', or 'Proximal'/'Distal' with the site number "
+            "(e.g., 'Proximal1'). Sites the lab imaged at two spots on the dendrite, moving the microscope in "
+            "between, add 'Spot1' or 'Spot2' (e.g., 'Proximal1Spot2'); the lab's files mark the second spot 'real'."
         ),
     )
 
@@ -775,7 +786,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
                     stimulus_protocol_name=protocol.name if protocol else "",
                     condition_subfolder=sw.condition_subfolder,
-                    site_label="",
+                    site="Soma",
                 )
                 irt_rows_per_sequential[(cell_index, "soma_fi_curve", sw.condition_subfolder)].append(row_index)
                 # Per-row metadata for the RecordingsIndexTable (built post-chain).
@@ -784,7 +795,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     "condition_subfolder": sw.condition_subfolder,
                     "dendrite_type": "Soma",
                     "dendrite_distance_um": 0.0,
-                    "site_label": "",
+                    "site": "Soma",
                     "stimulus_current_pA": protocol.amplitude_pA if protocol else 0.0,
                     "sweep_start_time_s": float(sweep_start_time),
                 }
@@ -829,10 +840,18 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         # The sweep order in dend_sweep_slices matches the chronological order used
         # in _build_concatenated_series (which sorts by pv_scan_date).
         sorted_sweeps = sorted(dend_sweeps, key=lambda s: s.pv_scan_date)
+        # Sites the lab imaged at two spots on the dendrite; the second spot's folders say "real".
+        sites_with_two_spots = {
+            (sw.dendrite_location, sw.location_number) for sw in dend_sweeps if "real" in sw.site_label
+        }
         for sw, (idx_start, count, sweep_start_time, protocol) in zip(sorted_sweeps, dend_sweep_slices):
             electrode = location_electrodes[(sw.dendrite_location, sw.location_number)]
             dendrite_type = "Proximal" if sw.dendrite_location == "prox" else "Distal"
             dendrite_distance = 40.0 if sw.dendrite_location == "prox" else 90.0
+            spot = ""
+            if (sw.dendrite_location, sw.location_number) in sites_with_two_spots:
+                spot = "Spot2" if "real" in sw.site_label else "Spot1"
+            site = f"{dendrite_type}{sw.location_number}{spot}"
 
             row_index = nwbfile.add_intracellular_recording(
                 electrode=electrode,
@@ -849,7 +868,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
                 stimulus_protocol_name=protocol.name if protocol else "",
                 condition_subfolder=sw.condition_subfolder,
-                site_label=sw.site_label,
+                site=site,
             )
             protocol_label = f"dend_{sw.dendrite_location}{sw.location_number}"
             irt_rows_per_sequential[(cell_index, protocol_label, sw.condition_subfolder)].append(row_index)
@@ -858,7 +877,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 "condition_subfolder": sw.condition_subfolder,
                 "dendrite_type": dendrite_type,
                 "dendrite_distance_um": dendrite_distance,
-                "site_label": sw.site_label,
+                "site": site,
                 "stimulus_current_pA": protocol.amplitude_pA if protocol else 0.0,
                 "sweep_start_time_s": float(sweep_start_time),
             }
@@ -866,10 +885,10 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             # Buffer line-scan kymographs and rich artifacts (source image, pixel mask,
             # ROI response) for later Pattern B consolidation. Both channels share the
             # scan line, so its number at this location comes from the Ch1 pixel coordinates.
-            # The second patch the lab marked "real" at a site is a location of its own.
+            # Each spot of a site imaged at two spots is a location of its own.
             kymos = _line_scan_kymographs(sw.recording_path)
             artifacts = {chan_name: _read_dendritic_artifacts(sw.recording_path, chan_name) for chan_name in kymos}
-            location = (cell_index, sw.dendrite_location, sw.location_number, "real" in sw.site_label)
+            location = (cell_index, sw.dendrite_location, sw.location_number, spot)
             scan_line = (tuple(artifacts["Ch1"]["pixel_xs"]), tuple(artifacts["Ch1"]["pixel_ys"]))
             scan_lines = scan_lines_per_location[location]
             scan_line_number = scan_lines.setdefault(scan_line, len(scan_lines) + 1)
@@ -902,16 +921,15 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # Per-sweep slice info: irt_row_index -> channel_name -> (timeseries, idx_start, count)
     line_scan_slices: dict[int, dict[str, tuple[TimeSeries, int, int]]] = defaultdict(dict)
     for buffer_key, entries in line_scan_buffer.items():
-        cell_index, loc_type, loc_num, real, scan_line_number, chan_name = buffer_key
+        cell_index, loc_type, loc_num, spot, scan_line_number, chan_name = buffer_key
         # Sort entries chronologically so concat order matches wall-clock.
         entries.sort(key=lambda e: e[3])  # sort by sweep_start_time_s
         concat = np.concatenate([e[1] for e in entries], axis=0)
         rate = entries[0][2]
         first_start = entries[0][3]
         dendrite_type_pretty = "Proximal" if loc_type == "prox" else "Distal"
-        real_suffix = "Real" if real else ""
         dye = _DYE_NAME[chan_name]
-        ts_name = f"LineScanCell{cell_index}_{dendrite_type_pretty}{loc_num}{real_suffix}_{dye}"
+        ts_name = f"LineScan{dye}Cell{cell_index}{dendrite_type_pretty}{loc_num}{spot}"
         ts_description = (
             f"Bruker line-scan kymograph for Cell {cell_index} {dendrite_type_pretty} location "
             f"{loc_num}, {_DYE_DESCRIPTION[chan_name]}. All trio sweeps at this location concatenated along "
@@ -919,14 +937,10 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             f"slices are exposed via processing/recordings_index/RecordingsIndexTable (line_scan_{dye.lower()} "
             f"column). starting_time is the wall-clock of the first contributing sweep relative to session_start_time."
         )
-        if real:
-            ts_description += (
-                " The lab marked these trials 'real': they were recorded at a second patch of dendrite for this "
-                "location after the microscope was moved, so they are kept apart from the trials at the first patch."
-            )
-        n_scan_lines = len(scan_lines_per_location[(cell_index, loc_type, loc_num, real)])
+        ts_description += _spot_sentence(spot)
+        n_scan_lines = len(scan_lines_per_location[(cell_index, loc_type, loc_num, spot)])
         if n_scan_lines > 1:
-            ts_name = f"{ts_name}_Line{scan_line_number}"
+            ts_name = f"{ts_name}Line{scan_line_number}"
             ts_description += (
                 f" The scan line at this location was moved or changed length between trials, so its trials "
                 f"are split into {n_scan_lines} series; this one holds the trials recorded with line "
@@ -1085,10 +1099,10 @@ def _build_line_scan_rich_objects(
     Parameters
     ----------
     source_image_buffer
-        Map (cell, location_type, location_num, real, channel) -> 2D ndarray (the field-of-view
+        Map (cell, location_type, location_num, spot, channel) -> 2D ndarray (the field-of-view
         image with the scan line overlay drawn by Prairie View).
     pixel_mask_buffer
-        Map (cell, location_type, location_num, real, scan_line_number, channel) -> dict with
+        Map (cell, location_type, location_num, spot, scan_line_number, channel) -> dict with
         'mask_image' (HxW bool), 'xs', 'ys', 'frame_shape'.
     roi_response_buffer
         Map same-key as pixel_mask_buffer -> list of (irt_index, 1D roi_response, rate_hz,
@@ -1097,7 +1111,7 @@ def _build_line_scan_rich_objects(
         Output dict, irt_index -> {channel_name: (timeseries, idx_start, count)}, populated
         by this function so the caller can wire it into the RecordingsIndexTable.
     scan_lines_per_location
-        Map (cell, location_type, location_num, real) -> {scan line pixel coordinates: scan_line_number}.
+        Map (cell, location_type, location_num, spot) -> {scan line pixel coordinates: scan_line_number}.
     """
     from pynwb.device import Device as _Device
     from pynwb.image import Image, Images
@@ -1125,22 +1139,21 @@ def _build_line_scan_rich_objects(
         else:
             container = nwbfile.acquisition["ImageLineScanSource"]
         for key in sorted(source_image_buffer.keys()):
-            cell, loc, num, real, chan = key
+            cell, loc, num, spot, chan = key
             entries = source_image_buffer[key]
             entries.sort(key=lambda e: e[1])  # by sweep_start_time
             dendrite_type_pretty = "Proximal" if loc == "prox" else "Distal"
-            real_suffix = "Real" if real else ""
-            real_note = " (second patch, marked 'real' by the lab)" if real else ""
+            spot_note = f", spot {spot[-1]} of 2" if spot else ""
             indicator = _DYE_NAME[chan]
             for trial_index, (row_index, sweep_start, arr) in enumerate(entries, start=1):
-                name = f"Image{indicator}Cell{cell}{dendrite_type_pretty}{num}{real_suffix}Trial{trial_index}"
+                name = f"Image{indicator}Cell{cell}{dendrite_type_pretty}{num}{spot}Trial{trial_index}"
                 container.add_image(
                     Image(
                         name=name,
                         description=(
                             f"Source image (field of view with scan line overlay) for Cell {cell} "
-                            f"{dendrite_type_pretty} location {num}{real_note}, {_DYE_DESCRIPTION[chan]}, trial {trial_index} "
-                            f"of {len(entries)} at this site in recording order "
+                            f"{dendrite_type_pretty} location {num}{spot_note}, {_DYE_DESCRIPTION[chan]}, trial {trial_index} "
+                            f"of {len(entries)} in recording order "
                             f"(IRT row {row_index}, sweep_start_time={sweep_start:.1f}s)."
                         ),
                         data=arr,
@@ -1210,7 +1223,7 @@ def _build_line_scan_rich_objects(
                 imaging_plane=imaging_plane,
             )
         for key in sorted(pixel_mask_buffer.keys()):
-            cell, loc, num, real, scan_line_number, chan = key
+            cell, loc, num, spot, scan_line_number, chan = key
             info = pixel_mask_buffer[key]
             xs = info["xs"]
             ys = info["ys"]
@@ -1228,7 +1241,7 @@ def _build_line_scan_rich_objects(
             ophys_module.add(fluo)
 
         for key in sorted(roi_response_buffer.keys()):
-            cell, loc, num, real, scan_line_number, chan = key
+            cell, loc, num, spot, scan_line_number, chan = key
             entries = roi_response_buffer[key]
             entries.sort(key=lambda e: e[3])
             arrays = [e[1] for e in entries]
@@ -1238,20 +1251,15 @@ def _build_line_scan_rich_objects(
 
             dendrite_type_pretty = "Proximal" if loc == "prox" else "Distal"
             indicator = _DYE_NAME[chan]
-            real_suffix = "Real" if real else ""
-            rrs_name = f"RoiResponseSeries{indicator}Cell{cell}{dendrite_type_pretty}{num}{real_suffix}"
+            rrs_name = f"RoiResponseSeries{indicator}Cell{cell}{dendrite_type_pretty}{num}{spot}"
             rrs_description = (
                 f"Line-scan fluorescence profile (average across pixels along the scan line) "
                 f"for Cell {cell} {dendrite_type_pretty} location {num}, {_DYE_DESCRIPTION[chan]}. "
                 f"All trio sweeps at this location concatenated; per-sweep slices via "
                 f"processing/recordings_index/RecordingsIndexTable."
             )
-            if real:
-                rrs_description += (
-                    " The lab marked these trials 'real': they were recorded at a second patch of dendrite for this "
-                    "location after the microscope was moved, so they are kept apart from the trials at the first patch."
-                )
-            n_scan_lines = len(scan_lines_per_location[(cell, loc, num, real)])
+            rrs_description += _spot_sentence(spot)
+            n_scan_lines = len(scan_lines_per_location[(cell, loc, num, spot)])
             if n_scan_lines > 1:
                 rrs_name = f"{rrs_name}Line{scan_line_number}"
                 rrs_description += (
@@ -1328,7 +1336,7 @@ def _build_recordings_index_table(
     condition_col: list[str] = []
     dendrite_type_col: list[str] = []
     dendrite_distance_col: list[float] = []
-    site_label_col: list[str] = []
+    site_col: list[str] = []
     stim_pA_col: list[float] = []
     sweep_start_col: list[float] = []
     irt_indices_col: list[int] = []
@@ -1356,7 +1364,7 @@ def _build_recordings_index_table(
         condition_col.append(str(meta.get("condition_subfolder", "")))
         dendrite_type_col.append(str(meta.get("dendrite_type", "")))
         dendrite_distance_col.append(float(meta.get("dendrite_distance_um", 0.0)))
-        site_label_col.append(str(meta.get("site_label", "")))
+        site_col.append(str(meta.get("site", "")))
         stim_pA_col.append(float(meta.get("stimulus_current_pA", 0.0)))
         sweep_start_col.append(float(meta.get("sweep_start_time_s", 0.0)))
         irt_indices_col.append(irt_index)
@@ -1409,12 +1417,10 @@ def _build_recordings_index_table(
             data=dendrite_distance_col,
         ),
         VectorData(
-            name="site_label",
-            description=(
-                "Dendritic site as written in the sweep's folder name (e.g., 'prox1', 'realprox1'); empty for "
-                "somatic sweeps. See the same column in IntracellularRecordingsTable."
-            ),
-            data=site_label_col,
+            name="site",
+            description="Recording site (e.g., 'Soma', 'Proximal1', 'Proximal1Spot2'); see the same column in "
+            "IntracellularRecordingsTable.",
+            data=site_col,
         ),
         VectorData(
             name="stimulus_current_pA",
@@ -1506,7 +1512,7 @@ def _build_recordings_index_table(
         description=(
             "Denormalized lookup for fast analyst queries. One row per icephys sweep, mirroring the order "
             "of IntracellularRecordingsTable. Carries per-sweep metadata (cell_id, condition_subfolder, "
-            "dendrite_type, dendrite_distance_um, site_label, stimulus_current_pA, sweep_start_time_s) plus "
+            "dendrite_type, dendrite_distance_um, site, stimulus_current_pA, sweep_start_time_s) plus "
             "DynamicTableRegion pointers to the full icephys hierarchical chain "
             "(irt_row, simultaneous_row, sequential_row, repetition_row, experimental_condition_row) "
             "and TimeSeriesReference slices into the paired line-scan TimeSeries (line_scan_alexa568, line_scan_fluo4). "

@@ -33,8 +33,8 @@ def test_line_scans_kept_when_the_scan_line_changes_length(tmp_path):
             references = index[column].data[:]
             missing = [row for row, kind in enumerate(dendrite_type) if kind != "Soma" and references[row][0] < 0]
             assert missing == [], f"dendritic rows without a {column} reference: {missing}"
-        assert nwbfile.acquisition["LineScanCell1_Proximal2_Alexa568_Line1"].data.shape[1] == 21
-        assert nwbfile.acquisition["LineScanCell1_Proximal2_Alexa568_Line2"].data.shape[1] == 19
+        assert nwbfile.acquisition["LineScanAlexa568Cell1Proximal2Line1"].data.shape[1] == 21
+        assert nwbfile.acquisition["LineScanAlexa568Cell1Proximal2Line2"].data.shape[1] == 19
 
 
 def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
@@ -73,10 +73,10 @@ def test_real_trials_kept_apart_from_the_first_patch(tmp_path):
 
     with NWBHDF5IO(nwbfile_path, "r") as io:
         nwbfile = io.read()
-        assert nwbfile.acquisition["LineScanCell2_Distal1_Alexa568"].data.shape == (7500, 29)
-        assert nwbfile.acquisition["LineScanCell2_Distal1Real_Alexa568"].data.shape == (7500, 24)
+        assert nwbfile.acquisition["LineScanAlexa568Cell2Distal1Spot1"].data.shape == (7500, 29)
+        assert nwbfile.acquisition["LineScanAlexa568Cell2Distal1Spot2"].data.shape == (7500, 24)
         cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
-        site_label = nwbfile.intracellular_recordings["site_label"].data[:]
-        cell_2_sites = [site for cell, site in zip(cell_id, site_label) if cell == 2]
-        assert cell_2_sites.count("dist1") == 3
-        assert cell_2_sites.count("dist1real") == 3
+        site = nwbfile.intracellular_recordings["site"].data[:]
+        cell_2_sites = [name for cell, name in zip(cell_id, site) if cell == 2]
+        assert cell_2_sites.count("Distal1Spot1") == 3
+        assert cell_2_sites.count("Distal1Spot2") == 3
