@@ -1123,13 +1123,14 @@ def _build_line_scan_rich_objects(
             real_note = " (second patch, marked 'real' by the lab)" if real else ""
             indicator = "Alexa568" if chan == "Ch1" else "Fluo4"
             for trial_index, (row_index, sweep_start, arr) in enumerate(entries, start=1):
-                name = f"Image{indicator}Cell{cell}{dendrite_type_pretty}{num}{real_suffix}Trial{trial_index:03d}"
+                name = f"Image{indicator}Cell{cell}{dendrite_type_pretty}{num}{real_suffix}Trial{trial_index}"
                 container.add_image(
                     Image(
                         name=name,
                         description=(
                             f"Source image (field of view with scan line overlay) for Cell {cell} "
-                            f"{dendrite_type_pretty} location {num}{real_note}, channel {chan}, trio sweep {trial_index} "
+                            f"{dendrite_type_pretty} location {num}{real_note}, channel {chan}, trial {trial_index} "
+                            f"of {len(entries)} at this site in recording order "
                             f"(IRT row {row_index}, sweep_start_time={sweep_start:.1f}s)."
                         ),
                         data=arr,
