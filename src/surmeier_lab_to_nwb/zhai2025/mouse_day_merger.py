@@ -209,7 +209,8 @@ def _match_dendritic_leaf(name: str):
     "real" marks a second patch of dendrite recorded at the site after moving the
     microscope; it is kept in site_label, the site as written in the folder name.
     """
-    m = _RE_DENDRITIC_LEAF_FLEX.match(name)
+    # The lab misspelled prox2 as proxt2 in the folders of 2019-05-08 cell 3 (Figure 3, on-state with sulpiride).
+    m = _RE_DENDRITIC_LEAF_FLEX.match(name.replace("_proxt2_", "_prox2_"))
     if m:
         cell = int(m.group("cell"))
         raw_loc = m.group("loc1") or m.group("loc2")

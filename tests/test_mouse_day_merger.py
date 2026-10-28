@@ -106,3 +106,15 @@ def test_one_electrode_per_cell_at_the_cell_body(tmp_path):
         assert set(nwbfile.icephys_electrodes) == {f"ElectrodeCell{cell}" for cell in set(cell_ids)}
         electrodes = nwbfile.intracellular_recordings.category_tables["electrodes"]["electrode"].data[:]
         assert all(electrode.name == f"ElectrodeCell{cell}" for electrode, cell in zip(electrodes, cell_ids))
+
+
+def test_misspelled_proxt2_folders_are_converted(tmp_path):
+    # The lab named the Proximal 2 folders of cell 3 "05072019_Cell3_proxt2_trio_sul-NNN".
+    bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20190508LIDONeGFP")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
+        site = nwbfile.intracellular_recordings["site"].data[:]
+        assert [name for cell, name in zip(cell_id, site) if cell == 3].count("Proximal2") == 3
