@@ -203,6 +203,15 @@ def _line_scan_kymographs(sweep_path: Path) -> dict[str, tuple[np.ndarray, float
     return out
 
 
+# Ch1 and Ch2 are the microscope's detector numbers. Objects in the file are named after the dye
+# instead; only Ch2 rises after the spikes, which confirms this assignment.
+_DYE_NAME = {"Ch1": "Alexa568", "Ch2": "Fluo4"}
+_DYE_DESCRIPTION = {
+    "Ch1": "Alexa Fluor 568 (structural dye, red detector 580-620 nm)",
+    "Ch2": "Fluo-4 (calcium indicator, green detector 490-560 nm)",
+}
+
+
 def _read_scan_line_rate(sweep_path: Path) -> float | None:
     """Extract the line-scan sample rate (lines/second) from the master XML.
 
@@ -901,12 +910,13 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         first_start = entries[0][3]
         dendrite_type_pretty = "Proximal" if loc_type == "prox" else "Distal"
         real_suffix = "Real" if real else ""
-        ts_name = f"LineScanCell{cell_index}_{dendrite_type_pretty}{loc_num}{real_suffix}_{chan_name}"
+        dye = _DYE_NAME[chan_name]
+        ts_name = f"LineScanCell{cell_index}_{dendrite_type_pretty}{loc_num}{real_suffix}_{dye}"
         ts_description = (
             f"Bruker line-scan kymograph for Cell {cell_index} {dendrite_type_pretty} location "
-            f"{loc_num}, channel {chan_name}. All trio sweeps at this location concatenated along "
+            f"{loc_num}, {_DYE_DESCRIPTION[chan_name]}. All trio sweeps at this location concatenated along "
             f"the time axis (rows = line repetitions, columns = pixels along the scan line). Per-sweep "
-            f"slices are exposed via processing/recordings_index/RecordingsIndexTable (line_scan_{chan_name.lower()} "
+            f"slices are exposed via processing/recordings_index/RecordingsIndexTable (line_scan_{dye.lower()} "
             f"column). starting_time is the wall-clock of the first contributing sweep relative to session_start_time."
         )
         if real:
@@ -1121,7 +1131,7 @@ def _build_line_scan_rich_objects(
             dendrite_type_pretty = "Proximal" if loc == "prox" else "Distal"
             real_suffix = "Real" if real else ""
             real_note = " (second patch, marked 'real' by the lab)" if real else ""
-            indicator = "Alexa568" if chan == "Ch1" else "Fluo4"
+            indicator = _DYE_NAME[chan]
             for trial_index, (row_index, sweep_start, arr) in enumerate(entries, start=1):
                 name = f"Image{indicator}Cell{cell}{dendrite_type_pretty}{num}{real_suffix}Trial{trial_index}"
                 container.add_image(
@@ -1129,7 +1139,7 @@ def _build_line_scan_rich_objects(
                         name=name,
                         description=(
                             f"Source image (field of view with scan line overlay) for Cell {cell} "
-                            f"{dendrite_type_pretty} location {num}{real_note}, channel {chan}, trial {trial_index} "
+                            f"{dendrite_type_pretty} location {num}{real_note}, {_DYE_DESCRIPTION[chan]}, trial {trial_index} "
                             f"of {len(entries)} at this site in recording order "
                             f"(IRT row {row_index}, sweep_start_time={sweep_start:.1f}s)."
                         ),
@@ -1227,12 +1237,12 @@ def _build_line_scan_rich_objects(
             first_start = entries[0][3]
 
             dendrite_type_pretty = "Proximal" if loc == "prox" else "Distal"
-            indicator = "Alexa568" if chan == "Ch1" else "Fluo4"
+            indicator = _DYE_NAME[chan]
             real_suffix = "Real" if real else ""
             rrs_name = f"RoiResponseSeries{indicator}Cell{cell}{dendrite_type_pretty}{num}{real_suffix}"
             rrs_description = (
                 f"Line-scan fluorescence profile (average across pixels along the scan line) "
-                f"for Cell {cell} {dendrite_type_pretty} location {num}, channel {chan}. "
+                f"for Cell {cell} {dendrite_type_pretty} location {num}, {_DYE_DESCRIPTION[chan]}. "
                 f"All trio sweeps at this location concatenated; per-sweep slices via "
                 f"processing/recordings_index/RecordingsIndexTable."
             )
@@ -1294,8 +1304,8 @@ def _build_recordings_index_table(
     The table denormalizes one row per IRT row with the cross-references from
     the icephys hierarchical chain plus paired line-scan slice references
     (raw kymographs AND ROI responses).
-    For sweeps without line scans (somatic), line_scan_ch1/ch2 and
-    roi_response_ch1/ch2 entries use idx_start=-1, count=-1 (null-reference).
+    For sweeps without line scans (somatic), line_scan_alexa568/fluo4 and
+    roi_response_alexa568/fluo4 entries use idx_start=-1, count=-1 (null-reference).
     """
     roi_response_slices = roi_response_slices or {}
     n_rows = len(irt_table)
@@ -1452,7 +1462,7 @@ def _build_recordings_index_table(
     if fallback_ts is not None:
         columns.append(
             TimeSeriesReferenceVectorData(
-                name="line_scan_ch1",
+                name="line_scan_alexa568",
                 description=(
                     "Reference to the paired Alexa Fluor 568 reference channel slice (R0 for ratiometric "
                     "Ca2+ calculations). idx_start=-1 for sweeps without line-scan imaging (somatic)."
@@ -1462,7 +1472,7 @@ def _build_recordings_index_table(
         )
         columns.append(
             TimeSeriesReferenceVectorData(
-                name="line_scan_ch2",
+                name="line_scan_fluo4",
                 description=(
                     "Reference to the paired Fluo-4 calcium signal channel slice (G in (G-G0)/G0R0). "
                     "idx_start=-1 for sweeps without line-scan imaging (somatic)."
@@ -1473,7 +1483,7 @@ def _build_recordings_index_table(
     if fallback_rrs is not None:
         columns.append(
             TimeSeriesReferenceVectorData(
-                name="roi_response_ch1",
+                name="roi_response_alexa568",
                 description=(
                     "Reference to the paired Alexa Fluor 568 ROI response slice (mean fluorescence "
                     "along the scan line per time sample). idx_start=-1 for sweeps without imaging."
@@ -1483,7 +1493,7 @@ def _build_recordings_index_table(
         )
         columns.append(
             TimeSeriesReferenceVectorData(
-                name="roi_response_ch2",
+                name="roi_response_fluo4",
                 description=(
                     "Reference to the paired Fluo-4 ROI response slice. idx_start=-1 for sweeps " "without imaging."
                 ),
@@ -1499,7 +1509,7 @@ def _build_recordings_index_table(
             "dendrite_type, dendrite_distance_um, site_label, stimulus_current_pA, sweep_start_time_s) plus "
             "DynamicTableRegion pointers to the full icephys hierarchical chain "
             "(irt_row, simultaneous_row, sequential_row, repetition_row, experimental_condition_row) "
-            "and TimeSeriesReference slices into the paired line-scan TimeSeries (line_scan_ch1, line_scan_ch2). "
+            "and TimeSeriesReference slices into the paired line-scan TimeSeries (line_scan_alexa568, line_scan_fluo4). "
             "This is a query helper; the canonical icephys chain is still authoritative."
         ),
         columns=columns,

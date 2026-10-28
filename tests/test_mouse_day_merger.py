@@ -29,12 +29,12 @@ def test_line_scans_kept_when_the_scan_line_changes_length(tmp_path):
         nwbfile = io.read()
         dendrite_type = nwbfile.intracellular_recordings["dendrite_type"].data[:]
         index = nwbfile.processing["recordings_index"]["RecordingsIndexTable"]
-        for column in ("line_scan_ch1", "line_scan_ch2"):
+        for column in ("line_scan_alexa568", "line_scan_fluo4"):
             references = index[column].data[:]
             missing = [row for row, kind in enumerate(dendrite_type) if kind != "Soma" and references[row][0] < 0]
             assert missing == [], f"dendritic rows without a {column} reference: {missing}"
-        assert nwbfile.acquisition["LineScanCell1_Proximal2_Ch1_Line1"].data.shape[1] == 21
-        assert nwbfile.acquisition["LineScanCell1_Proximal2_Ch1_Line2"].data.shape[1] == 19
+        assert nwbfile.acquisition["LineScanCell1_Proximal2_Alexa568_Line1"].data.shape[1] == 21
+        assert nwbfile.acquisition["LineScanCell1_Proximal2_Alexa568_Line2"].data.shape[1] == 19
 
 
 def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
@@ -51,7 +51,7 @@ def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
         for row, kind in enumerate(dendrite_type):
             if kind == "Soma":
                 continue
-            for channel in ("ch1", "ch2"):
+            for channel in ("alexa568", "fluo4"):
                 kymograph = index[f"line_scan_{channel}"][row].timeseries
                 rois = index[f"roi_response_{channel}"][row].timeseries.rois
                 n_pixels = len(rois.table["pixel_mask"][rois.data[0]])
@@ -73,8 +73,8 @@ def test_real_trials_kept_apart_from_the_first_patch(tmp_path):
 
     with NWBHDF5IO(nwbfile_path, "r") as io:
         nwbfile = io.read()
-        assert nwbfile.acquisition["LineScanCell2_Distal1_Ch1"].data.shape == (7500, 29)
-        assert nwbfile.acquisition["LineScanCell2_Distal1Real_Ch1"].data.shape == (7500, 24)
+        assert nwbfile.acquisition["LineScanCell2_Distal1_Alexa568"].data.shape == (7500, 29)
+        assert nwbfile.acquisition["LineScanCell2_Distal1Real_Alexa568"].data.shape == (7500, 24)
         cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
         site_label = nwbfile.intracellular_recordings["site_label"].data[:]
         cell_2_sites = [site for cell, site in zip(cell_id, site_label) if cell == 2]
