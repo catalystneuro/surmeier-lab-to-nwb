@@ -118,6 +118,7 @@ dev = [
     "python-dotenv>=1.2.2",
     "nbconvert>=7.17.1",
     "nbclient>=0.10.4",
+    "pytest",
 ]
 
 

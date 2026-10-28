@@ -888,44 +888,49 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         cell_index, loc_type, loc_num, chan_name = buffer_key
         # Sort entries chronologically so concat order matches wall-clock.
         entries.sort(key=lambda e: e[3])  # sort by sweep_start_time_s
-        arrays = [e[1] for e in entries]
-        # Sanity: all kymos for one (cell, location, channel) should share the
-        # same pixel-along-line dimension. Drop any with mismatched widths.
-        ref_width = arrays[0].shape[1] if arrays[0].ndim == 2 else None
-        clean: list[tuple[int, np.ndarray, float | None, float]] = []
+        # The scan line at a location sometimes changes length between trials, so the
+        # kymographs cannot be stacked. Each run of consecutive trials with the same
+        # number of pixels along the line becomes its own series.
+        runs: list[list[tuple[int, np.ndarray, float | None, float]]] = []
         for e in entries:
-            arr = e[1]
-            if arr.ndim != 2 or (ref_width is not None and arr.shape[1] != ref_width):
-                continue
-            clean.append(e)
-        if not clean:
-            continue
-        concat = np.concatenate([e[1] for e in clean], axis=0)
-        rate = clean[0][2] if clean[0][2] is not None else 1.0
-        first_start = clean[0][3]
-        dendrite_type_pretty = "Proximal" if loc_type == "prox" else "Distal"
-        ts_name = f"LineScanCell{cell_index}_{dendrite_type_pretty}{loc_num}_{chan_name}"
-        ts_description = (
-            f"Bruker line-scan kymograph for Cell {cell_index} {dendrite_type_pretty} location "
-            f"{loc_num}, channel {chan_name}. All trio sweeps at this location concatenated along "
-            f"the time axis (rows = line repetitions, columns = pixels along the scan line). Per-sweep "
-            f"slices are exposed via processing/recordings_index/RecordingsIndexTable (line_scan_{chan_name.lower()} "
-            f"column). starting_time is the wall-clock of the first contributing sweep relative to session_start_time."
-        )
-        ts = TimeSeries(
-            name=ts_name,
-            description=ts_description,
-            data=concat,
-            unit="a.u.",
-            starting_time=float(first_start),
-            rate=float(rate),
-        )
-        nwbfile.add_acquisition(ts)
-        cumulative = 0
-        for irt_index, data, _rate, _start in clean:
-            n_lines = data.shape[0]
-            line_scan_slices[irt_index][chan_name] = (ts, cumulative, n_lines)
-            cumulative += n_lines
+            if runs and runs[-1][-1][1].shape[1] == e[1].shape[1]:
+                runs[-1].append(e)
+            else:
+                runs.append([e])
+        for run_number, run in enumerate(runs, start=1):
+            concat = np.concatenate([e[1] for e in run], axis=0)
+            rate = run[0][2] if run[0][2] is not None else 1.0
+            first_start = run[0][3]
+            dendrite_type_pretty = "Proximal" if loc_type == "prox" else "Distal"
+            ts_name = f"LineScanCell{cell_index}_{dendrite_type_pretty}{loc_num}_{chan_name}"
+            ts_description = (
+                f"Bruker line-scan kymograph for Cell {cell_index} {dendrite_type_pretty} location "
+                f"{loc_num}, channel {chan_name}. All trio sweeps at this location concatenated along "
+                f"the time axis (rows = line repetitions, columns = pixels along the scan line). Per-sweep "
+                f"slices are exposed via processing/recordings_index/RecordingsIndexTable (line_scan_{chan_name.lower()} "
+                f"column). starting_time is the wall-clock of the first contributing sweep relative to session_start_time."
+            )
+            if len(runs) > 1:
+                ts_name = f"{ts_name}_Line{run_number}"
+                ts_description += (
+                    f" The scan line at this location changed length between trials, so its trials are split "
+                    f"into {len(runs)} series; this one holds the trials recorded with line {run_number} "
+                    f"({run[0][1].shape[1]} pixels)."
+                )
+            ts = TimeSeries(
+                name=ts_name,
+                description=ts_description,
+                data=concat,
+                unit="a.u.",
+                starting_time=float(first_start),
+                rate=float(rate),
+            )
+            nwbfile.add_acquisition(ts)
+            cumulative = 0
+            for irt_index, data, _rate, _start in run:
+                n_lines = data.shape[0]
+                line_scan_slices[irt_index][chan_name] = (ts, cumulative, n_lines)
+                cumulative += n_lines
 
     # ---- Rich line-scan objects: source images + pixel masks + ROI responses --------
     # Source images go in `acquisition/ImageLineScanSource` (Images container).
