@@ -497,15 +497,11 @@ def _build_concatenated_series(
     sample_rate: float | None = None
     cumulative = 0
     for sw in sweeps:
-        try:
-            voltage, rate = _read_sweep_voltage(sw.recording_path)
-        except FileNotFoundError:
-            continue
+        voltage, rate = _read_sweep_voltage(sw.recording_path)
         if sample_rate is None:
             sample_rate = rate
         elif abs(rate - sample_rate) > 1.0:
-            print(f"WARNING: rate mismatch for {sw.recording_path.name} ({rate} vs {sample_rate}); skipping")
-            continue
+            raise ValueError(f"{sw.recording_path} is sampled at {rate} Hz, the other sweeps at {sample_rate} Hz")
         # Parse the stimulus protocol from the VoltageOutput XML for this sweep.
         vo_xml = _find_voltage_output_xml(sw.recording_path)
         protocol = _parse_voltage_output(vo_xml) if vo_xml is not None else None

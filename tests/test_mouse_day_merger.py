@@ -12,6 +12,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from prototype_per_mouse_day_merger import merge_one_mouse_day  # noqa: E402
 
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (  # noqa: E402
+    _walk_dendritic_mmdd_letter,
     build_figure_bundles,
 )
 
@@ -147,3 +148,17 @@ def test_background_scans_are_kept_out_of_the_trials(tmp_path):
         cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
         site = nwbfile.intracellular_recordings["site"].data[:]
         assert [name for cell, name in zip(cell_id, site) if cell == 2].count("Proximal1") == 3
+
+
+def test_unrecognized_recording_folder_raises(tmp_path):
+    # A folder whose name the converter cannot parse used to be skipped without a word.
+    (tmp_path / "dendritic" / "LID off-state" / "0524b" / "05242016_Cell2_prox1_notes").mkdir(parents=True)
+    with pytest.raises(ValueError, match="Unrecognized dendritic recording folder"):
+        _walk_dendritic_mmdd_letter(tmp_path, "dendritic", ["LID off-state"])
+
+
+def test_recording_without_its_time_raises(tmp_path):
+    # A recording folder without the Prairie View file that holds its start time used to be skipped.
+    (tmp_path / "dendritic" / "LID off-state" / "0524b" / "05242016_Cell2_prox1_trio-001").mkdir(parents=True)
+    with pytest.raises(ValueError, match="No recording time"):
+        _walk_dendritic_mmdd_letter(tmp_path, "dendritic", ["LID off-state"])

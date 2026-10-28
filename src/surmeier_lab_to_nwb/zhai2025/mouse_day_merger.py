@@ -280,7 +280,7 @@ def _walk_somatic_mmddyyyy_n(
                 continue
             m = _RE_SOMATIC_MMDDYYYY.match(cell_day_dir.name)
             if not m:
-                continue
+                raise ValueError(f"Unrecognized somatic cell folder: {cell_day_dir}")
             mm, dd, yyyy, cell_index = m.groups()
             cell_index = int(cell_index)
             for leaf in sorted(cell_day_dir.iterdir()):
@@ -288,13 +288,13 @@ def _walk_somatic_mmddyyyy_n(
                     continue
                 leaf_match = _RE_SOMATIC_LEAF.match(leaf.name)
                 if not leaf_match:
-                    continue
+                    raise ValueError(f"Unrecognized somatic recording folder: {leaf}")
                 _leaf_cell, suffix_part, _seq = leaf_match.groups()
                 suffix = suffix_part.lstrip("_") if suffix_part else None
                 xml_path = leaf / f"{leaf.name}.xml"
                 pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                 if pv_date is None:
-                    continue
+                    raise ValueError(f"No recording time in {xml_path}")
                 out.append(
                     SweepRecord(
                         modality="soma_excitability",
@@ -334,20 +334,20 @@ def _walk_somatic_mmdd_letter(
             if not cell_day_dir.is_dir():
                 continue
             if not _RE_LETTER_OUTER.match(cell_day_dir.name):
-                continue
+                raise ValueError(f"Unrecognized somatic cell folder: {cell_day_dir}")
             for leaf in sorted(cell_day_dir.iterdir()):
                 if not leaf.is_dir():
                     continue
                 leaf_match = _RE_SOMATIC_LEAF.match(leaf.name)
                 if not leaf_match:
-                    continue
+                    raise ValueError(f"Unrecognized somatic recording folder: {leaf}")
                 leaf_cell, suffix_part, _seq = leaf_match.groups()
                 cell_index = int(leaf_cell)
                 suffix = suffix_part.lstrip("_") if suffix_part else None
                 xml_path = leaf / f"{leaf.name}.xml"
                 pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                 if pv_date is None:
-                    continue
+                    raise ValueError(f"No recording time in {xml_path}")
                 out.append(
                     SweepRecord(
                         modality="soma_excitability",
@@ -383,7 +383,7 @@ def _walk_somatic_yyyymmdd_letter(
                 continue
             outer = _RE_YYYYMMDD_LETTER_OUTER.match(cell_day_dir.name)
             if not outer:
-                continue
+                raise ValueError(f"Unrecognized somatic cell folder: {cell_day_dir}")
             _yyyy, _mm, _dd, letter = outer.groups()
             cell_index = _LETTER_TO_INDEX.get(letter)
             if cell_index is None:
@@ -393,15 +393,15 @@ def _walk_somatic_yyyymmdd_letter(
                     continue
                 leaf_match = _RE_SOMATIC_LEAF.match(leaf.name)
                 if not leaf_match:
-                    continue
+                    raise ValueError(f"Unrecognized somatic recording folder: {leaf}")
                 leaf_cell, suffix_part, _seq = leaf_match.groups()
                 if int(leaf_cell) != cell_index:
-                    continue
+                    raise ValueError(f"{leaf} names cell {leaf_cell} but is in the folder of cell {cell_index}")
                 suffix = suffix_part.lstrip("_") if suffix_part else None
                 xml_path = leaf / f"{leaf.name}.xml"
                 pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                 if pv_date is None:
-                    continue
+                    raise ValueError(f"No recording time in {xml_path}")
                 out.append(
                     SweepRecord(
                         modality="soma_excitability",
@@ -448,12 +448,12 @@ def _walk_dendritic_mmdd_letter(
                 def _emit_leaf(leaf_dir: Path):
                     parsed = _match_dendritic_leaf(leaf_dir.name)
                     if parsed is None:
-                        return
+                        raise ValueError(f"Unrecognized dendritic recording folder: {leaf_dir}")
                     cell_in_name, loc_type, loc_num, site_label, modality = parsed
                     xml_path = leaf_dir / f"{leaf_dir.name}.xml"
                     pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                     if pv_date is None:
-                        return
+                        raise ValueError(f"No recording time in {xml_path}")
                     out.append(
                         SweepRecord(
                             modality=modality,
@@ -474,7 +474,7 @@ def _walk_dendritic_mmdd_letter(
             # Match either MMDD<letter> or MMDDYYYY<letter> for the cell-day folder.
             outer = _RE_LETTER_OUTER.match(cell_day_dir.name) or _RE_LETTER_OUTER_FULLYEAR.match(cell_day_dir.name)
             if not outer:
-                continue
+                raise ValueError(f"Unrecognized dendritic cell folder: {cell_day_dir}")
             # The letter is always the LAST captured group regardless of which regex matched.
             letter = outer.groups()[-1]
             cell_index = _LETTER_TO_INDEX.get(letter)
@@ -488,12 +488,12 @@ def _walk_dendritic_mmdd_letter(
             def _emit_leaf(leaf_dir: Path):
                 parsed = _match_dendritic_leaf(leaf_dir.name)
                 if parsed is None:
-                    return
+                    raise ValueError(f"Unrecognized dendritic recording folder: {leaf_dir}")
                 cell_in_name, loc_type, loc_num, site_label, modality = parsed
                 xml_path = leaf_dir / f"{leaf_dir.name}.xml"
                 pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                 if pv_date is None:
-                    return
+                    raise ValueError(f"No recording time in {xml_path}")
                 out.append(
                     SweepRecord(
                         modality=modality,
@@ -518,6 +518,8 @@ def _walk_dendritic_mmdd_letter(
                     for grandchild in sorted(child.iterdir()):
                         if grandchild.is_dir():
                             _emit_leaf(grandchild)
+                else:
+                    raise ValueError(f"Unrecognized dendritic recording folder: {child}")
     return out
 
 
@@ -633,13 +635,8 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
 
     bundles = sorted(bundles_by_date.values(), key=lambda b: b.date_compact)
     if unmatched:
-        # Print rather than raise: matcher should surface orphans without aborting.
-        sample = unmatched[:5]
-        print(f"WARNING: {len(unmatched)} sweep(s) did not match a Data Connections subject:")
-        for sw in sample:
-            print(
-                f"  {sw.modality:20s}  cell={sw.cell_index}  cond={sw.condition_subfolder!r}  path={sw.recording_path.name}"
-            )
+        listing = "\n".join(f"  {sw.recording_path}" for sw in unmatched)
+        raise ValueError(f"{len(unmatched)} recording(s) did not match a Data Connections subject:\n{listing}")
     return bundles
 
 
