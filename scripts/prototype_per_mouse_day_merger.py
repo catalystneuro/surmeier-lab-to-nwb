@@ -689,7 +689,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         ),
     )
 
-    _bruker, amp = _ensure_devices(nwbfile)
+    bruker, amp = _ensure_devices(nwbfile)
 
     # icephys chain bookkeeping
     # Key: (cell_id, protocol_family, condition) -> list of IRT row indices.
@@ -1006,6 +1006,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             roi_response_buffer=roi_response_buffer,
             roi_response_slices=roi_response_slices,
             scan_lines_per_location=scan_lines_per_location,
+            microscope=bruker,
         )
 
     # ---- icephys hierarchical chain --------------------------------------------
@@ -1127,6 +1128,7 @@ def _build_line_scan_rich_objects(
     roi_response_buffer: dict,
     roi_response_slices: dict,
     scan_lines_per_location: dict,
+    microscope: Device,
 ) -> None:
     """Add the line-scan source images, pixel-mask PlaneSegmentations, and Pattern B
     consolidated RoiResponseSeries to the NWB file.
@@ -1147,8 +1149,9 @@ def _build_line_scan_rich_objects(
         by this function so the caller can wire it into the RecordingsIndexTable.
     scan_lines_per_location
         Map (cell, location_type, location_num, spot) -> {scan line pixel coordinates: scan_line_number}.
+    microscope
+        The Bruker microscope device, used by the line-scan imaging plane.
     """
-    from pynwb.device import Device as _Device
     from pynwb.image import Image, Images
     from pynwb.ophys import (
         Fluorescence,
@@ -1207,14 +1210,7 @@ def _build_line_scan_rich_objects(
                 ),
             )
 
-        # Find or create a device + imaging plane
-        device_name = "BrukerFluorescenceMicroscope"
-        if device_name in nwbfile.devices:
-            device = nwbfile.devices[device_name]
-        else:
-            device = _Device(name=device_name, description="Bruker Prairie View two-photon microscope.")
-            nwbfile.add_device(device)
-
+        # Find or create the imaging plane
         imaging_plane_name = "ImagingPlaneLineScan"
         if imaging_plane_name in nwbfile.imaging_planes:
             imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
@@ -1227,7 +1223,7 @@ def _build_line_scan_rich_objects(
             imaging_plane = nwbfile.create_imaging_plane(
                 name=imaging_plane_name,
                 description=("Two-photon line-scan imaging plane in the dorsolateral striatum (Caudoputamen)."),
-                device=device,
+                device=microscope,
                 excitation_lambda=810.0,
                 indicator="Fluo-4 (Ca2+) + Alexa Fluor 568 (reference)",
                 location="Caudoputamen",
