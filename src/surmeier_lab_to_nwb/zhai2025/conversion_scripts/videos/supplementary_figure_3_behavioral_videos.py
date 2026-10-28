@@ -366,9 +366,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Set up paths
-    video_base_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Sup. Figure 3/M1R CRISPR videos"
-    )
+    video_base_path = Path("./link_to_raw_data/Sup. Figure 3/M1R CRISPR videos")
     output_base_path = Path("./nwb_files/videos/supplementary_figure_3")
 
     # Create output directory

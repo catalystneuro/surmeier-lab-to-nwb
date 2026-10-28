@@ -242,9 +242,7 @@ if __name__ == "__main__":
     # Set the base path to your data
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
 
-    base_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 1/Dendritic excitability"
-    )
+    base_path = Path("./link_to_raw_data/Figure 1/Dendritic excitability")
 
     # Create nwb_files directory at root level
     nwb_files_dir = root_dir / "nwb_files" / "dendritic_excitability" / "figure_1"

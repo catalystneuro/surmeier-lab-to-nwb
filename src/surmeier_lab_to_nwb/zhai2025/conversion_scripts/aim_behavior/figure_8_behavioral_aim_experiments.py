@@ -224,9 +224,7 @@ if __name__ == "__main__":
 
     # Set the base path to your data
     base_dir = Path(__file__).parent.parent.parent  # Go up to zhai2025 level
-    aim_excel_data_file_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 8/M1R CRISPR AIMs/AIM raw score_M1R CRISPR.xlsx"
-    )
+    aim_excel_data_file_path = Path("./link_to_raw_data/Figure 8/M1R CRISPR AIMs/AIM raw score_M1R CRISPR.xlsx")
     processed_data_csv_path = base_dir / "assets" / "processed_aim_behavioral_data" / "figure_8_aim_processed_data.csv"
 
     # Create nwb_files directory at root level

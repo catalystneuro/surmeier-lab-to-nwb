@@ -608,9 +608,7 @@ if __name__ == "__main__":
     )
 
     # Define the base path to the data
-    base_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 5_SF2"
-    )
+    base_path = Path("./link_to_raw_data/Figure 5_SF2")
     if not base_path.exists():
         raise FileNotFoundError(f"Base path does not exist: {base_path}")
 

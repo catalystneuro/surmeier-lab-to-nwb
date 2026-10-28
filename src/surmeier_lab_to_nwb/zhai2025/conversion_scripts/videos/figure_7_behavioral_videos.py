@@ -362,9 +362,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Set up paths
-    video_base_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 7/contralateral rotations/CDGI KO videos"
-    )
+    video_base_path = Path("./link_to_raw_data/Figure 7/contralateral rotations/CDGI KO videos")
     output_base_path = Path("./nwb_files/videos/figure_7")
 
     # Create output directory

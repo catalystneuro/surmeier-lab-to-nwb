@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [{ name = "CatalystNeuro", email = "ben.dichter@catalystneuro.com" }]
 maintainers = [{ name = "CatalystNeuro", email = "ben.dichter@catalystneuro.com" }]
 license = { file = "LICENSE" }
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -98,9 +98,9 @@ relative-imports-order = "closest-to-furthest"
 known-first-party = ["surmeier_lab_to_nwb"]
 
 [tool.uv.sources]
-neuroconv = { path = "/home/heberto/development/work_repos/neuroconv", editable = true }
-roiextractors = { path = "/home/heberto/development/work_repos/roiextractors", editable = true }
-ndx-optogenetics = { path = "/home/heberto/development/work_repos/ndx_extensions/ndx-optogenetics", editable = true }
+neuroconv = { git = "https://github.com/catalystneuro/neuroconv.git", branch = "main" }
+roiextractors = { git = "https://github.com/catalystneuro/roiextractors.git", branch = "main" }
+ndx-optogenetics = { git = "https://github.com/rly/ndx-optogenetics.git", branch = "main" }
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }

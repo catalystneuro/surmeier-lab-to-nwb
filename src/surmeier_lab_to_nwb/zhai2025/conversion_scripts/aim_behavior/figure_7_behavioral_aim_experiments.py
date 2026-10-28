@@ -233,9 +233,7 @@ if __name__ == "__main__":
 
     # Set the base path to your data
     base_dir = Path(__file__).parent.parent.parent  # Go up to zhai2025 level
-    aim_excel_data_file_path = Path(
-        "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 7/AIM rating/AIM testing_CDGI KO.xlsx"
-    )
+    aim_excel_data_file_path = Path("./link_to_raw_data/Figure 7/AIM rating/AIM testing_CDGI KO.xlsx")
     genotype_path = base_dir / "assets" / "data_connections_D2_figures_3_4_6_7_8.csv"
     processed_data_csv_path = base_dir / "assets" / "processed_aim_behavioral_data" / "figure_7_aim_processed_data.csv"
 
