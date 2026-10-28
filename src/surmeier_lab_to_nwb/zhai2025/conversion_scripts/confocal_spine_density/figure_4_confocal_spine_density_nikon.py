@@ -234,13 +234,8 @@ if __name__ == "__main__":
 
     logging.getLogger("nd2").setLevel(logging.ERROR)
 
-    # Process both Figure 4I and Figure 4J data
+    # The four Figure 4I stacks are byte-identical copies of Figure 4J stacks, so only Figure 4J is converted
     datasets = [
-        {
-            "name": "Fig4I",
-            "path": Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4I/raw"),
-            "conditions": ["control", "6-OHDA", "off-state", "on-state"],
-        },
         {
             "name": "Fig4J",
             "path": Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4J and Suppl Fig 5/raw"),
