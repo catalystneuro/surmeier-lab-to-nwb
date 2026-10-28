@@ -55,6 +55,7 @@ from pynwb.icephys import (
     CurrentClampStimulusSeries,
     IntracellularElectrode,
 )
+from pynwb.image import Image
 
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (
@@ -964,6 +965,41 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             microscope=bruker,
         )
 
+    # Background scans (`_bsl`): one line scan per site with the line moved off the dendrite and no stimulus.
+    # They are not trials, so they stay out of the intracellular tables.
+    for cell_index in bundle.cell_indices():
+        for sw in bundle.sweeps_for(cell_index, "dend_background"):
+            site = f"{'Proximal' if sw.dendrite_location == 'prox' else 'Distal'}{sw.location_number}"
+            for chan_name, (data, rate) in _line_scan_kymographs(sw.recording_path).items():
+                dye = _DYE_NAME[chan_name]
+                description = (
+                    f"Background scan for Cell {cell_index} {site}, {_DYE_DESCRIPTION[chan_name]}: one line scan with "
+                    "the scan line moved off the dendrite and no stimulus, recorded right after the trials at this "
+                    "site. The paper subtracts background from both channels before analysis; the lab took such "
+                    "scans only for this cell, on 2017-05-25 and 2017-05-26."
+                )
+                nwbfile.add_acquisition(
+                    TimeSeries(
+                        name=f"LineScanBackground{dye}Cell{cell_index}{site}",
+                        description=description,
+                        data=data,
+                        unit="a.u.",
+                        starting_time=(sw.pv_scan_date - session_start_time_naive).total_seconds(),
+                        rate=float(rate),
+                    )
+                )
+                art = _read_dendritic_artifacts(sw.recording_path, chan_name)
+                nwbfile.acquisition["ImageLineScanSource"].add_image(
+                    Image(
+                        name=f"Image{dye}Cell{cell_index}{site}Background",
+                        description=(
+                            f"Source image (field of view with scan line overlay) for the background scan of Cell "
+                            f"{cell_index} {site}, {_DYE_DESCRIPTION[chan_name]}; it shows where the line was placed."
+                        ),
+                        data=art["source_image"],
+                    )
+                )
+
     # ---- icephys hierarchical chain --------------------------------------------
     # Build the chain on top of the IRT rows.
     # 1. SimultaneousRecordings: one row per IRT row (single-electrode rig).
@@ -1107,7 +1143,7 @@ def _build_line_scan_rich_objects(
     microscope
         The Bruker microscope device, used by the line-scan imaging plane.
     """
-    from pynwb.image import Image, Images
+    from pynwb.image import Images
     from pynwb.ophys import (
         Fluorescence,
         ImageSegmentation,

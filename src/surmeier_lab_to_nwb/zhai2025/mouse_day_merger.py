@@ -190,13 +190,14 @@ _RE_YYYYMMDD_LETTER_OUTER = re.compile(r"^(\d{4})(\d{2})(\d{2})([a-d])$")
 #   - Optional trailing pharm suffix: `_trio_SCH-NNN`, `_trio_sul-NNN`
 #   - "Cell<N>_<loc><N>_trio[_pharm]" OR "cell<N>_trio_<loc><N>" (lab swapped order in 2023)
 #   - Optional trailing digit on the location (some leaves have `trio_dist` without digit)
-#   - `_trio` missing when nothing else follows the site (2016-06-08 cell 3 prox1, 2017-06-19 cell 2 dist1);
-#     other suffixes without `_trio`, like the `_bsl` baseline scans, do not match
+#   - `_trio` missing when nothing else follows the site (2016-06-08 cell 3 prox1, 2017-06-19 cell 2 dist1)
+#   - `_bsl` instead of `_trio`: a background scan, the line moved off the dendrite and no stimulus
+#     (2017-05-25 and 2017-05-26 cell 2 only)
 _RE_DENDRITIC_LEAF_FLEX = re.compile(
     # Date: 8 or 9 digits (9 allows for lab typos like `007182016`).
     r"^(?P<date>\d{8,9})_[Cc]ell(?P<cell>\d+)_"
     r"(?:"
-    r"(?P<site1>(?P<loc1>real(?:prox|dist)|prox|dist)(?P<num1>\d+)(?:real)?)(?:_[Tt]rio(?:_[A-Za-z]+)?)?"  # Cell1_dist1_trio or Cell1_dist1_trio_SCH
+    r"(?P<site1>(?P<loc1>real(?:prox|dist)|prox|dist)(?P<num1>\d+)(?:real)?)(?:(?P<background>_bsl)|_[Tt]rio(?:_[A-Za-z]+)?)?"  # Cell1_dist1_trio, _trio_SCH or _bsl
     r"|[Tt]rio_(?P<site2>(?P<loc2>real(?:prox|dist)|prox|dist)(?P<num2>\d*))"  # Cell1_trio_dist1
     r")"
     r"-(?P<seq>\d+)$"
@@ -206,7 +207,8 @@ _RE_DENDRITIC_LEAF_FLEX = re.compile(
 def _match_dendritic_leaf(name: str):
     """Match a dendritic leaf folder name across all observed lab naming variations.
 
-    Returns a tuple (cell_in_name, loc_type, loc_num, site_label) or None if no match.
+    Returns a tuple (cell_in_name, loc_type, loc_num, site_label, modality) or None if no match;
+    modality is "dend_background" for a `_bsl` background scan and "dend_excitability" otherwise.
     The loc_type is normalized: "realprox" -> "prox", "realdist" -> "dist". The lab's
     "real" marks a second patch of dendrite recorded at the site after moving the
     microscope; it is kept in site_label, the site as written in the folder name.
@@ -221,7 +223,8 @@ def _match_dendritic_leaf(name: str):
         num_str = m.group("num1") or m.group("num2") or "1"
         loc_num = int(num_str) if num_str else 1
         site_label = m.group("site1") or m.group("site2")
-        return cell, loc_type, loc_num, site_label
+        modality = "dend_background" if m.group("background") else "dend_excitability"
+        return cell, loc_type, loc_num, site_label, modality
     return None
 
 
@@ -446,14 +449,14 @@ def _walk_dendritic_mmdd_letter(
                     parsed = _match_dendritic_leaf(leaf_dir.name)
                     if parsed is None:
                         return
-                    cell_in_name, loc_type, loc_num, site_label = parsed
+                    cell_in_name, loc_type, loc_num, site_label, modality = parsed
                     xml_path = leaf_dir / f"{leaf_dir.name}.xml"
                     pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                     if pv_date is None:
                         return
                     out.append(
                         SweepRecord(
-                            modality="dend_excitability",
+                            modality=modality,
                             cell_index=cell_in_name,
                             condition_subfolder=condition,
                             recording_path=leaf_dir,
@@ -486,14 +489,14 @@ def _walk_dendritic_mmdd_letter(
                 parsed = _match_dendritic_leaf(leaf_dir.name)
                 if parsed is None:
                     return
-                cell_in_name, loc_type, loc_num, site_label = parsed
+                cell_in_name, loc_type, loc_num, site_label, modality = parsed
                 xml_path = leaf_dir / f"{leaf_dir.name}.xml"
                 pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                 if pv_date is None:
                     return
                 out.append(
                     SweepRecord(
-                        modality="dend_excitability",
+                        modality=modality,
                         cell_index=cell_in_name,
                         condition_subfolder=condition,
                         recording_path=leaf_dir,

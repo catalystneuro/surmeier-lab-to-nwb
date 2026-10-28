@@ -130,3 +130,20 @@ def test_trio_folders_named_without_trio_are_converted(tmp_path):
         cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
         site = nwbfile.intracellular_recordings["site"].data[:]
         assert [name for cell, name in zip(cell_id, site) if cell == 3].count("Proximal1") == 3
+
+
+def test_background_scans_are_kept_out_of_the_trials(tmp_path):
+    # Cell 2 has one "_bsl" scan per site: the line moved off the dendrite, no stimulus.
+    bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20170525LIDOFFeGFP")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        backgrounds = sorted(name for name in nwbfile.acquisition if name.startswith("LineScanBackground"))
+        sites = ["Distal1", "Distal2", "Proximal1", "Proximal2"]
+        assert backgrounds == sorted(
+            f"LineScanBackground{dye}Cell2{site}" for dye in ("Alexa568", "Fluo4") for site in sites
+        )
+        cell_id = nwbfile.intracellular_recordings["cell_id"].data[:]
+        site = nwbfile.intracellular_recordings["site"].data[:]
+        assert [name for cell, name in zip(cell_id, site) if cell == 2].count("Proximal1") == 3
