@@ -19,6 +19,8 @@ from zoneinfo import ZoneInfo
 import cv2
 import pandas as pd
 from ndx_ethogram import Ethogram
+from ndx_hed import HedLabMetaData, HedTags
+from ndx_hed.utils.hed_nwb_validator import HedNWBValidator
 from neuroconv.utils import load_dict_from_file
 from pynwb import NWBHDF5IO, NWBFile
 from pynwb.file import Subject
@@ -60,6 +62,15 @@ _AIM_CATEGORIES = {
     "orolingual": f"Orolingual abnormal involuntary movement, {_SCALE}",
     "total": "The lab's total of the axial, limb and orolingual scores at one time, from 0 to 12, as its AIM sheet "
     "writes it.",
+}
+# HED tags of each category: an animal, observed, moving the body part of the category involuntarily and abnormally.
+# HED has no forelimb or jaw, so limb is the upper extremity and orolingual the face, and no tag for a rating.
+_HED_SCHEMA_VERSION = "8.5.0"
+_AIM_HED = {
+    "axial": "Animal-agent, Observation, (Move-torso, Involuntary, Abnormal)",
+    "limb": "Animal-agent, Observation, (Move-upper-extremity, Involuntary, Abnormal)",
+    "orolingual": "Animal-agent, Observation, (Move-face, Involuntary, Abnormal)",
+    "total": "Animal-agent, Observation, (Move-body, Involuntary, Abnormal)",
 }
 # Cells the lab used as column headers or left empty, which say nothing about a session
 _HEADER_CELLS = {"cage", "cage#", "date:", "(wt)", "(ko)", "g"}
@@ -374,6 +385,17 @@ def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
     )
     for behavior, definition in _AIM_CATEGORIES.items():
         ethogram.add_row(behavior=behavior, definition=definition, behavior_type="point")
+    ethogram.add_column(
+        name="HED",
+        description="HED (Hierarchical Event Descriptors) tags of each category.",
+        data=[_AIM_HED[behavior] for behavior in _AIM_CATEGORIES],
+        col_cls=HedTags,
+    )
+    hed_metadata = HedLabMetaData(hed_schema_version=_HED_SCHEMA_VERSION)
+    issues = HedNWBValidator(hed_metadata).validate_table(ethogram)
+    if issues:
+        raise ValueError(f"The AIM HED tags do not validate against HED {_HED_SCHEMA_VERSION}: {issues}")
+    nwbfile.add_lab_meta_data(hed_metadata)
     nwbfile.create_processing_module(name="behavior", description="The AIM rating scheme.").add(ethogram)
     aim_scores = nwbfile.create_events_table(
         name="aim_scores",

@@ -31,6 +31,7 @@ dependencies = [
   "dandi>=0.76.0",
   "ndx-ophys-devices>=0.3.1",
   "ndx-ethogram>=0.1.0",
+  "ndx-hed>=0.3.0",
 ]
 # Astropy I use for the date
 
