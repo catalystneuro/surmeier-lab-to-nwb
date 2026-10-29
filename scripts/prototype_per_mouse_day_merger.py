@@ -284,6 +284,7 @@ class StimulusProtocol:
     name: str  # e.g., "Step 5_-40 pA", "Trio bAP"
     amplitude_pA: float  # amplitude of the injected current in picoamperes: the step, or each dendritic-trial pulse
     pulses_ms: list[tuple[float, float]]  # (start, width) of each current pulse, in ms from the start of the sweep
+    duration_ms: float  # length of the whole command, its components back to back
 
 
 def _parse_voltage_output(xml_path: Path) -> StimulusProtocol:
@@ -324,7 +325,10 @@ def _parse_voltage_output(xml_path: Path) -> StimulusProtocol:
     if len(amplitudes) != 1:
         raise ValueError(f"{xml_path} injects current at {sorted(amplitudes)} pA, not at one amplitude")
     return StimulusProtocol(
-        name=root.findtext("Name", default="").strip(), amplitude_pA=amplitudes.pop(), pulses_ms=pulses_ms
+        name=root.findtext("Name", default="").strip(),
+        amplitude_pA=amplitudes.pop(),
+        pulses_ms=pulses_ms,
+        duration_ms=component_start,
     )
 
 
@@ -341,8 +345,9 @@ def _synthesize_stimulus_waveform(
 ) -> np.ndarray:
     """Build the commanded current waveform (in amperes) from a parsed protocol: its pulses on a zero baseline.
 
-    The waveform covers the recorded sweep only; a pulse after its end is left out, and the caller says so.
+    The waveform covers the recorded sweep, or the whole command when the recording stops before it ends.
     """
+    n_samples = max(n_samples, int(round(protocol.duration_ms * 1e-3 * rate_hz)))
     waveform = np.zeros(n_samples, dtype=np.float32)
     for start_ms, width_ms in protocol.pulses_ms:
         start_sample = int(round(start_ms * 1e-3 * rate_hz))
@@ -511,14 +516,15 @@ def _build_concatenated_series(
     tuple[
         CurrentClampSeries,
         CurrentClampStimulusSeries,
-        list[tuple[int, int, float, StimulusProtocol]],
+        list[tuple[int, int, float, StimulusProtocol, int, int]],
     ]
     | None
 ):
     """Concatenate all sweeps of (cell, modality) into one PatchClampSeries.
 
     Returns (response_series, stimulus_series, sweep_slices) where each slice carries
-    (idx_start, count, sweep_start_time_seconds, stimulus_protocol). The stimulus
+    (idx_start, count, sweep_start_time_seconds, stimulus_protocol, stimulus_start, stimulus_count); the
+    stimulus slice differs from the response slice only for a sweep recorded shorter than its command. The stimulus
     protocol is parsed from the VoltageOutput XML alongside each sweep and used to
     populate the IRT's `stimulus_current_pA` column plus the synthesized stimulus waveform.
     """
@@ -528,9 +534,10 @@ def _build_concatenated_series(
 
     voltage_chunks: list[np.ndarray] = []
     stim_chunks: list[np.ndarray] = []
-    sweep_slices: list[tuple[int, int, float, StimulusProtocol]] = []
+    sweep_slices: list[tuple[int, int, float, StimulusProtocol, int, int]] = []
     sample_rate: float | None = None
     cumulative = 0
+    stimulus_cumulative = 0
     # Durations of the sweeps whose recording stops before their current command ends.
     short_sweep_seconds: list[float] = []
     for sw in sweeps:
@@ -556,8 +563,9 @@ def _build_concatenated_series(
         voltage_chunks.append(voltage)
         stim_chunks.append(stim_waveform)
         offset_s = (sw.pv_scan_date - session_start_time).total_seconds()
-        sweep_slices.append((cumulative, len(voltage), offset_s, protocol))
+        sweep_slices.append((cumulative, len(voltage), offset_s, protocol, stimulus_cumulative, len(stim_waveform)))
         cumulative += len(voltage)
+        stimulus_cumulative += len(stim_waveform)
 
     if not voltage_chunks:
         return None
@@ -573,9 +581,10 @@ def _build_concatenated_series(
     if short_sweep_seconds:
         seconds = " or ".join(f"{duration:g}" for duration in sorted(set(short_sweep_seconds)))
         short_sweeps = (
-            f" {len(short_sweep_seconds)} of the sweeps were recorded for only {seconds} s and end before the current "
-            "injections, so they hold neither the injections nor the spikes; the injections were given, as the "
-            "calcium signal in each of those trials' line scans shows."
+            f" {len(short_sweep_seconds)} of the sweeps were recorded for only {seconds} s, which ends before the "
+            "current injections, so their voltage holds no spikes; the injections were given, as the calcium signal "
+            "in each of those trials' line scans shows. Their stimulus is the whole command, so it is longer than "
+            "their recording."
         )
     response = CurrentClampSeries(
         name=series_name,
@@ -828,13 +837,15 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         if soma_result is not None:
             response, stim, sweep_slices = soma_result
             sorted_soma = sorted(bundle.sweeps_for(cell_index, "soma_excitability"), key=lambda s: s.pv_scan_date)
-            for sw, (idx_start, count, sweep_start_time, protocol) in zip(sorted_soma, sweep_slices):
+            for sw, (idx_start, count, sweep_start_time, protocol, stimulus_start, stimulus_count) in zip(
+                sorted_soma, sweep_slices
+            ):
                 condition = _CONDITION_LABEL[sw.condition_subfolder]
                 row_index = nwbfile.add_intracellular_recording(
                     electrode=cell_electrode,
                     stimulus=stim,
-                    stimulus_start_index=idx_start,
-                    stimulus_index_count=count,
+                    stimulus_start_index=stimulus_start,
+                    stimulus_index_count=stimulus_count,
                     response=response,
                     response_start_index=idx_start,
                     response_index_count=count,
@@ -891,7 +902,9 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         sites_with_two_spots = {
             (sw.dendrite_location, sw.location_number) for sw in dend_sweeps if "real" in sw.site_label
         }
-        for sw, (idx_start, count, sweep_start_time, protocol) in zip(sorted_sweeps, dend_sweep_slices):
+        for sw, (idx_start, count, sweep_start_time, protocol, stimulus_start, stimulus_count) in zip(
+            sorted_sweeps, dend_sweep_slices
+        ):
             dendrite_type = "Proximal" if sw.dendrite_location == "prox" else "Distal"
             dendrite_distance = 40.0 if sw.dendrite_location == "prox" else 90.0
             spot = ""
@@ -905,8 +918,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             row_index = nwbfile.add_intracellular_recording(
                 electrode=cell_electrode,
                 stimulus=dend_stim,
-                stimulus_start_index=idx_start,
-                stimulus_index_count=count,
+                stimulus_start_index=stimulus_start,
+                stimulus_index_count=stimulus_count,
                 response=dend_response,
                 response_start_index=idx_start,
                 response_index_count=count,

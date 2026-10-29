@@ -161,10 +161,9 @@ def test_background_scans_are_kept_out_of_the_trials(tmp_path):
 
 def test_stimulus_is_the_commanded_current(tmp_path):
     # The dendritic stimulus used to be all zero: only the command's first part, 0 pA for 100 ms, was read. The three
-    # 2 ms, 2 nA pulses follow 900 ms after it; a somatic step starts 200 ms in and lasts 500 ms.
-    bundle = next(
-        b for b in build_figure_bundles("F1") if b.subject_entry.subject_id == "Subject20161111LIDOFFtDTomato"
-    )
+    # 2 ms, 2 nA pulses follow 900 ms after it; a somatic step starts 200 ms in and lasts 500 ms. Two dendritic trials
+    # of cell 3 were recorded for only 1 s, before the pulses; their stimulus is the whole 1.152 s command.
+    bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20160524LIDOFFeGFP")
     nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
 
     with NWBHDF5IO(nwbfile_path, "r") as io:
@@ -173,8 +172,10 @@ def test_stimulus_is_the_commanded_current(tmp_path):
         dendrite_type = irt["dendrite_type"].data[:]
         current_pA = irt["stimulus_current_pA"].data[:]
         stimuli = irt.category_tables["stimuli"]["stimulus"].data[:]
+        responses = irt.category_tables["responses"]["response"].data[:]
         assert {kind == "Soma" for kind in dendrite_type} == {True, False}
-        for row, (start_index, count, series) in enumerate(stimuli):
+        short_trials = 0
+        for row, ((start_index, count, series), (_, response_count, _)) in enumerate(zip(stimuli, responses)):
             samples_per_ms = series.rate / 1000
             expected_pA = np.zeros(count)
             if dendrite_type[row] == "Soma":
@@ -183,7 +184,11 @@ def test_stimulus_is_the_commanded_current(tmp_path):
                 assert current_pA[row] == 2000
                 for start_ms in (1000, 1020, 1040):
                     expected_pA[round(start_ms * samples_per_ms) : round((start_ms + 2) * samples_per_ms)] = 2000
+            if response_count != count:
+                short_trials += 1
+                assert (response_count, count) == (round(1000 * samples_per_ms), round(1152 * samples_per_ms))
             np.testing.assert_allclose(series.data[start_index : start_index + count], expected_pA * 1e-12, rtol=1e-6)
+        assert short_trials == 2
 
 
 def test_unrecognized_recording_folder_raises(tmp_path):
