@@ -5,12 +5,14 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import tifffile
 from pynwb import NWBHDF5IO
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from prototype_per_mouse_day_merger import (  # noqa: E402
+    merge_grab_ach_mouse_day,
     merge_oepsc_mouse_day,
     merge_one_mouse_day,
 )
@@ -224,3 +226,25 @@ def test_grab_ach_recording_naming_another_region_raises(tmp_path):
     (tmp_path / "UL control" / "04022024slice1ROI1" / "BOT_04022024_slice1ROI2_ctr_single-001").mkdir(parents=True)
     with pytest.raises(ValueError, match="names slice1ROI2 but is in the folder of slice 1 ROI 1"):
         _walk_grab_ach(tmp_path)
+
+
+def test_grab_ach_file_holds_every_region_of_the_mouse_day(tmp_path):
+    # The published file for 2024-05-31 held only slice 2, which was also filmed at zoom 8 in two trials.
+    bundle = next(b for b in build_figure_bundles("F5") if b.subject_entry.subject_id == "Subject20240531LIDOFFC57bl6J")
+    nwbfile_path = merge_grab_ach_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        trials = nwbfile.trials.to_dataframe()
+        assert trials["region"].value_counts().to_dict() == {"Slice2Roi1": 19, "Slice1Roi1": 18}
+        assert nwbfile.acquisition["TwoPhotonSeriesGRABACh3Slice2Roi1Zoom8"].data.shape == (307, 64, 64)
+        first = bundle.sweeps_for((1, 1))[0].recording_path
+        frame = tifffile.imread(next(first.glob("*_Ch2_000001.ome.tif")), is_ome=False)
+        np.testing.assert_array_equal(nwbfile.acquisition["TwoPhotonSeriesGRABACh3Slice1Roi1"].data[0], frame.T)
+        # Each trial's frames start at its start time, and its stimulus falls inside it.
+        for _, trial in trials.iterrows():
+            frames = trial["two_photon_grabach3"]
+            assert frames.timeseries.timestamps[frames.idx_start] == trial["start_time"]
+        stimulated = trials.dropna(subset=["stimulus_start_time"])
+        assert (stimulated["stimulus_start_time"] > stimulated["start_time"]).all()
+        assert (stimulated["stimulus_start_time"] < stimulated["stop_time"]).all()

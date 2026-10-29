@@ -31,6 +31,7 @@ import warnings
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -41,6 +42,7 @@ from zoneinfo import ZoneInfo
 # the noise.
 logging.getLogger("tifffile").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
+warnings.filterwarnings("ignore", message="invalid value encountered in divide", module="tifffile")
 
 import numpy as np
 import pandas as pd
@@ -77,6 +79,7 @@ from pynwb.image import Image
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (
     MouseDayBundle,
+    SweepRecord,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -439,6 +442,9 @@ _CONDITION_LABEL = {
     "M1R antagonist": "LID off-state with M1R antagonists",
     "interleaved control": "LID off-state, control (gRNA only)",
     "M1R CRISPR": "LID off-state, M1R deletion",
+    "UL control": "unlesioned control",
+    "PD": "6-OHDA-lesioned",
+    "LID off": "LID off-state",
 }
 
 
@@ -1912,6 +1918,483 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         name="condition", description="Experimental condition, named as in the paper's figure legends."
     )
     nwbfile.add_icephys_experimental_condition(repetitions=repetition_indices, condition=condition)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
+
+    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5")
+    return output_path
+
+
+# --------- GRAB-ACh (Figure 5) ---------------------------------------------------------
+
+
+# The bath drug, from the words before the stimulus in each recording's name, with the paper's concentrations.
+_GRAB_ACH_DRUG = {
+    "ctr": "control",
+    "50nMDA": "50 nM dopamine",
+    "quin": "10 µM quinpirole",
+    "sul": "10 µM sulpiride",
+    "TTX": "10 µM tetrodotoxin",
+    "sul_TTX": "10 µM tetrodotoxin",  # 2024-04-12, after sulpiride, like every tetrodotoxin trial
+    "ACh": "100 µM acetylcholine",
+    "ACh wash in": "100 µM acetylcholine",
+}
+# Stimulus words in the recording names, misspellings included; the stimulus is read from the VoltageOutput file.
+_GRAB_ACH_STIMULUS_WORDS = {"single", "sinlge", "singl", "burst", "20Hz"}
+
+# Prairie View channel number -> channel name in the file, and what the channel records.
+_GRAB_ACH_CHANNELS = {"2": "GRABACh3", "3": "Dodt"}
+_GRAB_ACH_CHANNEL_DESCRIPTION = {
+    "GRABACh3": (
+        "GRAB-ACh3.0 fluorescence (acetylcholine sensor), Hamamatsu H7422P-40 GaAsP detector with a 490 to 560 nm "
+        "filter (Prairie View channel 2)"
+    ),
+    "Dodt": (
+        "laser light transmitted through the slice, recorded by the Dodt contrast detector (Prairie View channel 3); "
+        "it shows the tissue, not fluorescence"
+    ),
+}
+
+_GRAB_ACH_INJECTION = (
+    "GRAB-ACh3.0 virus (AAV5-hSyn-ACh3.0(ACh4.3), WZ Biosciences YL001003-AV5, 0.6 µl) injected into the "
+    "dorsolateral striatum{side} at ML -2.2, AP 0.8 and DV 3.3 mm relative to Bregma; slices were made about 3 weeks "
+    "later."
+)
+
+_GRAB_ACH_BATH = (
+    "During imaging the slice was perfused with ACSF at 32 to 34 °C containing 50 µM sodium metabisulfite to slow "
+    "dopamine oxidation. Drugs were applied in the bath in this order, at least 5 min each: control, 50 nM dopamine "
+    "(lesioned mice only), 10 µM quinpirole (D2 receptor agonist) and 10 µM sulpiride (D2 receptor antagonist). "
+    "10 µM tetrodotoxin and 100 µM acetylcholine chloride were applied last, to find the sensor's lowest and highest "
+    "brightness. The paper does not say whether a drug was washed out before the next. Each trial's drug is in the "
+    "trials table."
+)
+
+_GRAB_ACH_SUBJECT = {
+    "CONT": "unlesioned control",
+    "6-OHDA": "unilateral 6-OHDA lesion, no levodopa",
+    "LID OFF": "unilateral 6-OHDA lesion and levodopa treatment, recorded in the off-state",
+}
+
+
+@dataclass
+class SensorTrial:
+    """One GRAB-ACh recording, read from its Prairie View files. Times are seconds from the session start."""
+
+    sweep: SweepRecord
+    start_time: float
+    frame_times: np.ndarray
+    frame_period: float
+    frames: dict[str, np.ndarray]  # channel -> (frames, x, y)
+    brightness: dict[str, np.ndarray]  # channel -> Prairie View's brightness of the whole frame, one value per frame
+    references: dict[str, np.ndarray]  # channel -> Prairie View's 16-bit reference image, (x, y)
+    zoom: float
+    microns_per_pixel: float
+    drug: str
+    stimulation: str
+    stimulus_start_time: float  # NaN without stimulation
+
+
+def _read_grab_ach_stimulus(voltage_output_path: Path) -> tuple[int, float, float, float]:
+    """Pulse count, width (ms), period (ms) and first-pulse delay (ms) of the stimulus in a VoltageOutput file.
+
+    The stimulator is triggered from the output Prairie View calls LED, with 5 V pulses; burst recordings also carry a
+    0 V pulse train there, which sends nothing.
+    """
+    root = ET.parse(voltage_output_path).getroot()
+    waveforms = [w for w in root.findall("Waveform") if w.findtext("Enabled") == "true"]
+    if [w.findtext("Name") for w in waveforms] != ["LED"]:
+        raise ValueError(f"Expected one enabled output, LED, in {voltage_output_path}")
+    trains = [
+        c
+        for c in waveforms[0]
+        if c.tag.startswith("WaveformComponent") and float(c.findtext("PulsePotentialStart", "0")) != 0
+    ]
+    if len(trains) != 1 or trains[0].tag != "WaveformComponent_PulseTrain" or trains[0].findtext("Repetitions") != "1":
+        raise ValueError(f"Expected one pulse train on the LED output of {voltage_output_path}")
+    train = trains[0]
+    width = float(train.findtext("PulseWidth"))
+    return (
+        int(train.findtext("PulseCount")),
+        width,
+        width + float(train.findtext("PulseSpacing")),
+        float(train.findtext("FirstPulseDelay")),
+    )
+
+
+def _read_grab_ach_trial(sweep: SweepRecord, session_start_time: datetime) -> SensorTrial:
+    """Read the frames, brightness, reference images and stimulus of one GRAB-ACh recording."""
+    import tifffile
+
+    leaf = sweep.recording_path
+    xml_path = leaf / f"{leaf.name}.xml"
+    root = ET.parse(xml_path).getroot()
+    state = {e.get("key"): e for e in root.find("PVStateShard").findall("PVStateValue")}
+    width = int(state["pixelsPerLine"].get("value"))
+    height = int(state["linesPerFrame"].get("value"))
+    microns = {v.get("index"): float(v.get("value")) for v in state["micronsPerPixel"].findall("IndexedValue")}
+    if microns["XAxis"] != microns["YAxis"]:
+        raise ValueError(f"Pixels are not square in {xml_path}")
+    sequences = root.findall("Sequence")
+    if len(sequences) != 1 or sequences[0].get("type") != "BrightnessOverTime":
+        raise ValueError(f"Expected one brightness-over-time sequence in {xml_path}")
+    sequence = sequences[0]
+
+    # The sequence start, to the microsecond; the PVScan date holds the same moment truncated to the second.
+    hours, minutes, seconds = sequence.get("time").split(":")
+    started = datetime.combine(sweep.pv_scan_date.date(), datetime.min.time()) + timedelta(
+        hours=int(hours), minutes=int(minutes), seconds=float(seconds)
+    )
+    if not timedelta(0) <= started - sweep.pv_scan_date < timedelta(seconds=1):
+        raise ValueError(f"The sequence time of {xml_path} does not match its date")
+    start_time = (started - session_start_time).total_seconds()
+
+    frame_elements = sequence.findall("Frame")
+    files = {"2": [], "3": []}
+    for frame in frame_elements:
+        names = {f.get("channel"): (f.get("channelName"), f.get("filename")) for f in frame.findall("File")}
+        if names.keys() != files.keys() or names["2"][0] != "Ch2" or names["3"][0] != "Dodt":
+            raise ValueError(f"Expected channels Ch2 and Dodt in every frame of {xml_path}")
+        for channel, (_name, filename) in names.items():
+            files[channel].append(filename)
+    relative_times = np.array([float(frame.get("absoluteTime")) for frame in frame_elements])
+    frames = {}
+    for channel, filenames in files.items():
+        # is_ome=False reads only this file's frame; the first file's OME header would pull in the whole series.
+        stack = np.stack([tifffile.imread(leaf / filename, is_ome=False) for filename in filenames])
+        if stack.shape[1:] != (height, width):
+            raise ValueError(f"Frames of {leaf} are {stack.shape[1:]}, the XML says {(height, width)}")
+        frames[_GRAB_ACH_CHANNELS[channel]] = stack.transpose(0, 2, 1)
+
+    # Prairie View's brightness-over-time regions: each the whole frame, one per channel, in botData.csv.
+    bots = sequence.find("PVBOTs")
+    regions = bots.findall("Region")
+    if sorted(r.get("channel") for r in regions) != ["2", "3"] or any(
+        (r.get("x"), r.get("y"), r.get("width"), r.get("height")) != ("0", "0", str(width), str(height))
+        for r in regions
+    ):
+        raise ValueError(f"Expected one whole-frame brightness region per channel in {xml_path}")
+    table = pd.read_csv(leaf / bots.get("botData"))
+    if len(table) != len(relative_times) or not np.allclose(table["Timestamp"], relative_times, atol=1e-6):
+        raise ValueError(f"The brightness samples of {leaf} do not match its frames")
+    brightness = {
+        _GRAB_ACH_CHANNELS[r.get("channel")]: table[f"Region {number}"].to_numpy(dtype=np.float32)
+        for number, r in enumerate(regions, start=1)
+    }
+
+    references = {
+        name: tifffile.imread(leaf / "References" / f"{leaf.name}-Cycle00001-Ch{channel}-16bit-Reference.tif").T
+        for channel, name in _GRAB_ACH_CHANNELS.items()
+    }
+
+    words = sweep.suffix.rsplit("_", 1)
+    drug_words = words[0] if len(words) == 2 and words[1] in _GRAB_ACH_STIMULUS_WORDS else sweep.suffix
+    if drug_words not in _GRAB_ACH_DRUG:
+        raise ValueError(f"Unknown drug in the name of {leaf}")
+
+    voltage_output = sequence.find("VoltageOutput")
+    if voltage_output is None:
+        stimulation, stimulus_start_time = "none", float("nan")
+    else:
+        count, pulse_width, period, delay = _read_grab_ach_stimulus(leaf / voltage_output.get("filename"))
+        if count == 1:
+            stimulation = f"single {pulse_width:g} ms pulse"
+        else:
+            stimulation = f"{count} pulses of {pulse_width:g} ms at {1000 / period:g} Hz"
+        stimulus_start_time = start_time + float(voltage_output.get("absoluteTime")) + delay * 1e-3
+
+    return SensorTrial(
+        sweep=sweep,
+        start_time=start_time,
+        frame_times=start_time + relative_times,
+        frame_period=float(state["framePeriod"].get("value")),
+        frames=frames,
+        brightness=brightness,
+        references=references,
+        zoom=float(state["opticalZoom"].get("value")),
+        microns_per_pixel=microns["XAxis"],
+        drug=_GRAB_ACH_DRUG[drug_words],
+        stimulation=stimulation,
+        stimulus_start_time=stimulus_start_time,
+    )
+
+
+def merge_grab_ach_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
+    """Build one GRAB-ACh NWB file for a mouse-day (Figure 5) and write it to disk."""
+    from pynwb.image import Images
+    from pynwb.ophys import (
+        Fluorescence,
+        ImageSegmentation,
+        OpticalChannel,
+        RoiResponseSeries,
+        TwoPhotonSeries,
+    )
+
+    session_start_time_naive = bundle.session_start_time
+    general = _general_metadata()
+    nwb_meta = general["NWBFile"]
+    subject_meta = general["Subject"]
+    subject_entry = bundle.subject_entry
+    conditions = {_CONDITION_LABEL[sw.condition_subfolder] for sweeps in bundle.cells.values() for sw in sweeps}
+    if len(conditions) != 1:
+        raise ValueError(f"{subject_entry.subject_id} has GRAB-ACh recordings under {sorted(conditions)}")
+    (condition,) = conditions
+    regions = bundle.cell_indices()
+    slices = sorted({slice_number for slice_number, _roi in regions})
+
+    if subject_entry.category == "CONT":
+        surgery = "No 6-OHDA lesion (unlesioned control). " + _GRAB_ACH_INJECTION.format(side="")
+        pharmacology = _GRAB_ACH_BATH
+    else:
+        surgery = nwb_meta["surgery"] + _GRAB_ACH_INJECTION.format(side=" on the side of the lesion")
+        if subject_entry.category == "6-OHDA":
+            # The general text ends with the levodopa treatment, which these mice did not receive.
+            pharmacology = nwb_meta["pharmacology"][: nwb_meta["pharmacology"].index("L-DOPA priming")] + _GRAB_ACH_BATH
+        else:
+            pharmacology = (
+                nwb_meta["pharmacology"]
+                + "Slices were made 24 to 48 hours after the last levodopa dose (off-state). "
+                + _GRAB_ACH_BATH
+            )
+
+    nwbfile = NWBFile(
+        session_description=(
+            f"GRAB-ACh3.0 imaging (Figure 5): two-photon movies of acetylcholine release in the dorsolateral striatum, "
+            f"evoked by electrical stimulation, in {len(regions)} regions of {len(slices)} slices from one "
+            f"{condition} mouse. Each region was filmed in a series of trials while the drug in the bath changed; the "
+            "trials table gives each trial's region, drug, stimulus and frames."
+        ),
+        experiment_description=(
+            "Acetylcholine release in the striatum of unlesioned, 6-OHDA-lesioned and LID off-state mice, and its "
+            "suppression by dopamine D2 receptors."
+        ),
+        identifier=str(uuid.uuid4()),
+        session_start_time=session_start_time_naive.replace(tzinfo=TIMEZONE),
+        session_id=_build_session_id(bundle),
+        experimenter=nwb_meta["experimenter"],
+        institution=nwb_meta["institution"],
+        lab=nwb_meta["lab"],
+        keywords=nwb_meta["keywords"],
+        related_publications=nwb_meta["related_publications"],
+        surgery=surgery,
+        pharmacology=pharmacology,
+        slices=nwb_meta["slices"],
+    )
+    nwbfile.subject = Subject(
+        subject_id=subject_entry.subject_id,
+        species=subject_meta["species"],
+        strain="C57BL/6J",
+        genotype="wild type",
+        sex=subject_meta["sex"],
+        age=subject_meta["age"],
+        description=(
+            f"Wild-type C57BL/6J mouse, {_GRAB_ACH_SUBJECT[subject_entry.category]}; GRAB-ACh3.0 virus injected into "
+            "the dorsolateral striatum, see surgery. The lab gave these mice no number; its Data Connections sheet "
+            "identifies each by date, line and condition."
+        ),
+    )
+    microscope = Device(
+        name="BrukerUltima",
+        description="Bruker Ultima In Vitro multiphoton microscope.",
+        model=get_or_create_bruker_ultima_model(nwbfile),
+    )
+    nwbfile.add_device(microscope)
+    nwbfile.add_device(
+        Device(
+            name="StimulatingElectrode",
+            description=(
+                "Concentric bipolar stimulating electrode (CBAPD75, FHC) about 200 µm ventral to the imaged region, "
+                "giving 1 ms, 0.3 mA pulses (paper Methods). Prairie View timed each pulse with a 5 V trigger."
+            ),
+        )
+    )
+    ophys = nwbfile.create_processing_module(
+        name="ophys", description="Prairie View's brightness of the whole frame for each region and channel."
+    )
+    segmentation = ImageSegmentation(name="ImageSegmentation")
+    ophys.add(segmentation)
+    fluorescence = Fluorescence(name="Fluorescence")
+    ophys.add(fluorescence)
+    references = Images(
+        name="ImagesPrairieViewReferences",
+        description=(
+            "Reference images Prairie View saved with each recording, 16-bit, one per channel and trial. They show the "
+            "field of view but are not frames of the trial, and consecutive trials often share the same image. "
+            "Prairie View's 8-bit screen captures of the same images are left out."
+        ),
+    )
+    nwbfile.add_acquisition(references)
+
+    trial_rows = []  # keyword arguments of add_trial, per trial
+    trial_references = []  # (index in trial_rows, number in recording order at the region, trials there, images)
+    for slice_number, roi_number in regions:
+        region_name = f"Slice{slice_number}Roi{roi_number}"
+        trials = sorted(
+            (
+                _read_grab_ach_trial(sw, session_start_time_naive)
+                for sw in bundle.sweeps_for((slice_number, roi_number))
+            ),
+            key=lambda trial: trial.start_time,
+        )
+        microns_per_pixel = {trial.microns_per_pixel for trial in trials}
+        if len(microns_per_pixel) != 1:
+            raise ValueError(f"The pixel size changes between the trials of slice {slice_number} ROI {roi_number}")
+        imaging_plane = nwbfile.create_imaging_plane(
+            name=f"ImagingPlane{region_name}",
+            description=(
+                f"Slice {slice_number}, ROI {roi_number}: a field of the dorsolateral striatum, with the stimulating "
+                "electrode about 200 µm ventral to it (paper Methods)."
+            ),
+            optical_channel=[
+                OpticalChannel(name=name, description=_GRAB_ACH_CHANNEL_DESCRIPTION[name], emission_lambda=float("nan"))
+                for name in _GRAB_ACH_CHANNELS.values()
+            ],
+            device=microscope,
+            excitation_lambda=920.0,
+            indicator="GRAB-ACh3.0",
+            location="Caudoputamen",
+            grid_spacing=[microns_per_pixel.pop()] * 2,
+            grid_spacing_unit="micrometers",
+        )
+
+        zooms = sorted({trial.zoom for trial in trials})
+        for zoom in zooms:
+            # Trials keep their number in recording order at the region across zooms.
+            numbered = [(number, trial) for number, trial in enumerate(trials, start=1) if trial.zoom == zoom]
+            group = [trial for _number, trial in numbered]
+            if len({trial.frames["GRABACh3"].shape[1:] for trial in group}) != 1:
+                raise ValueError(f"The frame size changes at zoom {zoom:g} in slice {slice_number} ROI {roi_number}")
+            name = region_name + (f"Zoom{zoom:g}" if len(zooms) > 1 else "")
+            frame_shape = group[0].frames["GRABACh3"].shape[1:]
+            rate = 1 / group[0].frame_period
+            layout = (
+                f"the {len(group)} trials at this region joined in recording order, {frame_shape[0]} × {frame_shape[1]} "
+                f"pixels at {rate:.2f} frames per second. Each frame's time is in timestamps, so the gaps between "
+                "trials are kept."
+            )
+            if len(zooms) > 1:
+                layout += (
+                    f" This region was filmed at {len(zooms)} zooms, so its trials are split into {len(zooms)} movies; "
+                    f"this one holds the trials at zoom {zoom:g}."
+                )
+            timestamps = np.concatenate([trial.frame_times for trial in group])
+            movies, traces = {}, {}
+            plane_segmentation = segmentation.create_plane_segmentation(
+                name=f"PlaneSegmentation{name}",
+                description=(
+                    f"Prairie View's brightness-over-time region for slice {slice_number} ROI {roi_number}: the whole "
+                    "frame, the same in every trial."
+                ),
+                imaging_plane=imaging_plane,
+            )
+            plane_segmentation.add_roi(image_mask=np.ones(frame_shape, dtype=bool))
+            for channel in _GRAB_ACH_CHANNELS.values():
+                what = _GRAB_ACH_CHANNEL_DESCRIPTION[channel]
+                movies[channel] = TwoPhotonSeries(
+                    name=f"TwoPhotonSeries{channel}{name}",
+                    description=(
+                        f"Movie of slice {slice_number} ROI {roi_number}, {what}: {layout} Each trial's frames are in "
+                        f"the two_photon_{channel.lower()} column of the trials table."
+                    ),
+                    data=np.concatenate([trial.frames[channel] for trial in group]),
+                    imaging_plane=imaging_plane,
+                    unit="a.u.",
+                    timestamps=timestamps if channel == "GRABACh3" else movies["GRABACh3"],
+                )
+                nwbfile.add_acquisition(movies[channel])
+                traces[channel] = RoiResponseSeries(
+                    name=f"RoiResponseSeries{channel}{name}",
+                    description=(
+                        f"Brightness of the whole frame of slice {slice_number} ROI {roi_number}, {what}, computed by "
+                        f"Prairie View during recording (its botData file), one value per frame of "
+                        f"TwoPhotonSeries{channel}{name}. It differs slightly from the mean of the saved frame. The "
+                        "paper measured a 50 µm circle in the middle of the field instead (Methods)."
+                    ),
+                    data=np.concatenate([trial.brightness[channel] for trial in group]),
+                    rois=plane_segmentation.create_roi_table_region(description="The whole frame.", region=[0]),
+                    unit="a.u.",
+                    timestamps=movies["GRABACh3"],
+                )
+                fluorescence.add_roi_response_series(traces[channel])
+
+            first_frame = 0
+            for number, trial in numbered:
+                count = len(trial.frame_times)
+                trial_rows.append(
+                    dict(
+                        start_time=float(trial.frame_times[0]),
+                        stop_time=float(trial.frame_times[-1]) + trial.frame_period,
+                        region=region_name,
+                        drug=trial.drug,
+                        stimulation=trial.stimulation,
+                        stimulus_start_time=trial.stimulus_start_time,
+                        **{
+                            f"{kind}_{channel.lower()}": TimeSeriesReference(first_frame, count, series[channel])
+                            for kind, series in (("two_photon", movies), ("roi_response", traces))
+                            for channel in _GRAB_ACH_CHANNELS.values()
+                        },
+                    )
+                )
+                trial_references.append((len(trial_rows) - 1, number, len(trials), trial.references))
+                first_frame += count
+
+    nwbfile.add_trial_column(
+        name="region",
+        description=(
+            "Region filmed, as in the series names: slice and ROI within the slice (Slice1Roi2). The lab named the only "
+            "ROI of a slice 'A' in the May and June recordings; it is ROI 1 here."
+        ),
+    )
+    nwbfile.add_trial_column(
+        name="drug",
+        description=(
+            "Drug in the bath, from the recording's name, at the concentration the paper gives. 'control' is ACSF "
+            "alone. Tetrodotoxin and acetylcholine trials find the sensor's lowest and highest brightness."
+        ),
+    )
+    nwbfile.add_trial_column(
+        name="stimulation",
+        description=(
+            "Electrical stimulation in this trial, from the recording's Prairie View VoltageOutput file. The paper "
+            "gives 0.3 mA per pulse."
+        ),
+    )
+    nwbfile.add_trial_column(
+        name="stimulus_start_time",
+        description=(
+            "Onset of the first pulse in seconds from session_start_time, NaN without stimulation: the start of "
+            "Prairie View's VoltageOutput plus its first-pulse delay (10 s, or 3 s on the May and June days)."
+        ),
+    )
+    for kind in ("two_photon", "roi_response"):
+        for channel in _GRAB_ACH_CHANNELS.values():
+            series_type = "TwoPhotonSeries" if kind == "two_photon" else "RoiResponseSeries"
+            nwbfile.add_trial_column(
+                name=f"{kind}_{channel.lower()}",
+                description=f"The trial's frames in the {series_type}{channel} series of its region.",
+                col_cls=TimeSeriesReferenceVectorData,
+            )
+
+    # The trials table lists the trials of all regions in time order.
+    order = sorted(range(len(trial_rows)), key=lambda index: trial_rows[index]["start_time"])
+    for index in order:
+        nwbfile.add_trial(**trial_rows[index])
+    row_of = {index: row for row, index in enumerate(order)}
+    for index, number, trials_in_region, images in trial_references:
+        row = trial_rows[index]
+        for channel, image in images.items():
+            references.add_image(
+                Image(
+                    name=f"Image{channel}{row['region']}Trial{number}",
+                    description=(
+                        f"Prairie View's reference image, {_GRAB_ACH_CHANNEL_DESCRIPTION[channel]}, for "
+                        f"{row['region']} trial {number} of {trials_in_region} in recording order (row "
+                        f"{row_of[index]} of the trials table, start time {row['start_time']:.1f} s)."
+                    ),
+                    data=image,
+                )
+            )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
