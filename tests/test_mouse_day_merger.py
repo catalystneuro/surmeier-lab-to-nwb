@@ -17,6 +17,7 @@ from prototype_per_mouse_day_merger import (  # noqa: E402
 
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (  # noqa: E402
     _walk_dendritic_mmdd_letter,
+    _walk_grab_ach,
     _walk_oepsc_mmddyyyy_letter,
     build_figure_bundles,
 )
@@ -202,3 +203,24 @@ def test_sr_oepsc_file_holds_every_cell_of_the_mouse_day(tmp_path):
         pulses = nwbfile.intervals["optogenetic_pulses_table"]
         np.testing.assert_allclose(pulses["start_time"][:] - irt["sweep_start_time"].data[:], 0.020)
         np.testing.assert_allclose(pulses["stop_time"][:] - pulses["start_time"][:], 0.0003)
+
+
+def test_grab_ach_regions_grouped_by_mouse_day():
+    # The published files kept one region per day; the paper counts 13, 10 and 11 regions from 3, 3 and 5 mice.
+    bundles = build_figure_bundles("F5")
+    assert len(bundles) == 11
+    assert sum(len(bundle.cells) for bundle in bundles) == 34
+    bundle = next(b for b in bundles if b.subject_entry.subject_id == "Subject20240402CONTC57bl6J")
+    assert bundle.cell_indices() == [(1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)]
+    # The false start filed under slice 1 ROI 1 is left out.
+    names = [s.recording_path.name for s in bundle.sweeps_for((1, 1))]
+    assert len(names) == 20 and "BOT_04022024_slice1ROI_sul_sinlge-001" not in names
+    # On 2024-05-31 the lab named two recordings of slice 1 "slice1realA".
+    bundle = next(b for b in bundles if b.subject_entry.subject_id == "Subject20240531LIDOFFC57bl6J")
+    assert sum("slice1realA" in s.recording_path.name for s in bundle.sweeps_for((1, 1))) == 2
+
+
+def test_grab_ach_recording_naming_another_region_raises(tmp_path):
+    (tmp_path / "UL control" / "04022024slice1ROI1" / "BOT_04022024_slice1ROI2_ctr_single-001").mkdir(parents=True)
+    with pytest.raises(ValueError, match="names slice1ROI2 but is in the folder of slice 1 ROI 1"):
+        _walk_grab_ach(tmp_path)

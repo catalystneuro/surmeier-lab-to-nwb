@@ -41,6 +41,9 @@ _CONDITION_TO_CATEGORY = {
     "M1R antagonist": "M1R ant",
     "M1R CRISPR": "M1R CRSPR",
     "interleaved control": "CONT",
+    "UL control": "CONT",  # GRAB-ACh, unlesioned
+    "PD": "6-OHDA",  # GRAB-ACh, lesioned without levodopa
+    "LID off": "LID OFF",  # GRAB-ACh
 }
 
 # Per-figure metadata: the Data Connections "animal" reporter token and the
@@ -118,6 +121,11 @@ _FIGURE_SPECS = {
         "dendritic_subdir": None,
         "oepsc_subdir": "Sr-oEPSC",
     },
+    "F5": {
+        "animal": "C57bl/6J",
+        "raw_root": "Figure 5_SF2",
+        "grab_ach": True,  # condition folders sit directly under raw_root
+    },
 }
 
 
@@ -126,15 +134,16 @@ class SweepRecord:
     """One sweep folder on disk, parsed into structured fields."""
 
     modality: str  # "soma_excitability", "dend_excitability", etc.
-    cell_index: int  # 1, 2, 3, 4 within the mouse-day
+    cell_index: int | None  # 1, 2, 3, 4 within the mouse-day; None for a GRAB-ACh recording, which has a region
     condition_subfolder: str  # raw lab string, e.g., "LID off-state"
     recording_path: Path  # the leaf folder containing the .xml + raw files
     pv_scan_date: datetime  # absolute wall-clock from PVScan @date
     dendrite_location: str | None = None  # "prox", "dist", or None for somatic
     location_number: int | None = None  # e.g., 1 for "prox1", 2 for "dist2"
     site_label: str | None = None  # site as written in the folder name, e.g., "prox1", "realprox1", "dist1real"
-    suffix: str | None = None  # e.g., "SCH" for cell1_SCH-NNN folders
+    suffix: str | None = None  # e.g., "SCH" for cell1_SCH-NNN folders, "quin_single" for a GRAB-ACh recording
     led_setting: float | None = None  # LED setting written in a Sr2+-oEPSC folder name, e.g., 20 for cell1_LED20-001
+    region: tuple[int, int] | None = None  # (slice, ROI) of a GRAB-ACh recording
 
 
 @dataclass
@@ -142,8 +151,8 @@ class MouseDayBundle:
     """All sweeps from one mouse-day, grouped by cell."""
 
     subject_entry: SubjectEntry
-    # cell_index -> list of SweepRecord
-    cells: dict[int, list[SweepRecord]] = field(default_factory=lambda: defaultdict(list))
+    # cell_index -> list of SweepRecord; (slice, ROI) -> list of SweepRecord for GRAB-ACh regions
+    cells: dict[int | tuple[int, int], list[SweepRecord]] = field(default_factory=lambda: defaultdict(list))
 
     @property
     def date_compact(self) -> str:
@@ -252,6 +261,29 @@ _RE_SOMATIC_LEAF = re.compile(r"^cell(\d+)(_[A-Za-z]+)?-(\d+)$")
 # (08162023a/LED20-NNN), no underscore (cell1LED20), "int" before the setting (cell1_LEDint14),
 # and "b", "_1mspulse" or "_real" after it (cell3_LED100b, cell1_LED100_1mspulse, cell2_LED4_real).
 _RE_OEPSC_LEAF = re.compile(r"^(?:cell(\d+)_?)?LED(?:int)?(\d+(?:\.\d+)?)(?:b|_1mspulse|_real)?-(\d+)$")
+
+# GRAB-ACh region folder: MMDDYYYYslice<N>ROI<M>, or MMDDYYYYslice<N> on the May and June days, which filmed one
+# region per slice.
+_RE_GRAB_ACH_REGION = re.compile(r"^(\d{8})slice(\d+)(?:ROI(\d+))?$")
+# GRAB-ACh recording: BOT_MMDDYYYY_<label>_<drug and stimulus>-NNN, e.g. BOT_04022024_slice1ROI1_quin_single-001.
+_RE_GRAB_ACH_LEAF = re.compile(r"^BOT_(\d{8})_([^_]+)_(.+)-(\d+)$")
+# The label names the slice and ROI (slice1ROI2), ROI "A" (slice1A, the only ROI of the slice) or the slice alone.
+_RE_GRAB_ACH_LABEL = re.compile(r"^slice(\d+)(?:ROI(\d+)|(A))?$")
+# Labels that disagree with their folder, placed with the lab's Data Connections sheet and the stage position in
+# each recording's XML.
+_GRAB_ACH_LABEL_FIXES = {
+    # 2024-04-12, a TTX recording in the slice 1 ROI 2 folder, at the ROI 2 position.
+    "slice1ROI22": "slice1ROI2",
+    # 2024-05-31, two 50 nM dopamine recordings at the position of slice1A, 3 minutes after its last one; slice1A has
+    # no others of that kind, and the sheet counts 2 regions that day.
+    "slice1realA": "slice1A",
+}
+# GRAB-ACh recordings left out on purpose.
+_GRAB_ACH_EXCLUDED = {
+    # A false start: filed under ROI 1 but recorded at the ROI 2 position, stopped after 2.9 s, before its stimulus
+    # at 10 s, and restarted 8 s later at the same spot as BOT_04022024_slice1ROI2_sul_sinlge-001. Only baseline.
+    "BOT_04022024_slice1ROI_sul_sinlge-001",
+}
 
 _LETTER_TO_INDEX = {"a": 1, "b": 2, "c": 3, "d": 4}
 
@@ -485,6 +517,55 @@ def _walk_oepsc_mmddyyyy_letter(
     return out
 
 
+def _walk_grab_ach(figure_root: Path) -> list[SweepRecord]:
+    """Walk GRAB-ACh folders: <condition>/MMDDYYYYslice<N>[ROI<M>]/BOT_MMDDYYYY_<label>_<drug and stimulus>-NNN.
+
+    Used by Figure 5. The folder gives the region (slice, ROI), ROI 1 when it names only the slice; the label in a
+    recording's name must agree with it.
+    """
+    out: list[SweepRecord] = []
+    for cond_dir in sorted(p for p in figure_root.iterdir() if p.is_dir()):
+        for region_dir in sorted(p for p in cond_dir.iterdir() if p.is_dir()):
+            outer = _RE_GRAB_ACH_REGION.match(region_dir.name)
+            if not outer:
+                raise ValueError(f"Unrecognized GRAB-ACh region folder: {region_dir}")
+            folder_date, slice_number, roi_number = outer.groups()
+            region = (int(slice_number), int(roi_number or 1))
+            for leaf in sorted(p for p in region_dir.iterdir() if p.is_dir()):
+                if leaf.name in _GRAB_ACH_EXCLUDED:
+                    continue
+                leaf_match = _RE_GRAB_ACH_LEAF.match(leaf.name)
+                if not leaf_match:
+                    raise ValueError(f"Unrecognized GRAB-ACh recording folder: {leaf}")
+                leaf_date, label, drug_and_stimulus, _seq = leaf_match.groups()
+                label_match = _RE_GRAB_ACH_LABEL.match(_GRAB_ACH_LABEL_FIXES.get(label, label))
+                if not label_match:
+                    raise ValueError(f"Unrecognized GRAB-ACh recording folder: {leaf}")
+                leaf_slice, leaf_roi, leaf_letter = label_match.groups()
+                # ROI "A" is ROI 1; a label without a ROI takes the folder's.
+                leaf_region = (int(leaf_slice), int(leaf_roi) if leaf_roi else 1 if leaf_letter else region[1])
+                if leaf_date != folder_date:
+                    raise ValueError(f"{leaf} is dated {leaf_date} but is in a folder dated {folder_date}")
+                if leaf_region != region:
+                    raise ValueError(f"{leaf} names {label} but is in the folder of slice {region[0]} ROI {region[1]}")
+                xml_path = leaf / f"{leaf.name}.xml"
+                pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
+                if pv_date is None:
+                    raise ValueError(f"No recording time in {xml_path}")
+                out.append(
+                    SweepRecord(
+                        modality="grab_ach",
+                        cell_index=None,
+                        condition_subfolder=cond_dir.name,
+                        recording_path=leaf,
+                        pv_scan_date=pv_date,
+                        suffix=drug_and_stimulus,
+                        region=region,
+                    )
+                )
+    return out
+
+
 def _walk_dendritic_mmdd_letter(
     figure_root: Path,
     dendritic_subdir: str,
@@ -633,6 +714,8 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
     oepsc_subdir = spec.get("oepsc_subdir")
     if oepsc_subdir is not None:
         sweeps.extend(_walk_oepsc_mmddyyyy_letter(fig_root, oepsc_subdir, condition_subfolders))
+    if spec.get("grab_ach"):
+        sweeps.extend(_walk_grab_ach(fig_root))
 
     # Load the subject registry and index by (date, animal, category).
     entries = load_registry()
@@ -704,7 +787,7 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
         if bundle is None:
             bundle = MouseDayBundle(subject_entry=subject)
             bundles_by_date[date_compact] = bundle
-        bundle.cells[sw.cell_index].append(sw)
+        bundle.cells[sw.cell_index if sw.region is None else sw.region].append(sw)
 
     bundles = sorted(bundles_by_date.values(), key=lambda b: b.date_compact)
     if unmatched:
