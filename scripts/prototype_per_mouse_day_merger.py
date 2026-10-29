@@ -45,6 +45,21 @@ warnings.filterwarnings("ignore", message=".*no datetime before year 1.*")
 import numpy as np
 import pandas as pd
 from hdmf.common import DynamicTable, DynamicTableRegion, VectorData
+from ndx_ophys_devices import (
+    Effector,
+    ExcitationSource,
+    ExcitationSourceModel,
+    ViralVector,
+    ViralVectorInjection,
+)
+from ndx_optogenetics import (
+    OptogeneticEffectors,
+    OptogeneticExperimentMetadata,
+    OptogeneticPulsesTable,
+    OptogeneticSitesTable,
+    OptogeneticViruses,
+    OptogeneticVirusInjections,
+)
 from neuroconv.utils import load_dict_from_file
 from pynwb import NWBFile
 from pynwb.base import TimeSeries, TimeSeriesReference, TimeSeriesReferenceVectorData
@@ -54,6 +69,8 @@ from pynwb.icephys import (
     CurrentClampSeries,
     CurrentClampStimulusSeries,
     IntracellularElectrode,
+    VoltageClampSeries,
+    VoltageClampStimulusSeries,
 )
 from pynwb.image import Image
 
@@ -1548,6 +1565,359 @@ def _build_recordings_index_table(
         ),
     )
     module.add(table)
+
+
+# --------- Sr2+-oEPSC (Figures 2 and 4) ---------------------------------------------
+
+
+# Reporter line -> (figure, recorded cells), for the session description.
+_OEPSC_CELLS = {
+    "tD-Tomato": ("Figure 2", "direct-pathway spiny projection neurons (dSPNs)"),
+    "eGFP": ("Figure 4", "indirect-pathway spiny projection neurons (iSPNs)"),
+}
+
+_OEPSC_ANALYSIS_WINDOW = (
+    "The paper counted asynchronous events from 40 ms to 400 ms after each flash onset (Methods, Data acquisition "
+    "and statistical analysis)."
+)
+
+
+@dataclass
+class LightEvokedProtocol:
+    """The commands of one Sr2+-oEPSC sweep, from its VoltageOutput XML."""
+
+    step_delay_ms: float  # amplifier command step
+    step_width_ms: float
+    step_amplitude_volts: float
+    flash_delay_ms: float  # LED pulse
+    flash_width_ms: float
+
+
+def _single_pulse(xml_path: Path, waveform_name: str) -> tuple[ET.Element, ET.Element]:
+    """The enabled waveform of this name and its only component, which must be a single pulse."""
+    root = ET.parse(xml_path).getroot()
+    waveforms = [
+        w for w in root.findall("Waveform") if w.findtext("Name") == waveform_name and w.findtext("Enabled") == "true"
+    ]
+    if len(waveforms) != 1:
+        raise ValueError(f"Expected one enabled {waveform_name} waveform in {xml_path}")
+    components = [c for c in waveforms[0] if c.tag.startswith("WaveformComponent")]
+    if len(components) != 1 or components[0].tag != "WaveformComponent_PulseTrain":
+        raise ValueError(f"Expected the {waveform_name} waveform in {xml_path} to be one pulse train")
+    if components[0].findtext("PulseCount") != "1" or components[0].findtext("Repetitions") != "1":
+        raise ValueError(f"Expected the {waveform_name} waveform in {xml_path} to be a single pulse")
+    return waveforms[0], components[0]
+
+
+def _read_light_evoked_protocol(sweep_path: Path) -> LightEvokedProtocol:
+    """Read the amplifier step and the LED pulse of one Sr2+-oEPSC sweep."""
+    xml_path = _find_voltage_output_xml(sweep_path)
+    if xml_path is None:
+        raise FileNotFoundError(f"No VoltageOutput XML in {sweep_path}")
+    amplifier, step = _single_pulse(xml_path, "700B")
+    if amplifier.findtext("Units") != "mV":
+        raise ValueError(f"Expected the 700B command of {xml_path} in mV")
+    # The analog output in volts times the amplifier's command sensitivity (mV per V) gives the command in mV.
+    step_mV = float(step.findtext("PulsePotentialStart")) * float(amplifier.findtext("UnitScaleFactor"))
+    _led, flash = _single_pulse(xml_path, "LED")
+    return LightEvokedProtocol(
+        step_delay_ms=float(step.findtext("FirstPulseDelay")),
+        step_width_ms=float(step.findtext("PulseWidth")),
+        step_amplitude_volts=step_mV * 1e-3,
+        flash_delay_ms=float(flash.findtext("FirstPulseDelay")),
+        flash_width_ms=float(flash.findtext("PulseWidth")),
+    )
+
+
+def _read_sweep_current(sweep_path: Path) -> tuple[np.ndarray, float]:
+    """Read the current of one voltage-clamp sweep in amperes, and its sample rate.
+
+    The VoltageRecording XML gives the recorded signal's unit and gain: pA = value * multiplier / divisor.
+    """
+    xml_candidates = list(sweep_path.glob("*_VoltageRecording_001.xml"))
+    csv_candidates = list(sweep_path.glob("*_VoltageRecording_001.csv"))
+    if len(xml_candidates) != 1 or len(csv_candidates) != 1:
+        raise FileNotFoundError(f"Expected one VoltageRecording XML and CSV in {sweep_path}")
+    signals = [s for s in ET.parse(xml_candidates[0]).getroot().iter("VRecSignal") if s.findtext("Enabled") == "true"]
+    if len(signals) != 1 or signals[0].findtext("Unit/UnitName") != "pA":
+        raise ValueError(f"Expected one recorded signal, in pA, in {xml_candidates[0]}")
+    multiplier = float(signals[0].findtext("Unit/Multiplier"))
+    divisor = float(signals[0].findtext("Unit/Divisor"))
+    frame = pd.read_csv(csv_candidates[0], header=0)
+    time_ms = frame.iloc[:, 0].to_numpy()
+    current_amperes = frame.iloc[:, 1].to_numpy() * multiplier / divisor * 1e-12
+    sample_rate = round(1000.0 / (time_ms[1] - time_ms[0]))
+    return current_amperes.astype(np.float32), float(sample_rate)
+
+
+def _add_optogenetics_metadata(nwbfile: NWBFile) -> OptogeneticSitesTable:
+    """The LED, the ChR2 virus and its injection, from the paper's Methods; returns the sites table."""
+    led_model = ExcitationSourceModel(
+        name="CoolLEDModel",
+        manufacturer="CoolLED",
+        model_number="p100-470",
+        source_type="LED",
+        excitation_mode="one-photon",
+        description="CoolLED p100-470 blue LED (CoolLED, Andover, UK), as named in the paper's Methods.",
+    )
+    nwbfile.add_device_model(led_model)
+    led = ExcitationSource(
+        name="BlueLED",
+        description=(
+            "Blue LED (470 nm) giving whole-field illumination of the slice. Prairie View sent it a 5 V pulse for "
+            "each flash; the paper does not report the light power."
+        ),
+        model=led_model,
+    )
+    nwbfile.add_device(led)
+    virus = ViralVector(
+        name="ChR2Virus",
+        construct_name="AAV5-hSyn-hChR2(H134R)-eYFP",
+        manufacturer="Addgene (#26973)",
+        titer_in_vg_per_ml=float("nan"),
+        description="Expresses channelrhodopsin-2 (H134R) fused to eYFP under the human synapsin promoter. The paper "
+        "does not report the titer.",
+    )
+    injection = ViralVectorInjection(
+        name="ChR2VirusInjection",
+        description=(
+            "0.15 µl injected into the M1 motor cortex on the side of the 6-OHDA lesion, at ML -1.60 mm, AP 1.15 mm "
+            "and DV 1.55 mm relative to Bregma as given in the paper (DV stored as -1.55, ventral). Recordings were "
+            "made about 3 to 4 weeks after the injection."
+        ),
+        location="Primary motor area",
+        # In the paper negative ML is left (it injects "the left DLS" at ML -2.35), and the lesion protocol scores
+        # right-paw use, so the lesion and this injection are on the left.
+        hemisphere="left",
+        reference="Bregma",
+        ap_in_mm=1.15,
+        ml_in_mm=-1.60,
+        dv_in_mm=-1.55,
+        volume_in_uL=0.15,
+        viral_vector=virus,
+    )
+    effector = Effector(
+        name="ChR2",
+        label="hChR2(H134R)-eYFP",
+        description="Channelrhodopsin-2 in motor cortex neurons; the LED activates their axons in the striatum.",
+        viral_vector_injection=injection,
+    )
+    sites_table = OptogeneticSitesTable(
+        name="optogenetic_sites_table",
+        description="The one stimulation site: whole-field LED illumination of ChR2-expressing cortical axons in the "
+        "slice.",
+    )
+    sites_table.add_row(excitation_source=led, effector=effector)
+    nwbfile.add_lab_meta_data(
+        OptogeneticExperimentMetadata(
+            stimulation_software="Prairie View 5.3",
+            optogenetic_sites_table=sites_table,
+            optogenetic_viruses=OptogeneticViruses(viral_vectors=[virus]),
+            optogenetic_virus_injections=OptogeneticVirusInjections(viral_vector_injections=[injection]),
+            optogenetic_effectors=OptogeneticEffectors(effectors=[effector]),
+        )
+    )
+    return sites_table
+
+
+def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
+    """Build one Sr2+-oEPSC NWB file for a mouse-day (Figures 2 and 4) and write it to disk."""
+    session_start_time_naive = bundle.session_start_time
+    general = _general_metadata()
+    nwb_meta = general["NWBFile"]
+    subject_meta = general["Subject"]
+    subject_entry = bundle.subject_entry
+    figure, cells = _OEPSC_CELLS[subject_entry.animal]
+    conditions = {_CONDITION_LABEL[sw.condition_subfolder] for sweeps in bundle.cells.values() for sw in sweeps}
+    if len(conditions) != 1:
+        raise ValueError(f"{subject_entry.subject_id} has Sr2+-oEPSC recordings under {sorted(conditions)}")
+    (condition,) = conditions
+
+    nwbfile = NWBFile(
+        session_description=(
+            f"Sr2+-oEPSC recordings ({figure}): whole-cell voltage clamp of {len(bundle.cell_indices())} {cells} "
+            f"from one mouse in the {condition}. In Ca2+-free solution with 3 mM SrCl2, a blue LED flash on motor "
+            "cortex axons expressing ChR2 evokes asynchronous excitatory synaptic currents. One sweep per flash, "
+            "most of them 30 s apart."
+        ),
+        experiment_description=(
+            "Strength of cortical synapses onto striatal spiny projection neurons in 6-OHDA-lesioned mice in the "
+            "off- and on-states of levodopa-induced dyskinesia (LID)."
+        ),
+        identifier=str(uuid.uuid4()),
+        session_start_time=session_start_time_naive.replace(tzinfo=TIMEZONE),
+        session_id=_build_session_id(bundle),
+        experimenter=nwb_meta["experimenter"],
+        institution=nwb_meta["institution"],
+        lab=nwb_meta["lab"],
+        keywords=nwb_meta["keywords"],
+        related_publications=nwb_meta["related_publications"],
+        surgery=(
+            nwb_meta["surgery"] + "ChR2 virus (AAV5-hSyn-hChR2(H134R)-eYFP, 0.15 µl) injected into the M1 motor "
+            "cortex on the side of the lesion, at ML -1.60, AP 1.15 and DV 1.55 mm relative to Bregma; recordings "
+            "about 3 to 4 weeks later."
+        ),
+        pharmacology=(
+            nwb_meta["pharmacology"] + "During recording the slice was superfused with Ca2+-free ACSF containing "
+            "3 mM SrCl2 and 10 µM gabazine (to block GABA-A currents), starting 25 min before recording."
+        ),
+        slices=nwb_meta["slices"],
+    )
+    nwbfile.subject = Subject(
+        subject_id=subject_entry.subject_id,
+        species=subject_meta["species"],
+        strain=subject_meta["strain"],
+        sex=subject_meta["sex"],
+        age=subject_meta["age"],
+        description=(
+            f"Reporter line {subject_entry.animal}, category {subject_entry.category}. Unilateral 6-OHDA lesion of "
+            "the medial forebrain bundle and ChR2 virus injected into the motor cortex on the same side; see surgery."
+        ),
+    )
+    amplifier = Device(name="MultiClamp700B", description="Molecular Devices MultiClamp 700B patch-clamp amplifier.")
+    nwbfile.add_device(amplifier)
+    sites_table = _add_optogenetics_metadata(nwbfile)
+
+    pulses_table = OptogeneticPulsesTable(
+        name="optogenetic_pulses_table",
+        description=(
+            "One row per LED flash: the start and end of the 5 V pulse Prairie View sent to the LED, 20 ms into each "
+            "sweep, at 470 nm. power_in_mW is NaN because the paper does not report the light power. "
+            + _OEPSC_ANALYSIS_WINDOW
+        ),
+        target_tables={"optogenetic_sites": sites_table},
+    )
+    pulses_table.add_column(name="cell_id", description="Cell recorded during this flash.")
+    pulses_table.add_column(
+        name="led_setting",
+        description=(
+            "LED setting the lab wrote in the recording folder names (20 for 'cell1_LED20-001'); the files do not "
+            "say what it measures."
+        ),
+    )
+    nwbfile.add_time_intervals(pulses_table)
+
+    irt = nwbfile.get_intracellular_recordings()
+    irt.add_column(
+        name="cell_id", description="Cell number within this file (the cells recorded from this mouse on this day)."
+    )
+    irt.add_column(name="condition", description="Experimental condition, named as in the paper's figure legends.")
+    irt.add_column(name="site", description="Recording site: 'Soma', the cell body, where the pipette was.")
+    irt.add_column(
+        name="sweep_start_time",
+        description=(
+            "Start of the sweep in seconds from session_start_time, from the Prairie View XML at 1-second precision. "
+            "The voltage-clamp series store the sweeps back to back, so their own time axis does not show the gaps "
+            "between sweeps."
+        ),
+    )
+
+    irt_rows_per_cell: dict[int, list[int]] = defaultdict(list)
+    for cell_index in bundle.cell_indices():
+        electrode = _build_electrode(nwbfile, cell_index, amplifier)
+        sweeps = bundle.sweeps_for(cell_index)
+        currents, commands, sweep_slices = [], [], []
+        sample_rate = None
+        cumulative = 0
+        for sw in sweeps:
+            current, rate = _read_sweep_current(sw.recording_path)
+            if sample_rate is None:
+                sample_rate = rate
+            elif rate != sample_rate:
+                raise ValueError(f"{sw.recording_path} is sampled at {rate} Hz, the other sweeps at {sample_rate} Hz")
+            protocol = _read_light_evoked_protocol(sw.recording_path)
+            command = np.zeros(len(current), dtype=np.float32)
+            step_start = round(protocol.step_delay_ms * 1e-3 * rate)
+            command[step_start : step_start + round(protocol.step_width_ms * 1e-3 * rate)] = (
+                protocol.step_amplitude_volts
+            )
+            sweep_start_time = (sw.pv_scan_date - session_start_time_naive).total_seconds()
+            currents.append(current)
+            commands.append(command)
+            sweep_slices.append((cumulative, len(current), sweep_start_time, protocol, sw))
+            cumulative += len(current)
+
+        response = VoltageClampSeries(
+            name=f"VoltageClampSeriesCell{cell_index}",
+            description=(
+                f"Whole-cell voltage-clamp current from cell {cell_index}, held at -70 mV (paper Methods). Each 1 s "
+                "sweep has one blue LED flash at 20 ms (see the optogenetic pulses table) and a -5 mV, 50 ms command "
+                f"step at 920 ms. {_OEPSC_ANALYSIS_WINDOW} The {len(sweeps)} sweeps are stored back to back; each "
+                "sweep's start time is in the sweep_start_time column of the intracellular recordings table."
+            ),
+            data=np.concatenate(currents),
+            electrode=electrode,
+            rate=sample_rate,
+            starting_time=sweep_slices[0][2],
+        )
+        nwbfile.add_acquisition(response)
+        stimulus = VoltageClampStimulusSeries(
+            name=f"VoltageClampStimulusSeriesCell{cell_index}",
+            description=(
+                f"Command potential Prairie View sent to the amplifier during the sweeps of cell {cell_index}, read "
+                "from each sweep's VoltageOutput file: 0, then a -5 mV step of 50 ms at 920 ms. The amplifier added "
+                "it to the -70 mV holding potential (paper Methods), which the files do not record."
+            ),
+            data=np.concatenate(commands),
+            electrode=electrode,
+            rate=sample_rate,
+            starting_time=sweep_slices[0][2],
+        )
+        nwbfile.add_stimulus(stimulus)
+
+        for start_index, count, sweep_start_time, protocol, sw in sweep_slices:
+            row_index = nwbfile.add_intracellular_recording(
+                electrode=electrode,
+                stimulus=stimulus,
+                stimulus_start_index=start_index,
+                stimulus_index_count=count,
+                response=response,
+                response_start_index=start_index,
+                response_index_count=count,
+                cell_id=cell_index,
+                condition=condition,
+                site="Soma",
+                sweep_start_time=sweep_start_time,
+            )
+            irt_rows_per_cell[cell_index].append(row_index)
+            flash_start = sweep_start_time + protocol.flash_delay_ms * 1e-3
+            pulses_table.add_row(
+                start_time=flash_start,
+                stop_time=flash_start + protocol.flash_width_ms * 1e-3,
+                power_in_mW=float("nan"),
+                wavelength_in_nm=470.0,
+                optogenetic_sites=[0],
+                cell_id=cell_index,
+                led_setting=sw.led_setting,
+            )
+
+    # One sequential recording and one repetition per cell, all under the mouse-day's one condition.
+    repetitions_table = nwbfile.get_icephys_repetitions()
+    repetitions_table.add_column(name="cell_id", description="Cell this repetition belongs to.")
+    repetitions_table.add_column(name="protocol", description="Protocol of this repetition.")
+    repetitions_table.add_column(name="condition", description="Experimental condition of this repetition.")
+    repetition_indices = []
+    for cell_index, irt_rows in irt_rows_per_cell.items():
+        simultaneous = [nwbfile.add_icephys_simultaneous_recording(recordings=[row]) for row in irt_rows]
+        sequential = nwbfile.add_icephys_sequential_recording(
+            simultaneous_recordings=simultaneous, stimulus_type="Sr2+-oEPSC"
+        )
+        repetition_indices.append(
+            nwbfile.add_icephys_repetition(
+                sequential_recordings=[sequential], cell_id=cell_index, protocol="Sr2+-oEPSC", condition=condition
+            )
+        )
+    conditions_table = nwbfile.get_icephys_experimental_conditions()
+    conditions_table.add_column(
+        name="condition", description="Experimental condition, named as in the paper's figure legends."
+    )
+    nwbfile.add_icephys_experimental_condition(repetitions=repetition_indices, condition=condition)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
+
+    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5")
+    return output_path
 
 
 # Library module: `merge_one_mouse_day` is imported by the production runner

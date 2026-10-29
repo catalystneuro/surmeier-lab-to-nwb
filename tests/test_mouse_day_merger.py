@@ -3,13 +3,17 @@
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 from pynwb import NWBHDF5IO
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from prototype_per_mouse_day_merger import merge_one_mouse_day  # noqa: E402
+from prototype_per_mouse_day_merger import (  # noqa: E402
+    merge_oepsc_mouse_day,
+    merge_one_mouse_day,
+)
 
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (  # noqa: E402
     _walk_dendritic_mmdd_letter,
@@ -178,3 +182,23 @@ def test_sr_oepsc_recording_naming_another_cell_raises(tmp_path):
     (tmp_path / "Sr-oEPSC" / "LID off-state" / "07062023b" / "cell1_LED20-001").mkdir(parents=True)
     with pytest.raises(ValueError, match="names cell 1 but is in the folder of cell 2"):
         _walk_oepsc_mmddyyyy_letter(tmp_path, "Sr-oEPSC", ["LID off-state"])
+
+
+def test_sr_oepsc_file_holds_every_cell_of_the_mouse_day(tmp_path):
+    # The published files kept one cell per day: for 2023-07-06 only cell 3, whose first sample is -14.83 pA.
+    bundle = next(
+        b for b in build_figure_bundles("F2") if b.subject_entry.subject_id == "Subject20230706LIDOFFtDTomato"
+    )
+    nwbfile_path = merge_oepsc_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        irt = nwbfile.intracellular_recordings
+        assert sorted(set(irt["cell_id"].data[:])) == [1, 2, 3]
+        assert nwbfile.acquisition["VoltageClampSeriesCell3"].data[0] == pytest.approx(-1.48315430e-11)
+        # Every sweep links its amplifier command and has one 0.3 ms flash 20 ms after it starts.
+        stimuli = irt.category_tables["stimuli"]["stimulus"].data[:]
+        assert all(start_index >= 0 for start_index, _count, _series in stimuli)
+        pulses = nwbfile.intervals["optogenetic_pulses_table"]
+        np.testing.assert_allclose(pulses["start_time"][:] - irt["sweep_start_time"].data[:], 0.020)
+        np.testing.assert_allclose(pulses["stop_time"][:] - pulses["start_time"][:], 0.0003)
