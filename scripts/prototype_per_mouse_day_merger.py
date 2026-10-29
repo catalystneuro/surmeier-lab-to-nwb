@@ -279,51 +279,53 @@ def _read_scan_line_rate(sweep_path: Path) -> float | None:
 
 @dataclass
 class StimulusProtocol:
-    """Parsed current-step stimulus protocol from a VoltageOutput XML."""
+    """Current-clamp command of one sweep, read from its VoltageOutput XML."""
 
-    name: str  # e.g., "Step 5_-40 pA"
-    amplitude_pA: float  # commanded step amplitude in picoamperes
-    first_pulse_delay_ms: float  # delay before the step in milliseconds
-    pulse_width_ms: float  # step duration in milliseconds
+    name: str  # e.g., "Step 5_-40 pA", "Trio bAP"
+    amplitude_pA: float  # amplitude of the injected current in picoamperes: the step, or each dendritic-trial pulse
+    pulses_ms: list[tuple[float, float]]  # (start, width) of each current pulse, in ms from the start of the sweep
 
 
-def _parse_voltage_output(xml_path: Path) -> StimulusProtocol | None:
-    """Parse a Bruker VoltageOutput XML to extract the current-clamp protocol step.
+def _parse_voltage_output(xml_path: Path) -> StimulusProtocol:
+    """Read the current-clamp command from a Bruker VoltageOutput XML.
 
-    Returns a `StimulusProtocol` for the first enabled '700B' waveform component,
-    or None if the file can't be parsed.
+    The enabled '700B' waveform (the amplifier command) is a sequence of pulse-train components played back to back:
+    each waits its FirstPulseDelay, then gives PulseCount pulses of PulseWidth separated by PulseSpacing. Somatic
+    sweeps have their step in the first component (200 ms in, 500 ms long). Dendritic sweeps have three 2 ms pulses
+    in the second ("Theta burst"), 900 ms after a 100 ms first component, so at 1000, 1020 and 1040 ms, when the
+    recorded spikes occur. The other components are 0 pA.
     """
-    try:
-        tree = ET.parse(xml_path)
-    except (ET.ParseError, OSError):
-        return None
-    root = tree.getroot()
-    name = root.findtext("Name", default="").strip()
-    # Find the '700B' waveform (the patch amplifier output).
-    for waveform in root.findall("Waveform"):
-        if waveform.findtext("Name") != "700B":
+    root = ET.parse(xml_path).getroot()
+    waveforms = [w for w in root.findall("Waveform") if w.findtext("Enabled", default="false").lower() == "true"]
+    if [w.findtext("Name") for w in waveforms] != ["700B"] or waveforms[0].findtext("Units") != "pA":
+        raise ValueError(f"{xml_path} does not have the 700B current command as its only output")
+    scale_factor = float(waveforms[0].findtext("UnitScaleFactor"))
+    amplitudes: set[float] = set()
+    pulses_ms: list[tuple[float, float]] = []
+    component_start = 0.0
+    for component in waveforms[0]:
+        if not component.tag.startswith("WaveformComponent"):
             continue
-        if waveform.findtext("Enabled", default="false").lower() != "true":
-            continue
-        scale_factor = float(waveform.findtext("UnitScaleFactor", default="1"))
-        # The first PulseTrain component carries the step amplitude.
-        pulse_train = waveform.find("WaveformComponent_PulseTrain")
-        if pulse_train is None:
-            continue
-        try:
-            potential_volts = float(pulse_train.findtext("PulsePotentialStart", default="0"))
-            pulse_width_ms = float(pulse_train.findtext("PulseWidth", default="0"))
-            first_pulse_delay_ms = float(pulse_train.findtext("FirstPulseDelay", default="0"))
-        except (TypeError, ValueError):
-            continue
-        amplitude_pA = potential_volts * scale_factor
-        return StimulusProtocol(
-            name=name,
-            amplitude_pA=amplitude_pA,
-            first_pulse_delay_ms=first_pulse_delay_ms,
-            pulse_width_ms=pulse_width_ms,
-        )
-    return None
+        values = {child.tag: float(child.text) for child in component if child.tag != "Name"}
+        if (
+            component.tag != "WaveformComponent_PulseTrain"
+            or values["Repetitions"] != 1
+            or values["PulsePotentialDelta"] != 0
+            or values["RestPotential"] != 0
+        ):
+            raise ValueError(f"{xml_path}: component {component.findtext('Name')} is not one train of equal pulses")
+        count, width, spacing = int(values["PulseCount"]), values["PulseWidth"], values["PulseSpacing"]
+        first_start = component_start + values["FirstPulseDelay"]
+        amplitude = values["PulsePotentialStart"] * scale_factor
+        if amplitude != 0:
+            amplitudes.add(amplitude)
+            pulses_ms.extend((first_start + number * (width + spacing), width) for number in range(count))
+        component_start = first_start + count * width + (count - 1) * spacing
+    if len(amplitudes) != 1:
+        raise ValueError(f"{xml_path} injects current at {sorted(amplitudes)} pA, not at one amplitude")
+    return StimulusProtocol(
+        name=root.findtext("Name", default="").strip(), amplitude_pA=amplitudes.pop(), pulses_ms=pulses_ms
+    )
 
 
 def _find_voltage_output_xml(sweep_path: Path) -> Path | None:
@@ -337,16 +339,14 @@ def _synthesize_stimulus_waveform(
     n_samples: int,
     rate_hz: float,
 ) -> np.ndarray:
-    """Build the commanded current waveform (in amperes) from a parsed protocol.
+    """Build the commanded current waveform (in amperes) from a parsed protocol: its pulses on a zero baseline.
 
-    Layout: zeros for `first_pulse_delay_ms`, then amplitude for `pulse_width_ms`,
-    then zeros to the end of the sweep. All converted from pA to amperes.
+    The waveform covers the recorded sweep only; a pulse after its end is left out, and the caller says so.
     """
     waveform = np.zeros(n_samples, dtype=np.float32)
-    start_sample = int(round(protocol.first_pulse_delay_ms * 1e-3 * rate_hz))
-    width_samples = int(round(protocol.pulse_width_ms * 1e-3 * rate_hz))
-    end_sample = min(start_sample + width_samples, n_samples)
-    if start_sample < n_samples:
+    for start_ms, width_ms in protocol.pulses_ms:
+        start_sample = int(round(start_ms * 1e-3 * rate_hz))
+        end_sample = start_sample + int(round(width_ms * 1e-3 * rate_hz))
         waveform[start_sample:end_sample] = protocol.amplitude_pA * 1e-12
     return waveform
 
@@ -511,14 +511,14 @@ def _build_concatenated_series(
     tuple[
         CurrentClampSeries,
         CurrentClampStimulusSeries,
-        list[tuple[int, int, float, StimulusProtocol | None]],
+        list[tuple[int, int, float, StimulusProtocol]],
     ]
     | None
 ):
     """Concatenate all sweeps of (cell, modality) into one PatchClampSeries.
 
     Returns (response_series, stimulus_series, sweep_slices) where each slice carries
-    (idx_start, count, sweep_start_time_seconds, stimulus_protocol_or_None). The stimulus
+    (idx_start, count, sweep_start_time_seconds, stimulus_protocol). The stimulus
     protocol is parsed from the VoltageOutput XML alongside each sweep and used to
     populate the IRT's `stimulus_current_pA` column plus the synthesized stimulus waveform.
     """
@@ -528,9 +528,11 @@ def _build_concatenated_series(
 
     voltage_chunks: list[np.ndarray] = []
     stim_chunks: list[np.ndarray] = []
-    sweep_slices: list[tuple[int, int, float, StimulusProtocol | None]] = []
+    sweep_slices: list[tuple[int, int, float, StimulusProtocol]] = []
     sample_rate: float | None = None
     cumulative = 0
+    # Durations of the sweeps whose recording stops before their current command ends.
+    short_sweep_seconds: list[float] = []
     for sw in sweeps:
         voltage, rate = _read_sweep_voltage(sw.recording_path)
         if sample_rate is None:
@@ -539,15 +541,18 @@ def _build_concatenated_series(
             raise ValueError(f"{sw.recording_path} is sampled at {rate} Hz, the other sweeps at {sample_rate} Hz")
         # Parse the stimulus protocol from the VoltageOutput XML for this sweep.
         vo_xml = _find_voltage_output_xml(sw.recording_path)
-        protocol = _parse_voltage_output(vo_xml) if vo_xml is not None else None
-        if protocol is not None:
-            stim_waveform = _synthesize_stimulus_waveform(
-                protocol,
-                n_samples=len(voltage),
-                rate_hz=float(sample_rate),
-            )
-        else:
-            stim_waveform = np.zeros_like(voltage)
+        if vo_xml is None:
+            raise FileNotFoundError(f"No VoltageOutput file with the current command in {sw.recording_path}")
+        protocol = _parse_voltage_output(vo_xml)
+        if sum(protocol.pulses_ms[-1]) > len(voltage) / sample_rate * 1e3:
+            if modality != "dend_excitability":
+                raise ValueError(f"{sw.recording_path} is recorded for less time than its current command lasts")
+            short_sweep_seconds.append(len(voltage) / sample_rate)
+        stim_waveform = _synthesize_stimulus_waveform(
+            protocol,
+            n_samples=len(voltage),
+            rate_hz=float(sample_rate),
+        )
         voltage_chunks.append(voltage)
         stim_chunks.append(stim_waveform)
         offset_s = (sw.pv_scan_date - session_start_time).total_seconds()
@@ -564,6 +569,14 @@ def _build_concatenated_series(
         recording = "while current steps were injected at the cell body to measure its firing (F-I curve)."
     else:
         recording = "during dendritic imaging." + _DENDRITIC_TRIAL
+    short_sweeps = ""
+    if short_sweep_seconds:
+        seconds = " or ".join(f"{duration:g}" for duration in sorted(set(short_sweep_seconds)))
+        short_sweeps = (
+            f" {len(short_sweep_seconds)} of the sweeps were recorded for only {seconds} s and end before the current "
+            "injections, so they hold neither the injections nor the spikes; the injections were given, as the "
+            "calcium signal in each of those trials' line scans shows."
+        )
     response = CurrentClampSeries(
         name=series_name,
         data=data_concat,
@@ -574,7 +587,7 @@ def _build_concatenated_series(
         description=(
             f"Current-clamp recordings from cell {cell_index}, {recording} The {len(sweep_slices)} sweeps are "
             "stored back to back; each sweep's start time is in the sweep_start_time column of the intracellular "
-            "recordings table."
+            "recordings table." + short_sweeps
         ),
     )
     nwbfile.add_acquisition(response)
@@ -588,8 +601,9 @@ def _build_concatenated_series(
         starting_time=sweep_slices[0][2],
         description=(
             f"Commanded current waveform paired with {series_name}. Synthesized from each "
-            "sweep's Bruker VoltageOutput XML (step amplitude × pulse width); the per-sweep "
-            "amplitude is also exposed via the IntracellularRecordingsTable.stimulus_current_pA column."
+            "sweep's Bruker VoltageOutput XML (every current pulse, with its amplitude, width and timing); the "
+            "per-sweep amplitude is also exposed via the IntracellularRecordingsTable.stimulus_current_pA column."
+            + short_sweeps
         ),
     )
     nwbfile.add_stimulus(stim)
@@ -772,9 +786,9 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     irt.add_column(
         name="stimulus_current_pA",
         description=(
-            "Commanded current-step amplitude in picoamperes for this sweep. Parsed from "
-            "the Bruker VoltageOutput XML alongside each sweep (PulsePotentialStart × UnitScaleFactor). "
-            "0 if the protocol could not be parsed."
+            "Commanded current amplitude in picoamperes for this sweep: the step for a somatic sweep, each of the "
+            "three pulses for a dendritic one. Parsed from the Bruker VoltageOutput XML alongside each sweep "
+            "(PulsePotentialStart × UnitScaleFactor)."
         ),
     )
     irt.add_column(
@@ -828,8 +842,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     dendrite_type="Soma",
                     dendrite_distance_um=0.0,
                     sweep_start_time=sweep_start_time,
-                    stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
-                    stimulus_protocol_name=protocol.name if protocol else "",
+                    stimulus_current_pA=protocol.amplitude_pA,
+                    stimulus_protocol_name=protocol.name,
                     condition=condition,
                     site="Soma",
                 )
@@ -841,7 +855,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     "dendrite_type": "Soma",
                     "dendrite_distance_um": 0.0,
                     "site": "Soma",
-                    "stimulus_current_pA": protocol.amplitude_pA if protocol else 0.0,
+                    "stimulus_current_pA": protocol.amplitude_pA,
                     "sweep_start_time_s": float(sweep_start_time),
                 }
 
@@ -900,8 +914,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 dendrite_type=dendrite_type,
                 dendrite_distance_um=dendrite_distance,
                 sweep_start_time=sweep_start_time,
-                stimulus_current_pA=protocol.amplitude_pA if protocol else 0.0,
-                stimulus_protocol_name=protocol.name if protocol else "",
+                stimulus_current_pA=protocol.amplitude_pA,
+                stimulus_protocol_name=protocol.name,
                 condition=condition,
                 site=site,
             )
@@ -913,7 +927,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 "dendrite_type": dendrite_type,
                 "dendrite_distance_um": dendrite_distance,
                 "site": site,
-                "stimulus_current_pA": protocol.amplitude_pA if protocol else 0.0,
+                "stimulus_current_pA": protocol.amplitude_pA,
                 "sweep_start_time_s": float(sweep_start_time),
             }
 
@@ -1494,7 +1508,10 @@ def _build_recordings_index_table(
         ),
         VectorData(
             name="stimulus_current_pA",
-            description="Commanded current-step amplitude in picoamperes for this sweep.",
+            description=(
+                "Commanded current amplitude in picoamperes for this sweep: the step for a somatic sweep, each of "
+                "the three pulses for a dendritic one."
+            ),
             data=stim_pA_col,
         ),
         VectorData(
