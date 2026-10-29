@@ -29,6 +29,7 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_olympus_fv10i_model
+from surmeier_lab_to_nwb.zhai2025.subjects import SUBJECTS
 
 
 def parse_pty_file(pty_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -235,8 +236,7 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
 
     # Parse session info from folder name
     session_name = session_folder.name
-    # Extract animal ID (first part before space or dash)
-    animal_id = session_name.split()[0] if " " in session_name else session_name.split("-")[0]
+    mouse_number = int(re.match(r"\d+", session_name).group())  # "5104-3 60x str_Cycle" is mouse 5104
 
     # The first tile's OIF file records when the mosaic was started, in the lab's local time
     oif_text = oif_files[0].read_text(encoding="utf-16")
@@ -274,29 +274,38 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_4h_confocal_spine_density_olympus"]
+    # The mouse, its surgery and its sections are those of the Figure 4J confocal mice
+    confocal_template = session_metadata_template["figure_4_confocal_spine_density_nikon"]
     surgery, pharmacology = surgery_and_pharmacology("UnlesionedControl", general_metadata)
+    subject = next(subject for subject in SUBJECTS if subject.mouse_number == mouse_number)
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                num_stacks=len(oif_files), animal_id=animal_id
+                num_stacks=len(oif_files), animal_id=mouse_number
             ),
             "session_start_time": session_start_time,
             "session_id": session_id,
-            "surgery": surgery + " " + script_template["NWBFile"]["surgery_addition"],
+            "surgery": surgery + " " + confocal_template["NWBFile"]["surgery_addition"],
             "pharmacology": pharmacology,
+            "slices": confocal_template["NWBFile"]["slices"],
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_confocal_olympus_mouse_{animal_id}",
-            "description": script_template["Subject"]["description"].format(animal_id=animal_id),
-            "genotype": script_template["Subject"]["genotype"],
+            "subject_id": subject.subject_id,
+            "description": confocal_template["Subject"]["description"].format(
+                mouse_number=mouse_number, group="unlesioned control: no 6-OHDA lesion and no levodopa"
+            ),
+            "strain": subject.strain,
+            "genotype": subject.genotype,
         },
     }
 
     # Merge general metadata with session-specific metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
+    if subject.strain is None:  # the paper gives no background for this line
+        del merged_metadata["Subject"]["strain"]
 
     # Create NWB file using neuroconv helper function
     nwbfile = make_nwbfile_from_metadata(merged_metadata)

@@ -173,53 +173,49 @@ figure_4_optical_stimuli:
 figure_4_confocal_spine_density_nikon:
   NWBFile:
     session_description: >
-      "High-resolution confocal spine density imaging for methodological validation study.
-      Nikon A1R confocal microscopy with 100x oil immersion objective (NA=1.4) and 405/488/561 nm laser excitation.
-      Z-stack acquisition with 0.05 μm step size for superior spine detection compared to two-photon microscopy.
-      Animal {animal_id} processed for Figure 4 comparison analysis."
-    slices: "Brains were dissected out and post-fixed in 4% PFA-PBS overnight at 4°C. Coronal slices (100 μm-thick) were cut using a vibratome (Leica VT1200), permeabilized and blocked at 4°C in PBS including 5% normal goat serum and 0.2% Triton-X100 (NGS/PBST), incubated with rabbit phospho-ERK antibody (Cell Signaling, #9101; 1:100 dilution) and mouse tyrosine hydroxylase antibody (Immunostar, #22941; 1:200 dilution) diluted in NGS-PBST overnight at 4°C. After four washes in NGS/PBST, the slices were incubated with 1:1000 goat anti-rabbit Alexa Fluor 488 or goat anti-mouse Alexa Fluor 555 (Invitrogen A-11001 and A-21428) for 2 hours at room temperature. Slices were washed with NGS-PBST four times and PBS once, mounted with VECTASHIELD Antifade Mounting Medium (Vector Laboratories, H-1000-10), and viewed under an automated laser scanning confocal microscope (FV10i-DUC; Olympus). Images were adjusted for brightness, contrast, and pseudo-coloring in ImageJ (US National Institutes of Health)."
+      High-resolution confocal z-stacks of {num_stacks} proximal dendrite segments of sparsely labeled iSPNs from
+      mouse {mouse_number} ({condition}), the data of Figure 4J and Supplementary Figure 5. Fixed sagittal sections
+      were imaged on a Nikon AXR confocal with a 60x oil immersion objective (NA 1.49), 0.09 µm pixels and 0.125 µm z
+      steps, on {imaging_days}. The stacks are the raw acquisitions; the lab then denoised and deconvolved them in
+      NIS-Elements AR 5.41.02 and counted spines in Imaris 10.0.0 on segments about 30 µm long, about 30 µm from the
+      soma. The session start is the acquisition of the first stack.
+    surgery_addition: >
+      To label a few iSPNs, AAV9-pCAG-flex-eGFP-WPRE (Addgene #51502; 0.45 µl, 5 x 10^10 viral genomes/ml), which
+      expresses eGFP only in cells with Cre, was injected into the left dorsolateral striatum at AP 0.7, ML -2.35 and
+      DV about 3.35 mm relative to Bregma, in Adora2-Cre mice about 2 months old.
+    on_state_pharmacology: >
+      On-state mice received a sixth dose of levodopa (12 mg/kg, with 12 mg/kg benserazide) one hour before
+      anesthesia.
+    slices: >
+      Mice were anesthetized with isoflurane and then a ketamine/xylazine mixture, and transcardially perfused with
+      PBS (about 20 ml) and then 4% paraformaldehyde (about 30 ml). Brains were post-fixed in 4% paraformaldehyde for
+      1.5 to 2 hours and stored at 4 °C in PBS with 0.1% sodium azide. Sagittal sections 60 µm thick containing the
+      dorsolateral striatum were cut on a Leica VT1200S vibratome and mounted on glass slides under No. 1.5 cover
+      glasses in ProLong Diamond Antifade Mountant (Thermo Fisher Scientific, P36961).
     keywords:
       - "confocal microscopy"
       - "spine density"
-      - "Nikon A1R"
-      - "methodological validation"
-      - "high-resolution imaging"
       - "dendritic spines"
+      - "sparse labeling"
+      - "Nikon AXR"
+      - "iSPN"
   Subject:
-    genotype: "Drd2-EGFP+"
     description: >
-      "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
-      Received dyskinesiogenic levodopa treatment for spine density analysis.
-      iSPNs identified by Drd2-EGFP expression. Animal {animal_id} processed for confocal imaging validation study."
-    # The control groups; the description above is for lesioned, levodopa-treated mice
-    description_by_state:
-      UnlesionedControl: >
-        Adult mouse, unlesioned control: no 6-OHDA lesion and no levodopa. Animal {animal_id} processed for confocal imaging validation study.
-      LesionedControl: >
-        Adult mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. Animal {animal_id} processed for confocal imaging validation study.
+      Adora2-Cre mouse {mouse_number} in the lab's numbering, {group}; iSPNs sparsely labeled with a Cre-dependent
+      eGFP virus, see surgery.
 
 figure_4h_confocal_spine_density_olympus:
   NWBFile:
     session_description: >
-      "High-resolution confocal spine density imaging using Olympus FV10i microscopy for methodological validation study.
-      100x oil immersion objective (NA=1.4) with multi-laser excitation for superior spine detection.
-      Z-stack acquisition optimized for spine morphology analysis.
-      Animal {animal_id} processed for Figure 4H comparison analysis."
-    surgery_addition: "Sparse iSPN labeling achieved via stereotaxic injection of AAV-Cre into dorsolateral striatum of WT mice followed by AAV-FLEX-tdTomato for reporter expression."
-    slices: "Brains were dissected out and post-fixed in 4% PFA-PBS overnight at 4°C. Coronal slices (100 μm-thick) were cut using a vibratome (Leica VT1200), permeabilized and blocked at 4°C in PBS including 5% normal goat serum and 0.2% Triton-X100 (NGS/PBST), incubated with rabbit phospho-ERK antibody (Cell Signaling, #9101; 1:100 dilution) and mouse tyrosine hydroxylase antibody (Immunostar, #22941; 1:200 dilution) diluted in NGS-PBST overnight at 4°C. After four washes in NGS/PBST, the slices were incubated with 1:1000 goat anti-rabbit Alexa Fluor 488 or goat anti-mouse Alexa Fluor 555 (Invitrogen A-11001 and A-21428) for 2 hours at room temperature. Slices were washed with NGS-PBST four times and PBS once, mounted with VECTASHIELD Antifade Mounting Medium (Vector Laboratories, H-1000-10), and viewed under an automated laser scanning confocal microscope (FV10i-DUC; Olympus). Images were adjusted for brightness, contrast, and pseudo-coloring in ImageJ (US National Institutes of Health)."
+      Overview of sparsely labeled iSPNs in the dorsolateral striatum of control mouse {animal_id}, the image of
+      Figure 4H: {num_stacks} z-stack tiles, which the lab stitched, taken on an Olympus confocal with a 60x oil
+      immersion objective (UPLSAP60xO, NA 1.35) and a 473 nm laser. The session start is the capture of the first
+      tile.
     keywords:
       - "confocal microscopy"
-      - "spine density"
-      - "Olympus FV10i"
-      - "methodological validation"
-      - "high-resolution imaging"
-      - "dendritic spines"
-  Subject:
-    genotype: "Wild-type with sparse iSPN labeling"
-    description: >
-      Adult mouse with sparse iSPN labeling via AAV-Cre/FLEX system, unlesioned control: no 6-OHDA lesion and no
-      levodopa. Animal {animal_id}, one of the control mice of Figure 4J, processed for Figure 4H methodological
-      comparison study.
+      - "sparse labeling"
+      - "Olympus"
+      - "iSPN"
 
 # Figure 5 Scripts
 figure_5_acetylcholine_biosensor:

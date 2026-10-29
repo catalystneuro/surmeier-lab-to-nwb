@@ -33,17 +33,17 @@ WILD_TYPE = "wild type"
 class SubjectEntry:
     """One mouse."""
 
-    date_compact: str  # YYYYMMDD: the recording day, or a behaviour mouse's first session
+    date_compact: str  # YYYYMMDD: recording day, a behaviour mouse's first session, or a confocal mouse's imaging day
     animal: str | None  # the line, as Data Connections writes it ("tD-Tomato", "eGFP", "CDGIko X eGFP", ...)
     category: str  # the group, as Data Connections writes it ("CONT", "LID OFF", "M1R CRSPR", ...)
     strain: str | None
     genotype: str
-    mouse_number: int | None = None  # the lab's number, given only to the behaviour mice
+    mouse_number: int | None = None  # the lab's number, for the behaviour and confocal mice
     note: str = ""
 
     @property
     def subject_id(self) -> str:
-        """Subject, the date, the group and the line, and for a behaviour mouse M and its number."""
+        """Subject, the date, the group and the line, and for a numbered mouse M and its number."""
         subject_id = f"Subject{self.date_compact}{_slug(self.category)}{_slug(self.animal)}"
         return subject_id if self.mouse_number is None else f"{subject_id}M{self.mouse_number}"
 
@@ -298,22 +298,24 @@ SUBJECTS = (
     SubjectEntry("20221012", "Adora2-Cre", "CONT", None, ADORA2A_CRE),
     SubjectEntry("20221129", "Adora2-Cre", "M1R CRSPR", None, ADORA2A_CRE),
     SubjectEntry("20221130", "Adora2-Cre", "CONT", None, ADORA2A_CRE),
-    SubjectEntry("20230820", "Adora2-Cre", "CONT", None, ADORA2A_CRE),
-    SubjectEntry("20230820", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE),
-    SubjectEntry("20230901", "Adora2-Cre", "LID ON", None, ADORA2A_CRE),
-    SubjectEntry("20230911", "Adora2-Cre", "LID ON", None, ADORA2A_CRE),
-    SubjectEntry("20231022", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE),
-    SubjectEntry("20231022", "Adora2-Cre", "CONT", None, ADORA2A_CRE),
-    SubjectEntry("20231026", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE),
-    SubjectEntry("20231029", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE),
-    SubjectEntry("20231211", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE),
-    SubjectEntry("20231217", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE),
-    SubjectEntry("20240112", "Adora2-Cre", "LID ON", None, ADORA2A_CRE),
-    SubjectEntry("20240116", "Adora2-Cre", "CONT", None, ADORA2A_CRE),
-    SubjectEntry("20240218", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE),
-    SubjectEntry("20240222", "Adora2-Cre", "LID ON", None, ADORA2A_CRE),
-    SubjectEntry("20240227", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE),
-    SubjectEntry("20240303", "Adora2-Cre", "CONT", None, ADORA2A_CRE),
+    # The confocal mice of Figure 4J. The sheet lists them by group, number of cells and a day they were imaged;
+    # the number is the one the lab gave their image files, which match the rows one to one on those three.
+    SubjectEntry("20230820", "Adora2-Cre", "CONT", None, ADORA2A_CRE, mouse_number=5104),
+    SubjectEntry("20230820", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE, mouse_number=5105),
+    SubjectEntry("20230901", "Adora2-Cre", "LID ON", None, ADORA2A_CRE, mouse_number=5108),
+    SubjectEntry("20230911", "Adora2-Cre", "LID ON", None, ADORA2A_CRE, mouse_number=5107),
+    SubjectEntry("20231022", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE, mouse_number=3825),
+    SubjectEntry("20231022", "Adora2-Cre", "CONT", None, ADORA2A_CRE, mouse_number=3824),
+    SubjectEntry("20231026", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE, mouse_number=3823),
+    SubjectEntry("20231029", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE, mouse_number=3826),
+    SubjectEntry("20231211", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE, mouse_number=8040),
+    SubjectEntry("20231217", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE, mouse_number=8041),
+    SubjectEntry("20240112", "Adora2-Cre", "LID ON", None, ADORA2A_CRE, mouse_number=8042),
+    SubjectEntry("20240116", "Adora2-Cre", "CONT", None, ADORA2A_CRE, mouse_number=8038),
+    SubjectEntry("20240218", "Adora2-Cre", "6-OHDA", None, ADORA2A_CRE, mouse_number=8941),
+    SubjectEntry("20240222", "Adora2-Cre", "LID ON", None, ADORA2A_CRE, mouse_number=8939),
+    SubjectEntry("20240227", "Adora2-Cre", "LID OFF", None, ADORA2A_CRE, mouse_number=8943),
+    SubjectEntry("20240303", "Adora2-Cre", "CONT", None, ADORA2A_CRE, mouse_number=8940),
     # Behaviour mice, under the lab's numbers: AIM scores and rotation videos (Figures 7 and 8, Supplementary Figure 3)
     SubjectEntry("20171215", "eGFP", "CONT", C57BL6, DRD2_EGFP, mouse_number=465),
     SubjectEntry("20171215", "eGFP", "CONT", C57BL6, DRD2_EGFP, mouse_number=466),
