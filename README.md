@@ -166,7 +166,6 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
   - [Figure 3](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_3_dendritic_excitability.py)
   - [Figure 6](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_6_dendritic_excitability.py)
   - [Figure 7](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_dendritic_excitability.py)
-  - [Figure 7 OxoM](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_oxoM_dendritic_excitability.py)
 
 ### Somatic Excitability (Figures 1, 3, 6, 7, 8) — merged into per-mouse-day files
 - Patch-clamp electrophysiology recordings
