@@ -50,8 +50,12 @@ def test_session_file_has_the_mouse_its_scores_and_videos(tmp_path):
         assert nwbfile.subject.genotype.startswith("CDGI knockout")
         assert nwbfile.subject.weight == "26.6 g"
         assert nwbfile.session_id == "pan++OnState++none++CDGIKO++20180223"
-        scores = nwbfile.intervals["aim_scores"].to_dataframe()
-        assert list(scores["start_time"]) == [1200.0, 2400.0, 3600.0, 4800.0]
-        assert (scores["total"] == scores[["axial", "limb", "orolingual"]].sum(axis=1)).all()
+        ratings = (
+            nwbfile.events["aim_scores"].to_dataframe().pivot(index="timestamp", columns="behavior", values="score")
+        )
+        assert list(ratings.index) == [1200.0, 2400.0, 3600.0, 4800.0]
+        assert (ratings["total"] == ratings[["axial", "limb", "orolingual"]].sum(axis=1)).all()
+        ethogram = nwbfile.processing["behavior"]["AimEthogram"].to_dataframe()
+        assert list(ethogram["behavior"]) == ["axial", "limb", "orolingual", "total"]
         assert sorted(nwbfile.acquisition) == ["Video20Min", "Video40Min", "Video60Min", "Video80Min"]
         assert nwbfile.acquisition["Video40Min"].starting_time == 2400.0

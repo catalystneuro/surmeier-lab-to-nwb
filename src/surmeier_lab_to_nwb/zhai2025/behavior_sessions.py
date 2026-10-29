@@ -18,9 +18,9 @@ from zoneinfo import ZoneInfo
 
 import cv2
 import pandas as pd
+from ndx_ethogram import Ethogram
 from neuroconv.utils import load_dict_from_file
 from pynwb import NWBHDF5IO, NWBFile
-from pynwb.epoch import TimeIntervals
 from pynwb.file import Subject
 from pynwb.image import ImageSeries
 
@@ -47,6 +47,20 @@ _RE_COMPACT_DATE = re.compile(r"(?<!\d)(\d{2})(\d{2})(\d{4})(?!\d)")
 _RE_SLASH_DATE = re.compile(r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?")
 _RE_ORDINAL = re.compile(r"(\d)[a-z]{2}\b")  # "1st", "2nd", ...
 _LABELS = {"Ax": "axial", "Li": "limb", "Ol": "orolingual"}
+_SCALE = (
+    "rated from 0 to 4 over a one-minute observation: 0 normal movement; 1 abnormal movement for less than half the "
+    "time; 2 for more than half; 3 for the whole time but interrupted by external stimuli such as tapping on the cage; "
+    "4 continuous and unsuppressible. Half scores are allowed. The scale of Cenci and Lundblad (2007), as the lab's "
+    "protocol (dx.doi.org/10.17504/protocols.io.5jyl8dm8rg2w/v1) states it."
+)
+# The AIM rating scheme, one entry per scored category and the lab's total
+_AIM_CATEGORIES = {
+    "axial": f"Axial abnormal involuntary movement, {_SCALE}",
+    "limb": f"Limb abnormal involuntary movement, {_SCALE}",
+    "orolingual": f"Orolingual abnormal involuntary movement, {_SCALE}",
+    "total": "The lab's total of the axial, limb and orolingual scores at one time, from 0 to 12, as its AIM sheet "
+    "writes it.",
+}
 # Cells the lab used as column headers or left empty, which say nothing about a session
 _HEADER_CELLS = {"cage", "cage#", "date:", "(wt)", "(ko)", "g"}
 
@@ -351,24 +365,32 @@ def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
         ),
     )
 
-    aim_table = TimeIntervals(
+    # The rating scheme as an ethogram catalogue and each rating as an event, the layout of NeuroConv's manual
+    # scoring interfaces: a rating is taken over a one-minute observation, and a 0 is a rating too.
+    ethogram = Ethogram(
+        name="AimEthogram",
+        description="The AIM (abnormal involuntary movement) rating scheme: the categories rated and the lab's total.",
+        exclusive=False,
+    )
+    for behavior, definition in _AIM_CATEGORIES.items():
+        ethogram.add_row(behavior=behavior, definition=definition, behavior_type="point")
+    nwbfile.create_processing_module(name="behavior", description="The AIM rating scheme.").add(ethogram)
+    aim_scores = nwbfile.create_events_table(
         name="aim_scores",
         description=(
-            "AIM scores, one row per one-minute observation, starting at the time after the levodopa injection the "
-            "lab's sheet gives. Each score is from 0 to 4; empty where the lab did not score."
+            "AIM ratings, one row per category and observation: the timestamp is the start of the one-minute "
+            "observation, at the time after the levodopa injection the lab's sheet gives, and the duration is the "
+            "observation. Categories the lab did not rate at a time have no row."
         ),
+        source_description="Rated by eye by the experimenter, following the lab's protocol.",
     )
-    for name in _LABELS.values():
-        aim_table.add_column(name=name, description=f"The {name} AIM score, from 0 to 4.")
-    aim_table.add_column(name="total", description="The lab's total of the three scores, as its sheet writes it.")
+    aim_scores.add_column(name="behavior", description="The category rated, a behavior of the AimEthogram catalogue.")
+    aim_scores.add_column(name="score", description="The rating, as the AimEthogram defines it for the category.")
     for minutes, total in sorted(aim.totals.items()):
-        aim_table.add_interval(
-            start_time=minutes * 60.0,
-            stop_time=minutes * 60.0 + 60.0,
-            total=total,
-            **{name: aim.scores[name][minutes] for name in _LABELS.values()},
-        )
-    nwbfile.add_time_intervals(aim_table)
+        ratings = {name: aim.scores[name][minutes] for name in _LABELS.values()}
+        for behavior, score in [*ratings.items(), ("total", total)]:
+            if not math.isnan(score):
+                aim_scores.add_row(timestamp=minutes * 60.0, duration=60.0, behavior=behavior, score=score)
 
     for video in sorted(session.videos, key=lambda video: video.minutes):
         capture = cv2.VideoCapture(str(video.path))
