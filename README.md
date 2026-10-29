@@ -144,8 +144,6 @@ Each conversion is organized in a directory of its own in the `src` directory:
                 ├── conversion_scripts/        # Per-figure conversion scripts
                 │   ├── aim_behavior/
                 │   ├── confocal_spine_density/
-                │   ├── dendritic_excitability/
-                │   ├── somatic_excitability/
                 │   ├── spine_density/
                 │   └── videos/
                 ├── interfaces/                # Custom NeuroConv interfaces (Bruker BOT, line-scan, behavior)
@@ -155,27 +153,18 @@ Each conversion is organized in a directory of its own in the `src` directory:
 
 ## Figure-Specific Conversions
 
-The `zhai2025` conversion includes specialized scripts for each figure in the paper. **For the dandiset deposit, the patch-clamp scripts under Dendritic Excitability and Somatic Excitability are superseded by the per-mouse-day merger** (`uv run poe merge_patch_clamp`). The per-figure scripts below are still functional and used as the lower-level converters that feed the merger; they remain the right entry point for ad-hoc per-condition output.
+The `zhai2025` conversion includes specialized scripts for each figure in the paper. Patch-clamp (somatic and dendritic excitability), Sr2+-oEPSC and GRAB-ACh data are written by the per-mouse-day merger (`uv run poe merge_patch_clamp`), one file per mouse and day.
 
-### Dendritic Excitability (Figures 1, 3, 6, 7) — merged into per-mouse-day files
+### Dendritic Excitability (Figures 1, 3, 6, 7), merged into per-mouse-day files
 - Two-photon calcium imaging with patch-clamp electrophysiology
-- Back-propagating action potential measurements
+- Back-propagating action potential measurements, including before and after oxo-M (Figure 7E)
 - Cell-type specific analysis (dSPNs vs iSPNs)
-- **Scripts**:
-  - [Figure 1](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_1_dendritic_excitability.py)
-  - [Figure 3](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_3_dendritic_excitability.py)
-  - [Figure 6](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_6_dendritic_excitability.py)
-  - [Figure 7](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_dendritic_excitability.py)
+- **Script**: `merge_one_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
 
-### Somatic Excitability (Figures 1, 3, 6, 7, 8) — merged into per-mouse-day files
+### Somatic Excitability (Figures 1, 3, 6, 7, 8), merged into per-mouse-day files
 - Patch-clamp electrophysiology recordings
 - Current injection protocols and F-I curves
-- **Scripts**:
-  - [Figure 1](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_1_somatic_excitability.py)
-  - [Figure 3](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_3_somatic_excitability.py)
-  - [Figure 6](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_6_somatic_excitability.py)
-  - [Figure 7](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_7_somatic_excitability.py)
-  - [Figure 8](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_8_somatic_excitability.py)
+- **Script**: `merge_one_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
 
 ### Spine Density Analysis (Figures 2, 4, 6, 7, 8)
 - Two-photon and confocal microscopy
