@@ -66,10 +66,10 @@ def calculate_calcium_auc(fluo4_series, alexa568_series) -> float:
 
     Parameters
     ----------
-    fluo4_series : ROIResponseSeries
-        Fluo-4 calcium imaging data (calcium-sensitive, Ch2/Green)
-    alexa568_series : ROIResponseSeries
-        Alexa568 structural reference data (calcium-insensitive, Ch1/Red)
+    fluo4_series : TimeSeriesReference
+        One trial's slice of the Fluo-4 calcium imaging data (calcium-sensitive, green)
+    alexa568_series : TimeSeriesReference
+        The same trial's slice of the Alexa568 structural reference data (calcium-insensitive, red)
 
     Returns
     -------
@@ -106,9 +106,9 @@ def calculate_calcium_auc(fluo4_series, alexa568_series) -> float:
         g_over_r0 = fluo4_smooth / alexa568_smooth
 
         # Step 4: Define time windows (from original notebook methodology)
-        # Get actual time intervals using get_timestamps() method
+        # Get actual time intervals from the trial's timestamps
         try:
-            timestamps = fluo4_series.get_timestamps()
+            timestamps = fluo4_series.timestamps
             time_interval = timestamps[1] - timestamps[0] if len(timestamps) > 1 else 0.00064
         except (AttributeError, IndexError):
             # Fallback to default interval
@@ -167,25 +167,25 @@ def load_dendritic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
     """
     Load dendritic excitability data from NWB files.
 
-    For each session, calculates the dendritic excitability index as the ratio
+    For each cell and condition, calculates the dendritic excitability index as the ratio
     of distal to proximal dendrite calcium transient AUCs.
 
     Parameters
     ----------
     nwb_dir : Path
-        Directory containing Figure 1 dendritic excitability NWB files
+        Directory containing the Figure 1 per-mouse-day NWB files
 
     Returns
     -------
     pd.DataFrame
-        Combined dataframe with dendritic excitability indices per session/condition
+        Combined dataframe with dendritic excitability indices per cell/condition
     """
-    nwb_files = list(nwb_dir.glob("F1++DendExc++dSPN++*.nwb"))
+    nwb_files = sorted(nwb_dir.glob("*.nwb"))
 
     if not nwb_files:
         raise FileNotFoundError(
             f"No NWB files found in {nwb_dir}. "
-            "Please run figure_1_dendritic_excitability.py first to generate NWB files."
+            "Please run the per-mouse-day merge (uv run poe merge_patch_clamp) first to generate NWB files."
         )
 
     all_data = []
@@ -195,107 +195,69 @@ def load_dendritic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
         with NWBHDF5IO(str(nwb_file), "r") as io:
             nwb = io.read()
 
-            # Extract condition from session_id using canonical format
-            # Format: F1++DendExc++dSPN++{state}++{pharm}++{geno}++{timestamp}
-            session_id_parts = nwb.session_id.split("++")
-            condition = "unknown"
-
-            if len(session_id_parts) >= 6:
-                state = session_id_parts[3]  # OffState or OnState
-                pharm = session_id_parts[4]  # none, D1RaSch, etc.
-
-                if state == "OffState" and pharm == "none":
-                    condition = "LID off-state"
-                elif state == "OnState" and pharm == "none":
-                    condition = "LID on-state"
-                elif state == "OnState" and pharm == "D1RaSch":
-                    condition = "LID on-state with SCH"
-
             # Get session info
-            session_id = nwb.session_id
             subject_id = nwb.subject.subject_id
 
-            # Access repetitions table to group by dendritic location
-            repetitions_table = nwb.get_icephys_repetitions()
-            rep_df = repetitions_table.to_dataframe()
+            # Each file holds the cells recorded from one mouse on one day. The RecordingsIndexTable has one row per
+            # sweep; a dendritic sweep's row points to its slices of the Fluo-4 and Alexa 568 line-scan profiles
+            index_df = nwb.processing["recordings_index"]["RecordingsIndexTable"].to_dataframe()
+            dendritic_df = index_df[index_df["dendrite_type"].isin(["Proximal", "Distal"])]
 
-            # Group calcium data by dendrite type (proximal vs distal)
-            distal_aucs = []
-            proximal_aucs = []
+            for (cell_id, condition), cell_df in dendritic_df.groupby(["cell_id", "condition"]):
+                cell = f"{subject_id} cell {cell_id}"
 
-            if "ophys" in nwb.processing:
-                ophys_module = nwb.processing["ophys"]
+                # Group calcium data by dendrite type (proximal vs distal)
+                distal_aucs = []
+                proximal_aucs = []
 
-                # Look for Fluorescence interface (calcium imaging data)
-                if "Fluorescence" in ophys_module.data_interfaces:
-                    fluorescence_interface = ophys_module.data_interfaces["Fluorescence"]
-                    roi_response_series = fluorescence_interface.roi_response_series
-
-                    # Find all unique location-trial combinations
-                    # ROI names: RoiResponseSeriesFluo4Cell1DistalDendrite1Trial001, RoiResponseSeriesAlexa568Cell1DistalDendrite1Trial001
-                    locations_trials = set()
-                    for roi_name in roi_response_series.keys():
-                        if "Fluo4" in roi_name:
-                            # Extract location-trial part: Cell1DistalDendrite1Trial001
-                            location_trial = roi_name.replace("RoiResponseSeriesFluo4", "")
-                            locations_trials.add(location_trial)
-
-                    # For each location-trial, calculate G/R0 AUC
-                    for location_trial in locations_trials:
-                        fluo4_name = f"RoiResponseSeriesFluo4{location_trial}"
-                        alexa568_name = f"RoiResponseSeriesAlexa568{location_trial}"
-
-                        if fluo4_name in roi_response_series and alexa568_name in roi_response_series:
-                            fluo4_series = roi_response_series[fluo4_name]
-                            alexa568_series = roi_response_series[alexa568_name]
-
-                            auc = calculate_calcium_auc(fluo4_series, alexa568_series)
-                            if not np.isnan(auc):
-                                if "distal" in location_trial.lower():
-                                    distal_aucs.append(auc)
-                                    print(f"    Distal AUC: {auc:.6f} from {location_trial}")
-                                elif "proximal" in location_trial.lower():
-                                    proximal_aucs.append(auc)
-                                    print(f"    Proximal AUC: {auc:.6f} from {location_trial}")
-                            else:
-                                print(f"    Warning: Could not calculate AUC for {location_trial}")
+                # For each trial, calculate G/R0 AUC
+                for _, row in cell_df.iterrows():
+                    location_trial = f"{row['site']} trial at {row['sweep_start_time_s']:.1f} s"
+                    auc = calculate_calcium_auc(row["roi_response_fluo4"], row["roi_response_alexa568"])
+                    if not np.isnan(auc):
+                        if row["dendrite_type"] == "Distal":
+                            distal_aucs.append(auc)
+                            print(f"    Distal AUC: {auc:.6f} from {location_trial}")
                         else:
-                            print(f"    Warning: Missing Fluo4 or Alexa568 data for {location_trial}")
+                            proximal_aucs.append(auc)
+                            print(f"    Proximal AUC: {auc:.6f} from {location_trial}")
+                    else:
+                        print(f"    Warning: Could not calculate AUC for {location_trial}")
 
-            # Calculate dendritic excitability index (distal/proximal ratio)
-            if len(distal_aucs) > 0 and len(proximal_aucs) > 0:
-                # Use mean AUCs for each location if multiple trials
-                mean_distal_auc = np.mean(distal_aucs)
-                mean_proximal_auc = np.mean(proximal_aucs)
+                # Calculate dendritic excitability index (distal/proximal ratio)
+                if len(distal_aucs) > 0 and len(proximal_aucs) > 0:
+                    # Use mean AUCs for each location if multiple trials
+                    mean_distal_auc = np.mean(distal_aucs)
+                    mean_proximal_auc = np.mean(proximal_aucs)
 
-                if mean_proximal_auc > 0:
-                    excitability_index = mean_distal_auc / mean_proximal_auc
+                    if mean_proximal_auc > 0:
+                        excitability_index = mean_distal_auc / mean_proximal_auc
+                    else:
+                        excitability_index = np.nan
+
+                    all_data.append(
+                        {
+                            "cell": cell,
+                            "subject_id": subject_id,
+                            "condition": condition,
+                            "dendritic_excitability_index": excitability_index,
+                            "distal_auc_mean": mean_distal_auc,
+                            "proximal_auc_mean": mean_proximal_auc,
+                            "n_distal_trials": len(distal_aucs),
+                            "n_proximal_trials": len(proximal_aucs),
+                            "nwb_file": nwb_file.name,
+                        }
+                    )
+
+                    print(f"  {cell}: Index = {excitability_index:.3f} ({condition})")
                 else:
-                    excitability_index = np.nan
-
-                all_data.append(
-                    {
-                        "session_id": session_id,
-                        "subject_id": subject_id,
-                        "condition": condition,
-                        "dendritic_excitability_index": excitability_index,
-                        "distal_auc_mean": mean_distal_auc,
-                        "proximal_auc_mean": mean_proximal_auc,
-                        "n_distal_trials": len(distal_aucs),
-                        "n_proximal_trials": len(proximal_aucs),
-                        "nwb_file": nwb_file.name,
-                    }
-                )
-
-                print(f"  Session {session_id}: Index = {excitability_index:.3f} ({condition})")
-            else:
-                print(f"  Warning: Session {session_id} - insufficient calcium data")
+                    print(f"  Warning: {cell} ({condition}) - insufficient calcium data")
 
     if not all_data:
         raise ValueError("No dendritic excitability data could be loaded from NWB files")
 
     df = pd.DataFrame(all_data)
-    print(f"Loaded {len(df)} sessions with valid dendritic excitability data")
+    print(f"Loaded {len(df)} cells with valid dendritic excitability data")
     return df
 
 
@@ -319,7 +281,7 @@ def create_dendritic_excitability_plot(df: pd.DataFrame) -> Tuple[plt.Figure, pl
     valid_data = df[df["dendritic_excitability_index"].notna()]
 
     # Order conditions to match paper
-    condition_order = ["LID off-state", "LID on-state", "LID on-state with SCH"]
+    condition_order = ["LID off-state", "LID on-state", "LID on-state with SCH 23390"]
     condition_labels = ["off", "on", "on + SCH"]
 
     # Prepare data for box plot
@@ -483,7 +445,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "dendritic_excitability" / "figure_1"
+    nwb_dir = base_dir / "nwb_files" / "merged" / "F1"
     output_dir = base_dir / "analysis_outputs" / "figure_1i"
 
     # Ensure output directory exists
