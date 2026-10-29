@@ -148,7 +148,6 @@ Each conversion is organized in a directory of its own in the `src` directory:
                 │   └── videos/
                 ├── interfaces/                # Custom NeuroConv interfaces (Bruker BOT, line-scan, behavior)
                 ├── mouse_day_merger.py        # Per-mouse-day bundle builder (raw folders → bundles)
-                ├── subject_registry.py        # Data Connections spreadsheet parser
                 ├── subjects.py                # Every mouse: subject ID, line, group, strain and genotype
                 └── utils/                     # Utility functions
 
