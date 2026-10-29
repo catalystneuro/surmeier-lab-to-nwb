@@ -22,6 +22,7 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
+    surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
     NikonImageStackInterface,
@@ -146,13 +147,13 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
 
     # Map condition to explicit state
     if condition == "LID off-state iSPN" or condition == "off-state":
-        state = "OFF"
+        state = "OffState"
     elif condition == "LID on-state iSPN" or condition == "on-state":
-        state = "ON"
+        state = "OnState"
     elif condition == "control iSPN" or condition == "control":
-        state = "CTRL"
+        state = "UnlesionedControl"
     elif condition == "PD iSPN" or condition == "6-OHDA":
-        state = "PD"
+        state = "LesionedControl"
     else:
         raise ValueError(f"Unknown condition: {condition}")
 
@@ -181,6 +182,7 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_4_confocal_spine_density_nikon"]
+    surgery, pharmacology = surgery_and_pharmacology(state, general_metadata)
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
@@ -192,13 +194,17 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
             ),
             "session_start_time": session_start_time,
             "session_id": f"{base_session_id}_{stack_location}",
+            "surgery": surgery,
+            "pharmacology": pharmacology,
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"iSPN_confocal_mouse_{file_info['animal_id']}",
-            "description": script_template["Subject"]["description"].format(
-                animal_id=file_info["animal_id"], cell_number=file_info["cell_number"]
-            ),
+            # The control groups have their own description; the default one is for lesioned, levodopa-treated mice
+            "description": script_template["Subject"]
+            .get("description_by_state", {})
+            .get(state, script_template["Subject"]["description"])
+            .format(animal_id=file_info["animal_id"], cell_number=file_info["cell_number"]),
             "genotype": script_template["Subject"]["genotype"],
         },
     }

@@ -133,7 +133,7 @@ def convert_session_to_nwbfile(
     date_token = timestamp[:8]
     session_id = generate_canonical_session_id(
         cell_type="pan",  # Non cell-specific
-        state="ON",  # AIM scoring is during L-DOPA treatment (ON state)
+        state="OnState",  # AIM scoring is during L-DOPA treatment (ON state)
         pharm="none",  # No pharmacology
         geno=genotype_canonical,
         date=date_token,

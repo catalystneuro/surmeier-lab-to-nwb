@@ -24,6 +24,7 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     PHARMACOLOGY_ADDITIONS,
     format_condition,
     generate_canonical_session_id,
+    surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
 
@@ -734,8 +735,9 @@ def convert_spine_density_session_to_nwbfile(
     # Get condition formatting for description
     condition_human_readable = format_condition[condition]["human_readable"]
 
-    # Build pharmacology description using centralized mapping
-    pharmacology_base = general_metadata["NWBFile"]["pharmacology"]
+    # Surgery and pharmacology follow the group: controls had no levodopa, unlesioned controls no lesion either
+    state = session_id_parameters["state"]
+    surgery, pharmacology_base = surgery_and_pharmacology(state, general_metadata)
     pharm_token = session_id_parameters["pharm"]
 
     # Add pharmacology-specific text if applicable
@@ -755,12 +757,17 @@ def convert_spine_density_session_to_nwbfile(
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_info["session_start_time"],
             "session_id": session_info["session_id"],
+            "surgery": surgery,
             "pharmacology": pharmacology_text,
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
             "subject_id": f"SubjectRecordedAt{timestamp}",
-            "description": script_template["Subject"]["description"].format(
+            # The control groups have their own description; the default one is for lesioned, levodopa-treated mice
+            "description": script_template["Subject"]
+            .get("description_by_state", {})
+            .get(state, script_template["Subject"]["description"])
+            .format(
                 session_id=session_info["session_id"],
                 date_str=session_info["date_str"],
                 animal_id=session_info["animal_id"],

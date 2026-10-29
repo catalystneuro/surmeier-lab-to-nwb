@@ -216,7 +216,7 @@ def convert_session_to_nwbfile(
 
     # Map condition to state - CDGI KO videos capture behavior during ON state
     # All Figure 7 videos are from L-DOPA treated animals (ON state)
-    state = "ON"  # All videos are during L-DOPA treatment
+    state = "OnState"  # All videos are during L-DOPA treatment
 
     session_id = generate_canonical_session_id(
         cell_type="pan",  # Non cell-specific

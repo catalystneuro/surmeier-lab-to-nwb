@@ -634,16 +634,20 @@ def _build_session_id(bundle: MouseDayBundle) -> str:
     state_map = {
         "LID OFF": "OffState",
         "LID ON": "OnState",
-        "CONT": "Control",
+        "CONT": "UnlesionedControl",
         "6-OHDA": "LesionedControl",
         "M1R ant": "M1RAntag",
         "M1R CRSPR": "M1RCRISPR",
         "NAIVE": "Naive",
     }
     state = state_map.get(bundle.subject_entry.category, "Unknown")
+    all_conditions = {s.condition_subfolder for sweeps in bundle.cells.values() for s in sweeps}
+    # The Data Connections sheet files the vehicle controls of Figure 6 and the gRNA-only controls of Figure 8 as
+    # CONT, but they are lesioned, levodopa-treated mice recorded in the off-state.
+    if all_conditions & {"control", "interleaved control"}:
+        state = "OffState"
     # Pharm from the most distinguishing condition in the bundle. If a paired-
     # recording cell exists, surface the drug used (SCH or sul).
-    all_conditions = {s.condition_subfolder for sweeps in bundle.cells.values() for s in sweeps}
     pharm = "none"
     if any("SCH" in c for c in all_conditions):
         pharm = "D1RaSch"

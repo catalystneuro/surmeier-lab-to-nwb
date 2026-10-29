@@ -55,8 +55,8 @@ def convert_data_to_nwb(session_folder_path: Path, condition: str, verbose: bool
 
     # Local mapping for Figure 4 conditions to revised schema tokens
     figure_4_mappings = {
-        "control iSPN": {"state": "OffState", "pharm": "none"},
-        "PD iSPN": {"state": "OffState", "pharm": "none"},
+        "control iSPN": {"state": "UnlesionedControl", "pharm": "none"},
+        "PD iSPN": {"state": "LesionedControl", "pharm": "none"},
         "LID off-state iSPN": {"state": "OffState", "pharm": "none"},
         "LID on-state iSPN": {"state": "OnState", "pharm": "none"},
     }

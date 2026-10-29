@@ -236,7 +236,7 @@ def convert_session_to_nwbfile(
     # All supplementary figure 3 videos are M1R CRISPR animals during L-DOPA treatment (ON state)
     session_id = generate_canonical_session_id(
         cell_type="pan",  # Non cell-specific
-        state="ON",  # All videos are during L-DOPA treatment
+        state="OnState",  # All videos are during L-DOPA treatment
         pharm="none",  # No pharmacology
         geno="M1RCRISPR",  # M1R CRISPR
         date=date_token,

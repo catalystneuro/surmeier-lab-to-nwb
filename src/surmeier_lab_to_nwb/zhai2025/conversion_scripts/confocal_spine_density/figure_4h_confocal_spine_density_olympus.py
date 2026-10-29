@@ -26,6 +26,7 @@ from pynwb.device import Device
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
+    surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_olympus_fv10i_model
 
@@ -256,11 +257,11 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     else:
         timestamp = session_start_time.strftime("%Y%m%d")
 
-    # For methodological validation, we use control state
+    # The mosaic's mouse, 5104, is one of the control mice of Figure 4J
     date_token = timestamp[:8]
     session_id = generate_canonical_session_id(
         cell_type="iSPN",  # Indirect pathway SPN
-        state="CTRL",  # Control for methodological validation
+        state="UnlesionedControl",
         pharm="none",  # No pharmacology
         geno="WT",  # Wild-type
         date=date_token,
@@ -273,6 +274,7 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_4h_confocal_spine_density_olympus"]
+    surgery, pharmacology = surgery_and_pharmacology("UnlesionedControl", general_metadata)
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
@@ -282,7 +284,8 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
             ),
             "session_start_time": session_start_time,
             "session_id": session_id,
-            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
+            "surgery": surgery + " " + script_template["NWBFile"]["surgery_addition"],
+            "pharmacology": pharmacology,
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {

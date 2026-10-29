@@ -30,11 +30,19 @@ def test_dendrites_of_one_cell_get_their_own_session_ids():
 
 def test_session_id_leaves_out_a_slide_the_file_name_does_not_give():
     nwbfile = convert_session_to_nwbfile(FIGURE_4J / "on-state/5108-slice 2-cell 1 den3 proxi.nd2", "on-state")
-    assert nwbfile.session_id == "iSPN++ON++none++WT++20230901_Slice2_Cell1_Dendrite3"
+    assert nwbfile.session_id == "iSPN++OnState++none++WT++20230901_Slice2_Cell1_Dendrite3"
 
 
 def test_olympus_session_starts_when_the_mosaic_was_captured():
     # The session date used to be the day of conversion.
     nwbfile = convert_olympus_session_to_nwbfile(FIGURE_4H / "5104-3 60x str_Cycle")
     assert nwbfile.session_start_time == datetime(2024, 9, 28, 12, 53, 12, tzinfo=ZoneInfo("America/Chicago"))
-    assert nwbfile.session_id == "iSPN++CTRL++none++WT++20240928"
+    assert nwbfile.session_id == "iSPN++UnlesionedControl++none++WT++20240928"
+
+
+def test_control_stacks_are_described_as_unlesioned():
+    # Every confocal mouse used to be described as lesioned and levodopa-treated, controls included.
+    nwbfile = convert_session_to_nwbfile(FIGURE_4J / "control/8038-slide 1-slice 2-cell 1 proxi_0001.nd2", "control")
+    assert "++UnlesionedControl++" in nwbfile.session_id
+    assert nwbfile.surgery.startswith("No 6-OHDA lesion")
+    assert "levodopa" not in nwbfile.subject.description.replace("no levodopa", "")

@@ -53,6 +53,12 @@ figure_2_spine_density:
       "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment for spine density analysis.
       dSPNs identified by Drd1-Tdtomato expression. Session {session_id}."
+    # The control groups; the description above is for lesioned, levodopa-treated mice
+    description_by_state:
+      UnlesionedControl: >
+        Adult Drd1-Tdtomato transgenic mouse, unlesioned control: no 6-OHDA lesion and no levodopa. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
+      LesionedControl: >
+        Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
 
 figure_2_optical_stimuli:
   NWBFile:
@@ -135,6 +141,12 @@ figure_4_spine_density:
       "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment for spine density analysis.
       iSPNs identified by Drd2-EGFP expression. Session {session_id}."
+    # The control groups; the description above is for lesioned, levodopa-treated mice
+    description_by_state:
+      UnlesionedControl: >
+        Adult Drd2-EGFP transgenic mouse, unlesioned control: no 6-OHDA lesion and no levodopa. iSPNs identified by Drd2-EGFP expression. Session {session_id}.
+      LesionedControl: >
+        Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. iSPNs identified by Drd2-EGFP expression. Session {session_id}.
 
 figure_4_optical_stimuli:
   NWBFile:
@@ -181,6 +193,12 @@ figure_4_confocal_spine_density_nikon:
       "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment for spine density analysis.
       iSPNs identified by Drd2-EGFP expression. Animal {animal_id} processed for confocal imaging validation study."
+    # The control groups; the description above is for lesioned, levodopa-treated mice
+    description_by_state:
+      UnlesionedControl: >
+        Adult mouse, unlesioned control: no 6-OHDA lesion and no levodopa. Animal {animal_id} processed for confocal imaging validation study.
+      LesionedControl: >
+        Adult mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. Animal {animal_id} processed for confocal imaging validation study.
 
 figure_4h_confocal_spine_density_olympus:
   NWBFile:
@@ -201,9 +219,9 @@ figure_4h_confocal_spine_density_olympus:
   Subject:
     genotype: "Wild-type with sparse iSPN labeling"
     description: >
-      "Adult wild-type mouse with unilateral 6-OHDA lesion and sparse iSPN labeling via AAV-Cre/FLEX system.
-      Received dyskinesiogenic levodopa treatment for spine density analysis using high-resolution confocal microscopy.
-      Animal {animal_id} processed for Figure 4H methodological comparison study."
+      Adult mouse with sparse iSPN labeling via AAV-Cre/FLEX system, unlesioned control: no 6-OHDA lesion and no
+      levodopa. Animal {animal_id}, one of the control mice of Figure 4J, processed for Figure 4H methodological
+      comparison study.
 
 # Figure 5 Scripts
 figure_5_acetylcholine_biosensor:

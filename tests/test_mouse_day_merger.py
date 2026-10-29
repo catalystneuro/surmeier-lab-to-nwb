@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from prototype_per_mouse_day_merger import (  # noqa: E402
+    _build_session_id,
     merge_grab_ach_mouse_day,
     merge_oepsc_mouse_day,
     merge_one_mouse_day,
@@ -333,3 +334,15 @@ def test_oxo_m_file_splits_trials_before_and_after_oxo_m(tmp_path):
         # The lesion and levodopa text of the other files does not apply; the sheet's label is mentioned.
         assert nwbfile.surgery.startswith("None: naive mouse")
         assert "'LID ON'" in nwbfile.subject.description
+
+
+def test_control_groups_get_the_state_of_their_mice():
+    # The lab's sheet files all three as CONT, which the session IDs used to turn into Control.
+    states = {}
+    for figure in ("F5", "F6", "F8"):
+        for bundle in build_figure_bundles(figure):
+            conditions = {s.condition_subfolder for sweeps in bundle.cells.values() for s in sweeps}
+            for condition in conditions & {"UL control", "control", "interleaved control"}:
+                states.setdefault(condition, set()).add(_build_session_id(bundle).split("++")[1])
+    # GRAB-ACh unlesioned mice; Figure 6 vehicle and Figure 8 gRNA-only controls, both off-state mice.
+    assert states == {"UL control": {"UnlesionedControl"}, "control": {"OffState"}, "interleaved control": {"OffState"}}

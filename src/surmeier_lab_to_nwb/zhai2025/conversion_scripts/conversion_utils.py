@@ -462,6 +462,21 @@ def generate_canonical_session_id(
     return f"{cell_type}++{state}++{pharm}++{geno}++{date}"
 
 
+def surgery_and_pharmacology(state: str, general_metadata: dict) -> tuple[str, str]:
+    """Surgery and pharmacology text for a group of mice, given its session ID state token.
+
+    general_metadata.yaml describes the lesioned, levodopa-treated mice. Unlesioned controls had neither; lesioned
+    controls had the lesion but no levodopa, so their pharmacology stops before the levodopa priming.
+    """
+    surgery = general_metadata["NWBFile"]["surgery"]
+    pharmacology = general_metadata["NWBFile"]["pharmacology"]
+    if state == "UnlesionedControl":
+        return "No 6-OHDA lesion (unlesioned control).", "No 6-OHDA and no levodopa (unlesioned control)."
+    if state == "LesionedControl":
+        return surgery, pharmacology[: pharmacology.index("L-DOPA priming")].rstrip() + " No levodopa."
+    return surgery, pharmacology
+
+
 def str_to_bool(v):
     """
     Convert string or boolean input to boolean value for argparse.
