@@ -73,20 +73,18 @@ All conversion tasks are wired up as `poethepoet` tasks defined in `pyproject.to
 uv run poe convert_all_full
 ```
 
-This runs the seven-step pipeline in order: per-mouse-day patch-clamp merge, then spine density, confocal, AIM behavior, videos, biosensor, and optical stimulation conversions. Total runtime is roughly 30-45 minutes; outputs land in `nwb_files/`.
+This runs the five-step pipeline in order: per-mouse-day merge (patch clamp, Sr2+-oEPSC and GRAB-ACh), then spine density, confocal, AIM behavior, and videos conversions. Total runtime is roughly 30-45 minutes; outputs land in `nwb_files/`.
 
 Other useful entry points:
 
 ```bash
-# Patch-clamp only (the merged per-mouse-day files: Figures 1, 3, 6, 7, 8)
+# The merged per-mouse-day files: patch clamp (Figures 1, 3, 6, 7, 8), Sr2+-oEPSC (2, 4) and GRAB-ACh (5)
 uv run poe merge_patch_clamp
 
 # Single modality
 uv run poe convert_spine_full
-uv run poe convert_biosensor_full
 uv run poe convert_behavior_full
 uv run poe convert_videos_full
-uv run poe convert_optical_full
 uv run poe convert_confocal_full
 
 # Quick stub-test variants (small subset of data, for development)
@@ -98,8 +96,8 @@ uv run poe convert_all
 Each figure-specific script under `src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/` can also be invoked directly. The poe tasks above are thin wrappers around these; they exist as a fallback for fine-grained re-runs.
 
 ```bash
-# Convert Figure 5 acetylcholine biosensor data
-python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py --stub-test=False
+# Convert Figure 2 spine density data
+python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py --stub-test=False
 ```
 
 ### Per-mouse-day file architecture (patch-clamp)
@@ -144,11 +142,9 @@ Each conversion is organized in a directory of its own in the `src` directory:
             └── zhai2025/
                 ├── conversion_notes_folder/   # Detailed conversion documentation
                 ├── conversion_scripts/        # Per-figure conversion scripts
-                │   ├── acetylcholine_biosensor/
                 │   ├── aim_behavior/
                 │   ├── confocal_spine_density/
                 │   ├── dendritic_excitability/
-                │   ├── optical_stimulation/
                 │   ├── somatic_excitability/
                 │   ├── spine_density/
                 │   └── videos/
@@ -195,11 +191,11 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
   - [Figure 7](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py)
   - [Figure 8](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py)
 
-### Acetylcholine Biosensor (Figure 5)
+### Acetylcholine Biosensor (Figure 5), merged into per-mouse-day files
 - GRABACh3.0 fluorescent sensor recordings
 - Two-photon line scans and full-field imaging
 - Real-time acetylcholine dynamics
-- **Script**: [Figure 5](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py)
+- **Script**: `merge_grab_ach_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
 
 ### Behavioral Analysis (Figures 7, 8)
 - AIM (Abnormal Involuntary Movement) scoring
@@ -211,9 +207,7 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
   - [Figure 8 AIM](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py)
   - [Supplementary Figure 3 Videos](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py)
 
-### Optogenetics (Figures 2, 4)
+### Optogenetics (Figures 2, 4), merged into per-mouse-day files
 - Light-evoked postsynaptic currents (oEPSCs)
 - Stimulus timing and metadata
-- **Scripts**:
-  - [Figure 2](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_2_optical_stimuli.py)
-  - [Figure 4](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_4_optical_stimuli.py)
+- **Script**: `merge_oepsc_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
