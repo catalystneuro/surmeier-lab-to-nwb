@@ -445,7 +445,19 @@ _CONDITION_LABEL = {
     "UL control": "unlesioned control",
     "PD": "6-OHDA-lesioned",
     "LID off": "LID off-state",
+    "WT": "naive",  # Figure 7E; a trial after oxo-M adds " with oxo-M"
+    "KO": "CDGI knockout, naive",
 }
+
+# Figure 7E: the paper calls the mice of the oxo-M experiment naive; the lab's Data Connections sheet labels their days
+# "LID ON". We follow the paper and say so in the subject description.
+_NAIVE_SURGERY = "None: naive mouse, with no 6-OHDA lesion, as the paper describes the mice of Figure 7D-E."
+_OXO_M_PHARMACOLOGY = (
+    "No levodopa. During recording, the muscarinic receptor agonist oxotremorine M (oxo-M, 10 µM) was applied in the "
+    "bath: each cell was recorded at all its dendritic sites, then again at the same sites after oxo-M was added (the "
+    "lab's ReadMe: trials 1 to 3 at a site are before oxo-M, trials 4 to 6 or 7 to 9 after). Each trial's condition "
+    "says whether oxo-M was present."
+)
 
 
 def _ensure_devices(nwbfile: NWBFile) -> tuple[Device, Device]:
@@ -603,6 +615,7 @@ def _build_session_id(bundle: MouseDayBundle) -> str:
         "6-OHDA": "LesionedControl",
         "M1R ant": "M1RAntag",
         "M1R CRSPR": "M1RCRISPR",
+        "NAIVE": "Naive",
     }
     state = state_map.get(bundle.subject_entry.category, "Unknown")
     # Pharm from the most distinguishing condition in the bundle. If a paired-
@@ -613,6 +626,8 @@ def _build_session_id(bundle: MouseDayBundle) -> str:
         pharm = "D1RaSch"
     elif any("sul" in c for c in all_conditions):
         pharm = "D2RaSul"
+    elif any(s.suffix == "oxoM" for sweeps in bundle.cells.values() for s in sweeps):
+        pharm = "M1RaOxoM"
     # Genotype default to WT; specialize for KO lines.
     geno_map = {
         "tD-Tomato": "WT",
@@ -642,6 +657,21 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         f"hierarchical chain populated (IntracellularRecordings -> Simultaneous -> Sequential "
         f"-> Repetitions -> ExperimentalConditions)."
     )
+    surgery = nwb_meta.get("surgery")
+    pharmacology = nwb_meta.get("pharmacology")
+    subject_description = (
+        f"Reporter line {subject_entry.animal}, category {subject_entry.category}, "
+        "ipsilateral 6-OHDA lesion of the medial forebrain bundle. "
+        f"See general_metadata.yaml surgery section for the lesion protocol."
+    )
+    if subject_entry.category == "NAIVE":
+        surgery = _NAIVE_SURGERY
+        pharmacology = _OXO_M_PHARMACOLOGY
+        subject_description = (
+            f"Reporter line {subject_entry.animal}, naive: no 6-OHDA lesion and no levodopa, as the paper describes "
+            "the mice of Figure 7D-E. The lab's Data Connections sheet labels this day 'LID ON' (lesioned and "
+            "levodopa-treated) instead; the recordings themselves do not say."
+        )
     nwbfile = NWBFile(
         session_description=session_description,
         experiment_description=nwb_meta.get(
@@ -657,8 +687,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         lab=nwb_meta.get("lab", "Surmeier Lab"),
         keywords=nwb_meta.get("keywords", []),
         related_publications=nwb_meta.get("related_publications", []),
-        surgery=nwb_meta.get("surgery"),
-        pharmacology=nwb_meta.get("pharmacology"),
+        surgery=surgery,
+        pharmacology=pharmacology,
         slices=nwb_meta.get("slices"),
     )
     nwbfile.subject = Subject(
@@ -667,11 +697,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         strain=subject_meta.get("strain", "C57BL/6"),
         sex=subject_meta.get("sex", "M"),
         age=subject_meta.get("age", "P7W/P12W"),
-        description=(
-            f"Reporter line {subject_entry.animal}, category {subject_entry.category}, "
-            "ipsilateral 6-OHDA lesion of the medial forebrain bundle. "
-            f"See general_metadata.yaml surgery section for the lesion protocol."
-        ),
+        description=subject_description,
     )
 
     bruker, amp = _ensure_devices(nwbfile)
@@ -859,6 +885,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 spot = "Spot2" if "real" in sw.site_label else "Spot1"
             site = f"{dendrite_type}{sw.location_number}{spot}"
             condition = _CONDITION_LABEL[sw.condition_subfolder]
+            if sw.suffix == "oxoM":
+                condition += " with oxo-M"
 
             row_index = nwbfile.add_intracellular_recording(
                 electrode=cell_electrode,

@@ -44,6 +44,8 @@ _CONDITION_TO_CATEGORY = {
     "UL control": "CONT",  # GRAB-ACh, unlesioned
     "PD": "6-OHDA",  # GRAB-ACh, lesioned without levodopa
     "LID off": "LID OFF",  # GRAB-ACh
+    "WT": "NAIVE",  # Figure 7E oxo-M, wild type
+    "KO": "NAIVE",  # Figure 7E oxo-M, CDGI knockout
 }
 
 # Per-figure metadata: the Data Connections "animal" reporter token and the
@@ -96,6 +98,10 @@ _FIGURE_SPECS = {
         # subject_id from (date, animal) alone for these figures rather than
         # requiring the spreadsheet's category to match the folder.
         "trust_folder_category": True,
+        # Figure 7E: dendrites recorded before and after oxo-M, in one folder per genotype. The paper calls these
+        # mice naive; the spreadsheet labels their days "LID ON". We follow the paper and say so in the files.
+        "oxo_m_subdir": "oxoM on DE",
+        "animal_per_condition": {"WT": "eGFP", "KO": "CDGIko X eGFP"},
     },
     "F8": {
         "animal": "Adora2-Cre",
@@ -141,7 +147,9 @@ class SweepRecord:
     dendrite_location: str | None = None  # "prox", "dist", or None for somatic
     location_number: int | None = None  # e.g., 1 for "prox1", 2 for "dist2"
     site_label: str | None = None  # site as written in the folder name, e.g., "prox1", "realprox1", "dist1real"
-    suffix: str | None = None  # e.g., "SCH" for cell1_SCH-NNN folders, "quin_single" for a GRAB-ACh recording
+    # e.g., "SCH" for cell1_SCH-NNN folders, "quin_single" for a GRAB-ACh recording, "oxoM" for a Figure 7E trial
+    # recorded after oxo-M
+    suffix: str | None = None
     led_setting: float | None = None  # LED setting written in a Sr2+-oEPSC folder name, e.g., 20 for cell1_LED20-001
     region: tuple[int, int] | None = None  # (slice, ROI) of a GRAB-ACh recording
 
@@ -284,6 +292,12 @@ _GRAB_ACH_EXCLUDED = {
     # at 10 s, and restarted 8 s later at the same spot as BOT_04022024_slice1ROI2_sul_sinlge-001. Only baseline.
     "BOT_04022024_slice1ROI_sul_sinlge-001",
 }
+
+# Figure 7E oxo-M dendrite folder: MMDDc<cell>d<dendrite>, e.g. 0221c1d1, holding the trios of the dendrite's
+# proximal and distal sites.
+_RE_OXO_M_DENDRITE = re.compile(r"^(\d{2})(\d{2})c(\d+)d(\d+)$")
+# Dendrite folders whose recordings name another cell: the third cell of 2018-03-05 was recorded as Cell4.
+_OXO_M_FOLDER_CELL_FIXES = {"0305c3d1": 4, "0305c3d2": 4}
 
 _LETTER_TO_INDEX = {"a": 1, "b": 2, "c": 3, "d": 4}
 
@@ -566,6 +580,50 @@ def _walk_grab_ach(figure_root: Path) -> list[SweepRecord]:
     return out
 
 
+def _walk_oxo_m(figure_root: Path, oxo_m_subdir: str, genotype_folders: Iterable[str]) -> list[SweepRecord]:
+    """Walk the Figure 7E oxo-M folders: <genotype>/MMDDc<cell>d<dendrite>/MMDDYYYY_Cell<N>_<loc><N>_trio-NNN.
+
+    The lab's ReadMe says trios -001 to -003 are before oxo-M and -004 to -006 or -007 to -009 after; a trial after
+    oxo-M gets the suffix "oxoM". The folder's day, cell and dendrite must agree with the recording's name.
+    """
+    out: list[SweepRecord] = []
+    for genotype_dir in sorted(p for p in (figure_root / oxo_m_subdir).iterdir() if p.is_dir()):
+        if genotype_dir.name not in genotype_folders:
+            raise ValueError(f"Unrecognized oxo-M genotype folder: {genotype_dir}")
+        for dendrite_dir in sorted(p for p in genotype_dir.iterdir() if p.is_dir()):
+            outer = _RE_OXO_M_DENDRITE.match(dendrite_dir.name)
+            if not outer:
+                raise ValueError(f"Unrecognized oxo-M dendrite folder: {dendrite_dir}")
+            month, day, cell, dendrite = outer.groups()
+            cell_index = _OXO_M_FOLDER_CELL_FIXES.get(dendrite_dir.name, int(cell))
+            for leaf in sorted(p for p in dendrite_dir.iterdir() if p.is_dir()):
+                parsed = _match_dendritic_leaf(leaf.name)
+                if parsed is None or parsed[4] != "dend_excitability":
+                    raise ValueError(f"Unrecognized dendritic recording folder: {leaf}")
+                cell_in_name, loc_type, loc_num, site_label, modality = parsed
+                if not leaf.name.startswith(f"{month}{day}") or (cell_in_name, loc_num) != (cell_index, int(dendrite)):
+                    raise ValueError(f"{leaf} does not match the day, cell or dendrite of its folder")
+                xml_path = leaf / f"{leaf.name}.xml"
+                pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
+                if pv_date is None:
+                    raise ValueError(f"No recording time in {xml_path}")
+                trio = int(leaf.name.rsplit("-", 1)[1])
+                out.append(
+                    SweepRecord(
+                        modality=modality,
+                        cell_index=cell_index,
+                        condition_subfolder=genotype_dir.name,
+                        recording_path=leaf,
+                        pv_scan_date=pv_date,
+                        dendrite_location=loc_type,
+                        location_number=loc_num,
+                        site_label=site_label,
+                        suffix="oxoM" if trio >= 4 else None,
+                    )
+                )
+    return out
+
+
 def _walk_dendritic_mmdd_letter(
     figure_root: Path,
     dendritic_subdir: str,
@@ -716,6 +774,9 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
         sweeps.extend(_walk_oepsc_mmddyyyy_letter(fig_root, oepsc_subdir, condition_subfolders))
     if spec.get("grab_ach"):
         sweeps.extend(_walk_grab_ach(fig_root))
+    oxo_m_subdir = spec.get("oxo_m_subdir")
+    if oxo_m_subdir is not None:
+        sweeps.extend(_walk_oxo_m(fig_root, oxo_m_subdir, spec["animal_per_condition"]))
 
     # Load the subject registry and index by (date, animal, category).
     entries = load_registry()
@@ -742,6 +803,7 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
         if folder_category is None:
             unmatched.append(sw)
             continue
+        animal = spec.get("animal_per_condition", {}).get(sw.condition_subfolder, spec["animal"])
         if trust_folder:
             # Use (date, animal) lookup; ignore spreadsheet's category column.
             # If the spreadsheet's PVScan date doesn't match any row (e.g., the
@@ -752,8 +814,8 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
             # source of cells_per_experiment metadata when present but not required.
             from surmeier_lab_to_nwb.zhai2025.subject_registry import _build_subject_id
 
-            base_entry = indexed_by_date_animal.get((date_compact, spec["animal"]))
-            subject_id = _build_subject_id(date_compact, folder_category, spec["animal"])
+            base_entry = indexed_by_date_animal.get((date_compact, animal))
+            subject_id = _build_subject_id(date_compact, folder_category, animal)
             if base_entry is not None:
                 subject = SubjectEntry(
                     subject_id=subject_id,
@@ -772,13 +834,13 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
                     year=sw.pv_scan_date.year,
                     month=sw.pv_scan_date.month,
                     day=sw.pv_scan_date.day,
-                    animal=spec["animal"],
+                    animal=animal,
                     category=folder_category,
                     section=f"FOLDER_ONLY_{spec['raw_root']}",
                     cells_per_experiment={},
                 )
         else:
-            subject_key = (date_compact, spec["animal"], folder_category)
+            subject_key = (date_compact, animal, folder_category)
             subject = indexed.get(subject_key)
             if subject is None:
                 unmatched.append(sw)

@@ -21,6 +21,7 @@ from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (  # noqa: E402
     _walk_dendritic_mmdd_letter,
     _walk_grab_ach,
     _walk_oepsc_mmddyyyy_letter,
+    _walk_oxo_m,
     build_figure_bundles,
 )
 
@@ -248,3 +249,55 @@ def test_grab_ach_file_holds_every_region_of_the_mouse_day(tmp_path):
         stimulated = trials.dropna(subset=["stimulus_start_time"])
         assert (stimulated["stimulus_start_time"] > stimulated["start_time"]).all()
         assert (stimulated["stimulus_start_time"] < stimulated["stop_time"]).all()
+
+
+def test_oxo_m_dendrites_grouped_by_mouse_day():
+    # The published files had no oxo-M recordings; the paper counts 10 dendrites from 5 wild-type cells and 12 from
+    # 6 CDGI knockout cells.
+    bundles = [b for b in build_figure_bundles("F7") if b.subject_entry.category == "NAIVE"]
+    cells = {b.subject_entry.subject_id: b.cell_indices() for b in bundles}
+    assert cells == {
+        "Subject20180221NAIVEeGFP": [1, 2],
+        "Subject20180228NAIVECDGIkoXeGFP": [2, 3],
+        "Subject20180301NAIVECDGIkoXeGFP": [2, 3],
+        # The third cell's folders say c3, its recordings Cell4.
+        "Subject20180305NAIVEeGFP": [1, 2, 4],
+        "Subject20180314NAIVECDGIkoXeGFP": [2, 3],
+    }
+    dendrites = {"WT": set(), "KO": set()}
+    for bundle in bundles:
+        for cell in bundle.cell_indices():
+            sweeps = bundle.sweeps_for(cell)
+            dendrites[sweeps[0].condition_subfolder] |= {(bundle.date_compact, cell, s.location_number) for s in sweeps}
+            # Every trial after oxo-M was recorded after every trial before it.
+            before = [s.pv_scan_date for s in sweeps if s.suffix is None]
+            after = [s.pv_scan_date for s in sweeps if s.suffix == "oxoM"]
+            assert len(before) == 12 and len(after) >= 12 and max(before) < min(after)
+    assert {genotype: len(keys) for genotype, keys in dendrites.items()} == {"WT": 10, "KO": 12}
+
+
+def test_oxo_m_recording_naming_another_cell_raises(tmp_path):
+    (tmp_path / "oxoM on DE" / "WT" / "0221c1d1" / "02212018_Cell2_prox1_trio-001").mkdir(parents=True)
+    with pytest.raises(ValueError, match="does not match the day, cell or dendrite of its folder"):
+        _walk_oxo_m(tmp_path, "oxoM on DE", ["WT", "KO"])
+
+
+def test_oxo_m_file_splits_trials_before_and_after_oxo_m(tmp_path):
+    bundle = next(b for b in build_figure_bundles("F7") if b.subject_entry.subject_id == "Subject20180221NAIVEeGFP")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        assert nwbfile.session_id == "iSPN++Naive++M1RaOxoM++WT++20180221"
+        assert list(nwbfile.icephys_experimental_conditions["condition"].data[:]) == ["naive", "naive with oxo-M"]
+        irt = nwbfile.intracellular_recordings
+        conditions = irt["condition"].data[:]
+        start_times = irt["sweep_start_time"].data[:]
+        for cell in (1, 2):
+            rows = irt["cell_id"].data[:] == cell
+            before = start_times[rows & (conditions == "naive")]
+            after = start_times[rows & (conditions == "naive with oxo-M")]
+            assert len(before) == len(after) == 12 and before.max() < after.min()
+        # The lesion and levodopa text of the other files does not apply; the sheet's label is mentioned.
+        assert nwbfile.surgery.startswith("None: naive mouse")
+        assert "'LID ON'" in nwbfile.subject.description

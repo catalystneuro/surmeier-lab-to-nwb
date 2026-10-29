@@ -146,8 +146,8 @@ convert_all_full = { sequence = [
 
 # Per-mouse-day merge: patch clamp (F1, F3, F6, F7, F8), Sr2+-oEPSC (F2, F4) and
 # GRAB-ACh (F5). Replaces convert_dendritic, convert_somatic, convert_optical and
-# convert_biosensor. Always processes all data (no stub mode); the 58 patch-clamp
-# files take ~1 min at ~830 MB, the 11 GRAB-ACh files ~6 min at ~2.3 GB.
+# convert_biosensor. Always processes all data (no stub mode); the 63 patch-clamp
+# files take ~1.5 min at ~950 MB, the 11 GRAB-ACh files ~6 min at ~2.3 GB.
 merge_patch_clamp = { cmd = "python scripts/full_per_mouse_day_merge.py", help = "Run the per-mouse-day merge: patch clamp (F1, F3, F6, F7, F8), Sr2+-oEPSC (F2, F4) and GRAB-ACh (F5)." }
 convert_spine = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py''', help = "Run all spine density conversion scripts (stub test)." }
 convert_confocal = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py''', help = "Run all confocal spine density conversion scripts (stub test)." }
