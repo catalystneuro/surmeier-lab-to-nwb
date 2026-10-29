@@ -30,7 +30,7 @@ pytestmark = pytest.mark.skipif(not (REPO_ROOT / "link_to_raw_data").exists(), r
 
 
 def test_line_scans_kept_when_the_scan_line_changes_length(tmp_path):
-    # Cell 1 Proximal 2 of this mouse-day has a 21-pixel scan line in its first trial and 19 pixels in the next two.
+    # Cell 2 Proximal 2 of this mouse-day has a 21-pixel scan line in its first trial and 19 pixels in the next two.
     bundle = next(
         b for b in build_figure_bundles("F1") if b.subject_entry.subject_id == "Subject20161111LIDOFFtDTomato"
     )
@@ -44,8 +44,8 @@ def test_line_scans_kept_when_the_scan_line_changes_length(tmp_path):
             references = index[column].data[:]
             missing = [row for row, kind in enumerate(dendrite_type) if kind != "Soma" and references[row][0] < 0]
             assert missing == [], f"dendritic rows without a {column} reference: {missing}"
-        assert nwbfile.acquisition["LineScanAlexa568Cell1Proximal2Line1"].data.shape[1] == 21
-        assert nwbfile.acquisition["LineScanAlexa568Cell1Proximal2Line2"].data.shape[1] == 19
+        assert nwbfile.acquisition["LineScanAlexa568Cell2Proximal2Line1"].data.shape[1] == 21
+        assert nwbfile.acquisition["LineScanAlexa568Cell2Proximal2Line2"].data.shape[1] == 19
 
 
 def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
@@ -197,6 +197,39 @@ def test_unrecognized_recording_folder_raises(tmp_path):
     (tmp_path / "dendritic" / "LID off-state" / "0524b" / "05242016_Cell2_prox1_notes").mkdir(parents=True)
     with pytest.raises(ValueError, match="Unrecognized dendritic recording folder"):
         _walk_dendritic_mmdd_letter(tmp_path, "dendritic", ["LID off-state"])
+
+
+def test_dendritic_cell_number_comes_from_the_folder_letter():
+    # Folder 1111b holds cell 2 by its letter and the lab's sheet; its recordings' names say Cell1, which made the
+    # somatic and dendritic recordings of that cell two cells.
+    bundle = next(b for b in build_figure_bundles("F1") if b.date_compact == "20161111")
+    assert bundle.cell_indices() == [2, 3]
+    assert {s.modality for s in bundle.sweeps_for(2)} == {"soma_excitability", "dend_excitability"}
+
+
+def test_dendritic_recording_naming_another_cell_raises(tmp_path):
+    (tmp_path / "dendritic" / "LID off-state" / "0524b" / "05242016_Cell1_prox1_trio-001").mkdir(parents=True)
+    with pytest.raises(ValueError, match="names cell 1 in the folder of cell 2"):
+        _walk_dendritic_mmdd_letter(tmp_path, "dendritic", ["LID off-state"])
+
+
+def test_recordings_of_one_patch_numbered_apart_are_one_cell(tmp_path):
+    # The lab numbered these somatic and dendritic recordings differently; they follow each other with nothing in
+    # between, sooner than a new cell can be patched and filled with dye.
+    bundles = {b.date_compact: b for b in build_figure_bundles("F3")}
+    assert bundles["20160524"].cell_indices() == [1, 2, 4]
+    assert bundles["20190426"].cell_indices() == [2, 3]
+    for bundle in (bundles["20160524"], bundles["20190426"]):
+        for cell in bundle.cell_indices():
+            assert {s.modality for s in bundle.sweeps_for(cell)} == {"soma_excitability", "dend_excitability"}
+
+    nwbfile_path = merge_one_mouse_day(bundles["20160524"], tmp_path / "mouse_day.nwb")
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        dendritic = [
+            series for series in nwbfile.acquisition.values() if "dendritic recordings cell 3" in series.description
+        ]
+        assert len(dendritic) == 1 and dendritic[0].electrode.name == "ElectrodeCell4"
 
 
 def test_recording_without_its_time_raises(tmp_path):

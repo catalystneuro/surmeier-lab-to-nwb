@@ -586,6 +586,7 @@ def _build_concatenated_series(
             "in each of those trials' line scans shows. Their stimulus is the whole command, so it is longer than "
             "their recording."
         )
+    numbering = "".join(f" {note}" for note in sorted({sw.numbering_note for sw in sweeps if sw.numbering_note}))
     response = CurrentClampSeries(
         name=series_name,
         data=data_concat,
@@ -596,7 +597,7 @@ def _build_concatenated_series(
         description=(
             f"Current-clamp recordings from cell {cell_index}, {recording} The {len(sweep_slices)} sweeps are "
             "stored back to back; each sweep's start time is in the sweep_start_time column of the intracellular "
-            "recordings table." + short_sweeps
+            "recordings table." + short_sweeps + numbering
         ),
     )
     nwbfile.add_acquisition(response)

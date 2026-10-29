@@ -132,6 +132,7 @@ class SweepRecord:
     suffix: str | None = None
     led_setting: float | None = None  # LED setting written in a Sr2+-oEPSC folder name, e.g., 20 for cell1_LED20-001
     region: tuple[int, int] | None = None  # (slice, ROI) of a GRAB-ACh recording
+    numbering_note: str | None = None  # why the cell number differs from the one the lab's files give
 
 
 @dataclass
@@ -280,6 +281,20 @@ _RE_OXO_M_DENDRITE = re.compile(r"^(\d{2})(\d{2})c(\d+)d(\d+)$")
 _OXO_M_FOLDER_CELL_FIXES = {"0305c3d1": 4, "0305c3d2": 4}
 
 _LETTER_TO_INDEX = {"a": 1, "b": 2, "c": 3, "d": 4}
+
+# Dendritic cell folders whose recordings' names give another cell than the folder letter; the letter agrees with the
+# cells the Data Connections sheet lists, as for the spine stacks of the same cell
+_DENDRITIC_NAME_CELL_SLIPS = {"1111b"}
+
+# Somatic and dendritic recordings of one patch that the lab numbered differently, paired by recording time: the
+# dendritic block starts 1 to 22 min after the somatic one with nothing in between, while a new cell's first dendritic
+# block comes at least 38 min after the previous recording (it has to be patched and filled with dye first).
+# Mouse-day and the lab's dendritic cell number -> the somatic cell number the files use.
+_DENDRITIC_CELL_OF_PATCH = {
+    ("Subject20160524LIDOFFeGFP", 3): 4,
+    ("Subject20190426LIDONeGFP", 1): 2,
+    ("Subject20190426LIDONeGFP", 4): 3,
+}
 
 
 def _parse_pv_scan_date(xml_path: Path) -> datetime | None:
@@ -679,6 +694,14 @@ def _walk_dendritic_mmdd_letter(
                 if parsed is None:
                     raise ValueError(f"Unrecognized dendritic recording folder: {leaf_dir}")
                 cell_in_name, loc_type, loc_num, site_label, modality = parsed
+                numbering_note = None
+                if cell_in_name != cell_index:
+                    if cell_day_dir.name not in _DENDRITIC_NAME_CELL_SLIPS:
+                        raise ValueError(f"{leaf_dir} names cell {cell_in_name} in the folder of cell {cell_index}")
+                    numbering_note = (
+                        f"The lab's recording names call this cell {cell_in_name}; their folder ({cell_day_dir.name}) "
+                        f"and the Data Connections sheet make it cell {cell_index}."
+                    )
                 xml_path = leaf_dir / f"{leaf_dir.name}.xml"
                 pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
                 if pv_date is None:
@@ -686,13 +709,14 @@ def _walk_dendritic_mmdd_letter(
                 out.append(
                     SweepRecord(
                         modality=modality,
-                        cell_index=cell_in_name,
+                        cell_index=cell_index,
                         condition_subfolder=condition,
                         recording_path=leaf_dir,
                         pv_scan_date=pv_date,
                         dendrite_location=loc_type,
                         location_number=loc_num,
                         site_label=site_label,
+                        numbering_note=numbering_note,
                     )
                 )
 
@@ -773,6 +797,14 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
         if bundle is None:
             bundle = MouseDayBundle(subject_entry=subject)
             bundles_by_date[date_compact] = bundle
+        patch_cell = _DENDRITIC_CELL_OF_PATCH.get((subject.subject_id, sw.cell_index))
+        if sw.modality == "dend_excitability" and patch_cell is not None:
+            sw.numbering_note = (
+                f"The lab's files number these dendritic recordings cell {sw.cell_index}. They are taken to be this "
+                "cell's because they follow its somatic recordings with nothing in between, sooner than a new cell "
+                "can be patched and filled with dye."
+            )
+            sw.cell_index = patch_cell
         bundle.cells[sw.cell_index if sw.region is None else sw.region].append(sw)
 
     bundles = sorted(bundles_by_date.values(), key=lambda b: b.date_compact)
