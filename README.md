@@ -143,11 +143,9 @@ Each conversion is organized in a directory of its own in the `src` directory:
                 ├── behavior_sessions.py       # AIM scores and videos, one file per mouse and levodopa session
                 ├── conversion_notes_folder/   # Detailed conversion documentation
                 ├── conversion_scripts/        # Per-figure conversion scripts
-                │   ├── aim_behavior/
                 │   ├── confocal_spine_density/
-                │   ├── spine_density/
-                │   └── videos/
-                ├── interfaces/                # Custom NeuroConv interfaces (Bruker BOT, line-scan, behavior)
+                │   └── spine_density/
+                ├── interfaces/                # Custom NeuroConv interfaces (Bruker BOT, line-scan)
                 ├── mouse_day_merger.py        # Per-mouse-day bundle builder (raw folders → bundles)
                 ├── subjects.py                # Every mouse: subject ID, line, group, strain and genotype
                 └── utils/                     # Utility functions

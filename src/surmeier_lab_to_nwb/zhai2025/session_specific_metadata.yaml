@@ -377,34 +377,6 @@ figure_7_spine_density:
   Subject:
     description: "CDGI knockout mouse for spine density assessment. Global CDGI deletion to investigate role in LID pathophysiology. Session {session_id}."
 
-figure_7_behavioral_aim_experiments:
-  NWBFile:
-    session_description: >
-      "Figure 7 Behavioral Assessment - AIM scoring for dyskinesia analysis in CDGI knockout study"
-    keywords:
-      - "AIM"
-      - "Abnormal Involuntary Movement"
-      - "CDGI"
-      - "dyskinesia"
-      - "L-DOPA"
-  Subject:
-    genotype: "CDGI knockout"
-    description: "CDGI knockout mouse for behavioral assessment. Global CDGI deletion to investigate role in LID pathophysiology. Animal {animal_id}."
-
-figure_7_behavioral_videos:
-  NWBFile:
-    session_description: >
-      "Figure 7 Behavioral Videos - Contralateral rotation behavior assessment for CDGI knockout dyskinesia study"
-    keywords:
-      - "contralateral rotation"
-      - "behavioral assessment"
-      - "CDGI"
-      - "AIM"
-      - "Abnormal Involuntary Movement"
-  Subject:
-    genotype: "CDGI KO"
-    description: "CDGI knockout mouse for behavioral video assessment - Figure 7, animal ID: {animal_id}. Crossed with CDGI-null line maintained on C57BL/6J background for behavioral dyskinesia studies."
-
 # Figure 8 Scripts (M1R CRISPR)
 figure_8_somatic_excitability:
   NWBFile:
@@ -439,36 +411,3 @@ figure_8_spine_density:
       - "CRISPR"
   Subject:
     description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing for spine density analysis. Session {session_id}."
-
-figure_8_behavioral_aim_experiments:
-  NWBFile:
-    session_description: >
-      "Figure 8 Behavioral Assessment - AIM scoring for dyskinesia analysis in M1R CRISPR study"
-    surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
-    keywords:
-      - "AIM"
-      - "Abnormal Involuntary Movement"
-      - "CDGI"
-      - "dyskinesia"
-      - "L-DOPA"
-  Subject:
-    genotype: "M1R CRISPR knockout"
-    description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing. Animal {animal_id}."
-
-# Video Scripts
-supplementary_figure_3_behavioral_videos:
-  NWBFile:
-    session_description: >
-      "Supplementary Figure 3 Behavioral Videos - M1R CRISPR behavioral assessment for dyskinesia study"
-    keywords:
-      - "M1R CRISPR"
-      - "gene editing"
-      - "CRISPR-Cas9"
-      - "muscarinic receptor"
-      - "iSPNs"
-      - "behavioral assessment"
-      - "AIM"
-      - "Abnormal Involuntary Movement"
-  Subject:
-    genotype: "M1R CRISPR"
-    description: "M1R CRISPR study mouse for behavioral video assessment - Supplementary Figure 3, animal ID: {animal_id}. M1R deletion achieved via CRISPR-Cas9 gene editing specifically targeting indirect pathway spiny projection neurons (iSPNs). Genotype: {genotype}"
