@@ -73,7 +73,7 @@ All conversion tasks are wired up as `poethepoet` tasks defined in `pyproject.to
 uv run poe convert_all_full
 ```
 
-This runs the five-step pipeline in order: per-mouse-day merge (patch clamp, Sr2+-oEPSC and GRAB-ACh), then spine density, confocal, AIM behavior, and videos conversions. Total runtime is roughly 30-45 minutes; outputs land in `nwb_files/`.
+This runs the four-step pipeline in order: per-mouse-day merge (patch clamp, Sr2+-oEPSC and GRAB-ACh), then spine density, confocal, and the behaviour sessions (AIM scores and videos). Total runtime is roughly 30-45 minutes; outputs land in `nwb_files/`.
 
 Other useful entry points:
 
@@ -83,8 +83,7 @@ uv run poe merge_patch_clamp
 
 # Single modality
 uv run poe convert_spine_full
-uv run poe convert_behavior_full
-uv run poe convert_videos_full
+uv run poe convert_behavior
 uv run poe convert_confocal_full
 
 # Quick stub-test variants (small subset of data, for development)
@@ -131,6 +130,7 @@ Each conversion is organized in a directory of its own in the `src` directory:
     │   ├── figure_2GH_oepsc_analysis.ipynb
     │   └── figure_5F_acetylcholine_biosensor.ipynb
     ├── scripts/                         # Conversion runners and validation
+    │   ├── convert_behavior_sessions.py # Behaviour sessions runner
     │   ├── full_per_mouse_day_merge.py  # Production patch-clamp merger
     │   ├── prototype_per_mouse_day_merger.py  # Merger core (library)
     │   ├── validate_all_fi_curves.py    # Paper-panel F-I validation
@@ -140,6 +140,7 @@ Each conversion is organized in a directory of its own in the `src` directory:
     └── src/
         └── surmeier_lab_to_nwb/
             └── zhai2025/
+                ├── behavior_sessions.py       # AIM scores and videos, one file per mouse and levodopa session
                 ├── conversion_notes_folder/   # Detailed conversion documentation
                 ├── conversion_scripts/        # Per-figure conversion scripts
                 │   ├── aim_behavior/
@@ -185,15 +186,10 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
 - Real-time acetylcholine dynamics
 - **Script**: `merge_grab_ach_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
 
-### Behavioral Analysis (Figures 7, 8)
-- AIM (Abnormal Involuntary Movement) scoring
-- Contralateral rotation counting
-- Video recording integration
-- **Scripts**:
-  - [Figure 7 AIM](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py)
-  - [Figure 7 Videos](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/figure_7_behavioral_videos.py)
-  - [Figure 8 AIM](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py)
-  - [Supplementary Figure 3 Videos](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py)
+### Behavioral Analysis (Figures 7, 8, Supplementary Figure 3), one file per mouse and levodopa session
+- AIM (Abnormal Involuntary Movement) scores, one row per one-minute observation
+- Videos filmed to count contralateral rotations, linked as external files
+- **Script**: [behavior_sessions.py](src/surmeier_lab_to_nwb/zhai2025/behavior_sessions.py), run by `uv run poe convert_behavior`
 
 ### Optogenetics (Figures 2, 4), merged into per-mouse-day files
 - Light-evoked postsynaptic currents (oEPSCs)

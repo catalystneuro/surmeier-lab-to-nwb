@@ -132,15 +132,13 @@ convert_all = { sequence = [
     "convert_spine",
     "convert_confocal",
     "convert_behavior",
-    "convert_videos",
-], help = "Run the full conversion: per-mouse-day merge for patch clamp (F1, F3, F6, F7, F8), Sr2+-oEPSC (F2, F4) and GRAB-ACh (F5) plus per-condition conversion for spine density, AIM and videos (stub test mode for those that support it)." }
+], help = "Run the full conversion: per-mouse-day merge for patch clamp (F1, F3, F6, F7, F8), Sr2+-oEPSC (F2, F4) and GRAB-ACh (F5), per-mouse-session behaviour (AIM scores and videos), plus per-condition conversion for spine density and confocal (stub test mode for those that support it)." }
 
 convert_all_full = { sequence = [
     "merge_patch_clamp",
     "convert_spine_full",
     "convert_confocal_full",
-    "convert_behavior_full",
-    "convert_videos_full",
+    "convert_behavior",
 ], help = "Run the full conversion in full processing mode: per-mouse-day merge plus full-processing per-condition for everything else." }
 
 
@@ -151,22 +149,21 @@ convert_all_full = { sequence = [
 merge_patch_clamp = { cmd = "python scripts/full_per_mouse_day_merge.py", help = "Run the per-mouse-day merge: patch clamp (F1, F3, F6, F7, F8), Sr2+-oEPSC (F2, F4) and GRAB-ACh (F5)." }
 convert_spine = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py''', help = "Run all spine density conversion scripts (stub test)." }
 convert_confocal = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py''', help = "Run all confocal spine density conversion scripts (stub test)." }
-convert_behavior = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py''', help = "Run all AIM behavior conversion scripts (stub test)." }
-convert_videos = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/figure_7_behavioral_videos.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py''', help = "Run all video conversion scripts (stub test)." }
+# One file per behaviour mouse and levodopa session, with its AIM scores and videos (F7, F8, SF3); 210 files, about
+# 1 min, about 50 MB (the videos stay outside the files).
+convert_behavior = { cmd = "python scripts/convert_behavior_sessions.py", help = "Write one file per behaviour mouse and levodopa session: AIM scores and rotation videos (F7, F8, SF3)." }
 
 # Full processing tasks (process all files)
 convert_spine_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py --stub-test=False''', help = "Run all spine density conversion scripts (full processing)." }
 convert_confocal_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py --stub-test=False''', help = "Run all confocal spine density conversion scripts (full processing)." }
-convert_behavior_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py --stub-test=False''', help = "Run all AIM behavior conversion scripts (full processing)." }
-convert_videos_full = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/figure_7_behavioral_videos.py --stub-test=False && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py --stub-test=False''', help = "Run all video conversion scripts (full processing)." }
 
 # Figure-based tasks. Patch-clamp (somatic + dendritic excitability), Sr2+-oEPSC
-# and GRAB-ACh data are handled per-mouse-day by `merge_patch_clamp`, so the
-# per-figure tasks below cover only the other scripts of each figure (Figure 5 has
-# none). Run `merge_patch_clamp` separately if you need the merged files for that figure.
+# and GRAB-ACh data are handled per-mouse-day by `merge_patch_clamp`, and the AIM scores
+# and videos per mouse and session by `convert_behavior`, so the per-figure tasks below
+# cover only the other scripts of each figure (Figure 5 has none). Run those two tasks
+# separately if you need their files for that figure.
 convert_fig2 = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py''', help = "Run figure 2 scripts outside the per-mouse-day merge (spine density)." }
 convert_fig4 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4_confocal_spine_density_nikon.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_4_spine_density.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/confocal_spine_density/figure_4h_confocal_spine_density_olympus.py''', help = "Run figure 4 scripts outside the per-mouse-day merge (2P spine density + confocal Nikon + Olympus)." }
 convert_fig6 = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_6_spine_density.py''', help = "Run figure 6 non-patch-clamp scripts (spine density)." }
-convert_fig7 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/figure_7_behavioral_videos.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py''', help = "Run figure 7 non-patch-clamp scripts (AIM + videos + spine density)." }
-convert_fig8 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py && python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py''', help = "Run figure 8 non-patch-clamp scripts (AIM + spine density)." }
-convert_supfig3 = { shell = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py''', help = "Run supplementary figure 3 video conversion." }
+convert_fig7 = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py''', help = "Run figure 7 scripts outside the per-mouse-day merge and the behaviour sessions (spine density)." }
+convert_fig8 = { cmd = '''python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py''', help = "Run figure 8 scripts outside the per-mouse-day merge and the behaviour sessions (spine density)." }
