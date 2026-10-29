@@ -13,6 +13,7 @@ from prototype_per_mouse_day_merger import merge_one_mouse_day  # noqa: E402
 
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (  # noqa: E402
     _walk_dendritic_mmdd_letter,
+    _walk_oepsc_mmddyyyy_letter,
     build_figure_bundles,
 )
 
@@ -162,3 +163,18 @@ def test_recording_without_its_time_raises(tmp_path):
     (tmp_path / "dendritic" / "LID off-state" / "0524b" / "05242016_Cell2_prox1_trio-001").mkdir(parents=True)
     with pytest.raises(ValueError, match="No recording time"):
         _walk_dendritic_mmdd_letter(tmp_path, "dendritic", ["LID off-state"])
+
+
+def test_sr_oepsc_cells_grouped_by_mouse_day():
+    # On 2023-08-16 the lab named cell 1's folders "LED20-NNN", without the cell; the folder letter "a" gives it.
+    bundle = next(b for b in build_figure_bundles("F2") if b.subject_entry.subject_id == "Subject20230816LIDONtDTomato")
+    assert bundle.cell_indices() == [1, 2]
+    assert [s.recording_path.parent.name for s in bundle.sweeps_for(1)] == ["08162023a"] * 10
+    assert {s.led_setting for s in bundle.sweeps_for(1)} == {20.0}
+    assert len(bundle.sweeps_for(2)) == 10
+
+
+def test_sr_oepsc_recording_naming_another_cell_raises(tmp_path):
+    (tmp_path / "Sr-oEPSC" / "LID off-state" / "07062023b" / "cell1_LED20-001").mkdir(parents=True)
+    with pytest.raises(ValueError, match="names cell 1 but is in the folder of cell 2"):
+        _walk_oepsc_mmddyyyy_letter(tmp_path, "Sr-oEPSC", ["LID off-state"])

@@ -102,6 +102,22 @@ _FIGURE_SPECS = {
         "dendritic_subdir": None,  # Fig 8 has no dendritic excitability
         "date_format": "YYYYMMDD_letter",
     },
+    "F2": {
+        "animal": "tD-Tomato",
+        "cell_type": "dSPN",
+        "raw_root": "Figure 2_SF1A",
+        "somatic_subdir": None,
+        "dendritic_subdir": None,
+        "oepsc_subdir": "Sr-oEPSC",
+    },
+    "F4": {
+        "animal": "eGFP",
+        "cell_type": "iSPN",
+        "raw_root": "Figure 4_SF1B_SF5",
+        "somatic_subdir": None,
+        "dendritic_subdir": None,
+        "oepsc_subdir": "Sr-oEPSC",
+    },
 }
 
 
@@ -118,6 +134,7 @@ class SweepRecord:
     location_number: int | None = None  # e.g., 1 for "prox1", 2 for "dist2"
     site_label: str | None = None  # site as written in the folder name, e.g., "prox1", "realprox1", "dist1real"
     suffix: str | None = None  # e.g., "SCH" for cell1_SCH-NNN folders
+    led_setting: float | None = None  # LED setting written in a Sr2+-oEPSC folder name, e.g., 20 for cell1_LED20-001
 
 
 @dataclass
@@ -230,6 +247,11 @@ def _match_dendritic_leaf(name: str):
 
 # Somatic LEAF recording: cell<N>-<NNN> or cell<N>_<suffix>-<NNN> (e.g., SCH, sul, oxoM)
 _RE_SOMATIC_LEAF = re.compile(r"^cell(\d+)(_[A-Za-z]+)?-(\d+)$")
+
+# Sr2+-oEPSC LEAF recording: cell<N>_LED<setting>-<NNN>. Observed variations: no cell
+# (08162023a/LED20-NNN), no underscore (cell1LED20), "int" before the setting (cell1_LEDint14),
+# and "b", "_1mspulse" or "_real" after it (cell3_LED100b, cell1_LED100_1mspulse, cell2_LED4_real).
+_RE_OEPSC_LEAF = re.compile(r"^(?:cell(\d+)_?)?LED(?:int)?(\d+(?:\.\d+)?)(?:b|_1mspulse|_real)?-(\d+)$")
 
 _LETTER_TO_INDEX = {"a": 1, "b": 2, "c": 3, "d": 4}
 
@@ -415,6 +437,54 @@ def _walk_somatic_yyyymmdd_letter(
     return out
 
 
+def _walk_oepsc_mmddyyyy_letter(
+    figure_root: Path,
+    oepsc_subdir: str,
+    condition_subfolders: Iterable[str],
+) -> list[SweepRecord]:
+    """Walk Sr2+-oEPSC folders using the MMDDYYYY<letter>/cellN_LED<setting>-NNN convention.
+
+    Used by Figures 2 and 4. The letter gives the cell (a = cell 1); a leaf that names a cell must agree.
+    """
+    out: list[SweepRecord] = []
+    oepsc_root = figure_root / oepsc_subdir
+    for condition in condition_subfolders:
+        cond_dir = oepsc_root / condition
+        if not cond_dir.exists():
+            continue
+        for cell_day_dir in sorted(cond_dir.iterdir()):
+            if not cell_day_dir.is_dir():
+                continue
+            outer = _RE_LETTER_OUTER_FULLYEAR.match(cell_day_dir.name)
+            if not outer:
+                raise ValueError(f"Unrecognized Sr2+-oEPSC cell folder: {cell_day_dir}")
+            cell_index = _LETTER_TO_INDEX[outer.group(4)]
+            for leaf in sorted(cell_day_dir.iterdir()):
+                if not leaf.is_dir():
+                    continue
+                leaf_match = _RE_OEPSC_LEAF.match(leaf.name)
+                if not leaf_match:
+                    raise ValueError(f"Unrecognized Sr2+-oEPSC recording folder: {leaf}")
+                leaf_cell, led_setting, _seq = leaf_match.groups()
+                if leaf_cell is not None and int(leaf_cell) != cell_index:
+                    raise ValueError(f"{leaf} names cell {leaf_cell} but is in the folder of cell {cell_index}")
+                xml_path = leaf / f"{leaf.name}.xml"
+                pv_date = _parse_pv_scan_date(xml_path) if xml_path.exists() else None
+                if pv_date is None:
+                    raise ValueError(f"No recording time in {xml_path}")
+                out.append(
+                    SweepRecord(
+                        modality="oepsc",
+                        cell_index=cell_index,
+                        condition_subfolder=condition,
+                        recording_path=leaf,
+                        pv_scan_date=pv_date,
+                        led_setting=float(led_setting),
+                    )
+                )
+    return out
+
+
 def _walk_dendritic_mmdd_letter(
     figure_root: Path,
     dendritic_subdir: str,
@@ -536,7 +606,7 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
 
     # All condition subfolders found under either the somatic or dendritic dir.
     condition_subfolders: list[str] = []
-    for modality_dir in (spec.get("somatic_subdir"), spec.get("dendritic_subdir")):
+    for modality_dir in (spec.get("somatic_subdir"), spec.get("dendritic_subdir"), spec.get("oepsc_subdir")):
         if modality_dir is None:
             continue
         modality_root = fig_root / modality_dir
@@ -560,6 +630,9 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
             raise NotImplementedError(f"date_format={date_format!r} not yet supported")
     if dendritic_subdir is not None:
         sweeps.extend(_walk_dendritic_mmdd_letter(fig_root, dendritic_subdir, condition_subfolders))
+    oepsc_subdir = spec.get("oepsc_subdir")
+    if oepsc_subdir is not None:
+        sweeps.extend(_walk_oepsc_mmddyyyy_letter(fig_root, oepsc_subdir, condition_subfolders))
 
     # Load the subject registry and index by (date, animal, category).
     entries = load_registry()
