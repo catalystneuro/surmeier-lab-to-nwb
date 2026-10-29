@@ -4,6 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density import (
+    figure_8_spine_density,
+)
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.figure_2_spine_density import (
     convert_data_to_nwb,
 )
@@ -15,6 +18,7 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.spine_density.spine_density
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIGURE_2 = REPO_ROOT / "link_to_raw_data/Figure 2_SF1A/Spine density"
 FIGURE_4 = REPO_ROOT / "link_to_raw_data/Figure 4_SF1B_SF5/Spine density"
+FIGURE_8 = REPO_ROOT / "link_to_raw_data/Figure 8/M1R CRISPR spine density"
 
 pytestmark = pytest.mark.skipif(not (REPO_ROOT / "link_to_raw_data").exists(), reason="needs the lab's raw data")
 
@@ -53,3 +57,12 @@ def test_cell_day_comes_from_the_folder_when_file_names_disagree():
     assert cell_date(FIGURE_4 / "LID on-state iSPN/04262019a") == "20190426"
     # The image names of these cells say 06-02; the folder and the stack names say 05-02.
     assert cell_date(FIGURE_4 / "PD iSPN/0502b") == "20160502"
+
+
+def test_crispr_mice_have_the_cre_line_as_genotype():
+    # The CRISPR deletion was made by virus; the files called it the genotype and the background C57BL/6, which the
+    # paper does not give for these mice.
+    nwbfile = figure_8_spine_density.convert_data_to_nwb([FIGURE_8 / "M1R CRISPR/20221005a"], "M1R CRISPR")
+    assert nwbfile.subject.subject_id == "Subject20221005M1RCRSPRAdora2Cre"
+    assert nwbfile.subject.genotype == "Tg(Adora2a-cre)KG139Gsat (RRID:MMRRC_031168-UCD)"
+    assert nwbfile.subject.strain is None

@@ -17,11 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-from surmeier_lab_to_nwb.zhai2025.subject_registry import (
-    SubjectEntry,
-    index_by_key,
-    load_registry,
-)
+from surmeier_lab_to_nwb.zhai2025.subjects import SubjectEntry, find_subject
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RAW_DATA_ROOT = REPO_ROOT / "link_to_raw_data"
@@ -58,7 +54,6 @@ _FIGURE_SPECS = {
         "somatic_subdir": "Somatic excitability",
         "dendritic_subdir": "Dendritic excitability",
         "date_format": "MMDDYYYY_N",
-        "trust_folder_category": True,  # Some 2019 cells not in spreadsheet
     },
     "F3": {
         "animal": "eGFP",
@@ -67,7 +62,6 @@ _FIGURE_SPECS = {
         "somatic_subdir": "Somatic excitability",
         "dendritic_subdir": "Dendritic excitability",
         "date_format": "MMDDYYYY_N",
-        "trust_folder_category": True,  # Some 2019/2023+ cells not in spreadsheet
     },
     "F6": {
         "animal": "eGFP",
@@ -76,7 +70,6 @@ _FIGURE_SPECS = {
         "somatic_subdir": "Somatic excitability",
         "dendritic_subdir": "Dendritic excitability",
         "date_format": "MMDD_letter",
-        "trust_folder_category": True,  # 2023 M1Rant cells not in spreadsheet
     },
     "F7": {
         "animal": "CDGIko X eGFP",
@@ -85,19 +78,6 @@ _FIGURE_SPECS = {
         "somatic_subdir": "KO SE on vs off",
         "dendritic_subdir": "KO DE on vs off",
         "date_format": "MMDD_letter",
-        # The Data Connections spreadsheet's category labels for the CDGI-KO entries
-        # disagree with the paper's published state labels. Cross-checked against the
-        # paper's Fig 7C panel n's:
-        #   - Paper says "off-state, n = 13 cells from 5 mice" → matches the
-        #     `KO off-state/` folder (5 mice × 13 cells: May 25, 26, 27, Jun 16, 19)
-        #   - Paper says "on-state, n = 8 cells from 4 mice" → matches the
-        #     `KO on-state/` folder (4 mice × 8 cells: Aug 16, Sep 1, 2, 13)
-        # The folder names are authoritative for state. Spreadsheet rows for these
-        # dates carry inverted category labels (likely a lab-internal convention
-        # for the KO cohort that we don't need to follow). The matcher resolves
-        # subject_id from (date, animal) alone for these figures rather than
-        # requiring the spreadsheet's category to match the folder.
-        "trust_folder_category": True,
         # Figure 7E: dendrites recorded before and after oxo-M, in one folder per genotype. The paper calls these
         # mice naive; the spreadsheet labels their days "LID ON". We follow the paper and say so in the files.
         "oxo_m_subdir": "oxoM on DE",
@@ -778,22 +758,6 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
     if oxo_m_subdir is not None:
         sweeps.extend(_walk_oxo_m(fig_root, oxo_m_subdir, spec["animal_per_condition"]))
 
-    # Load the subject registry and index by (date, animal, category).
-    entries = load_registry()
-    indexed = index_by_key(entries)
-    # For figures where the spreadsheet's category labels are unreliable (see
-    # `trust_folder_category` in `_FIGURE_SPECS`), also build a (date, animal)
-    # index so we can resolve subject_id without requiring category agreement.
-    indexed_by_date_animal: dict[tuple[str, str], SubjectEntry] = {}
-    for entry in entries:
-        if entry.section == "VIDEOS":
-            continue
-        key = (entry.date_compact, entry.animal)
-        if key not in indexed_by_date_animal:
-            indexed_by_date_animal[key] = entry
-
-    trust_folder = spec.get("trust_folder_category", False)
-
     # Group sweeps by (date_compact, cell_index), then look up the Subject.
     bundles_by_date: dict[str, MouseDayBundle] = {}
     unmatched: list[SweepRecord] = []
@@ -804,47 +768,7 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
             unmatched.append(sw)
             continue
         animal = spec.get("animal_per_condition", {}).get(sw.condition_subfolder, spec["animal"])
-        if trust_folder:
-            # Use (date, animal) lookup; ignore spreadsheet's category column.
-            # If the spreadsheet's PVScan date doesn't match any row (e.g., the
-            # spreadsheet has year-discrepant entries for Fig 7's June 2016 vs 2017
-            # CDGI-KO cells), fall back to constructing the Subject from the folder
-            # data directly. The folder name + PVScan date + animal genotype are
-            # sufficient to identify the mouse-day; the spreadsheet is a useful
-            # source of cells_per_experiment metadata when present but not required.
-            from surmeier_lab_to_nwb.zhai2025.subject_registry import _build_subject_id
-
-            base_entry = indexed_by_date_animal.get((date_compact, animal))
-            subject_id = _build_subject_id(date_compact, folder_category, animal)
-            if base_entry is not None:
-                subject = SubjectEntry(
-                    subject_id=subject_id,
-                    year=base_entry.year,
-                    month=base_entry.month,
-                    day=base_entry.day,
-                    animal=base_entry.animal,
-                    category=folder_category,
-                    section=base_entry.section,
-                    cells_per_experiment=base_entry.cells_per_experiment,
-                )
-            else:
-                # Construct a Subject from folder data alone.
-                subject = SubjectEntry(
-                    subject_id=subject_id,
-                    year=sw.pv_scan_date.year,
-                    month=sw.pv_scan_date.month,
-                    day=sw.pv_scan_date.day,
-                    animal=animal,
-                    category=folder_category,
-                    section=f"FOLDER_ONLY_{spec['raw_root']}",
-                    cells_per_experiment={},
-                )
-        else:
-            subject_key = (date_compact, animal, folder_category)
-            subject = indexed.get(subject_key)
-            if subject is None:
-                unmatched.append(sw)
-                continue
+        subject = find_subject(date_compact, animal, folder_category)
         bundle = bundles_by_date.get(date_compact)
         if bundle is None:
             bundle = MouseDayBundle(subject_entry=subject)
@@ -854,7 +778,7 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
     bundles = sorted(bundles_by_date.values(), key=lambda b: b.date_compact)
     if unmatched:
         listing = "\n".join(f"  {sw.recording_path}" for sw in unmatched)
-        raise ValueError(f"{len(unmatched)} recording(s) did not match a Data Connections subject:\n{listing}")
+        raise ValueError(f"{len(unmatched)} recording(s) are in a condition folder with no group:\n{listing}")
     return bundles
 
 

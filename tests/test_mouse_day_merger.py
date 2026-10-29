@@ -336,6 +336,19 @@ def test_oxo_m_file_splits_trials_before_and_after_oxo_m(tmp_path):
         assert "'LID ON'" in nwbfile.subject.description
 
 
+def test_knockout_files_carry_the_knockout_genotype(tmp_path):
+    # The patch-clamp files had no genotype, which NWB reads as wild type, so the CDGI knockouts looked wild type.
+    bundle = next(
+        b for b in build_figure_bundles("F7") if b.subject_entry.subject_id == "Subject20180228NAIVECDGIkoXeGFP"
+    )
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        subject = io.read().subject
+        assert subject.genotype == "CDGI knockout; Tg(Drd2-EGFP)S118Gsat, hemizygous (RRID:MMRRC_000230-UNC)"
+        assert subject.strain == "C57BL/6"
+
+
 def test_control_groups_get_the_state_of_their_mice():
     # The lab's sheet files all three as CONT, which the session IDs used to turn into Control.
     states = {}

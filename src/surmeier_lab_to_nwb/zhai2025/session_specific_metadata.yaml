@@ -48,7 +48,6 @@ figure_2_spine_density:
       - "dSPNs"
       - "methodology validation"
   Subject:
-    genotype: "Drd1-Tdtomato bacterial artificial chromosome (BAC) transgenic"
     description: >
       "Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment for spine density analysis.
@@ -136,7 +135,6 @@ figure_4_spine_density:
       - "iSPNs"
       - "methodology validation"
   Subject:
-    genotype: "Drd2-EGFP+"
     description: >
       "Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment for spine density analysis.
@@ -307,7 +305,6 @@ figure_6_spine_density:
       - "M1R"
       - "muscarinic"
   Subject:
-    genotype: "Drd2-eGFP bacterial artificial chromosome (BAC) transgenic"
     description: >
       "Adult Drd2-eGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment and M1R antagonist treatment for spine density analysis.
@@ -378,7 +375,6 @@ figure_7_spine_density:
       - "CDGI"
       - "knockout"
   Subject:
-    genotype: "CDGI knockout"
     description: "CDGI knockout mouse for spine density assessment. Global CDGI deletion to investigate role in LID pathophysiology. Session {session_id}."
 
 figure_7_behavioral_aim_experiments:
@@ -442,7 +438,6 @@ figure_8_spine_density:
       - "M1R"
       - "CRISPR"
   Subject:
-    genotype: "M1R CRISPR knockout"
     description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing for spine density analysis. Session {session_id}."
 
 figure_8_behavioral_aim_experiments:

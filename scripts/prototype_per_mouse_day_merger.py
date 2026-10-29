@@ -721,7 +721,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     nwbfile.subject = Subject(
         subject_id=subject_entry.subject_id,
         species=subject_meta.get("species", "Mus musculus"),
-        strain=subject_meta.get("strain", "C57BL/6"),
+        strain=subject_entry.strain,
+        genotype=subject_entry.genotype,
         sex=subject_meta.get("sex", "M"),
         age=subject_meta.get("age", "P7W/P12W"),
         description=subject_description,
@@ -1834,7 +1835,8 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     nwbfile.subject = Subject(
         subject_id=subject_entry.subject_id,
         species=subject_meta["species"],
-        strain=subject_meta["strain"],
+        strain=subject_entry.strain,
+        genotype=subject_entry.genotype,
         sex=subject_meta["sex"],
         age=subject_meta["age"],
         description=(
@@ -2246,8 +2248,8 @@ def merge_grab_ach_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     nwbfile.subject = Subject(
         subject_id=subject_entry.subject_id,
         species=subject_meta["species"],
-        strain="C57BL/6J",
-        genotype="wild type",
+        strain=subject_entry.strain,
+        genotype=subject_entry.genotype,
         sex=subject_meta["sex"],
         age=subject_meta["age"],
         description=(

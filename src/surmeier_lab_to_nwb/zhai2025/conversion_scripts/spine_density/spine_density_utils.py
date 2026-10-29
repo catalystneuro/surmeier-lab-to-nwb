@@ -28,7 +28,7 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
-from surmeier_lab_to_nwb.zhai2025.subject_registry import _build_subject_id
+from surmeier_lab_to_nwb.zhai2025.subjects import find_subject
 
 
 def parse_xml_metadata(xml_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -695,6 +695,8 @@ def convert_spine_density_mouse_day_to_nwbfile(
     cells_text = ", ".join(map(str, cell_numbers[:-1])) + " and " if len(cell_numbers) > 1 else ""
     cells_text += str(cell_numbers[-1])
 
+    subject = find_subject(date_token, figure_config["animal"], figure_config["category"])
+
     # Surgery and pharmacology follow the group: controls had no levodopa, unlesioned controls no lesion either
     state = session_id_parameters["state"]
     surgery, pharmacology_base = surgery_and_pharmacology(state, general_metadata)
@@ -722,19 +724,22 @@ def convert_spine_density_mouse_day_to_nwbfile(
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            # The Data Connections sheet's ID for this mouse, shared with its patch-clamp file
-            "subject_id": _build_subject_id(date_token, figure_config["category"], figure_config["animal"]),
+            # The subjects table's ID for this mouse, shared with its patch-clamp file
+            "subject_id": subject.subject_id,
             # The control groups have their own description; the default one is for lesioned, levodopa-treated mice
             "description": script_template["Subject"]
             .get("description_by_state", {})
             .get(state, script_template["Subject"]["description"])
             .format(session_id=session_id, date_str=date_str),
-            "genotype": script_template["Subject"]["genotype"],
+            "strain": subject.strain,
+            "genotype": subject.genotype,
         },
     }
 
     # Deep merge with general metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
+    if subject.strain is None:  # the paper gives no background for this line
+        del merged_metadata["Subject"]["strain"]
 
     # Create NWB file using neuroconv helper function
     nwbfile = make_nwbfile_from_metadata(merged_metadata)
