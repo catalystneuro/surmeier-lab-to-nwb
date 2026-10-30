@@ -445,8 +445,8 @@ def create_amplitude_boxplot(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
     on_state_data = per_file_means[per_file_means["condition"] == "LID on-state"]["oepsc_amplitude_pA"].values
 
     if len(off_state_data) > 1 and len(on_state_data) > 1:
-        # Assuming independent samples and potentially unequal variances
-        stat, p_value = stats.ttest_ind(off_state_data, on_state_data, equal_var=False)
+        # The paper's test for Figure 2H
+        stat, p_value = stats.mannwhitneyu(off_state_data, on_state_data, alternative="two-sided")
         y_pos = 23
         if p_value < 0.001:
             ax.text(1.5, y_pos, "***", ha="center", va="bottom", fontsize=12, fontweight="bold")
@@ -534,11 +534,11 @@ ChR2-expressing corticostriatal terminals with 0.3 ms blue LED pulses.
     on_state_data = df[df["condition"] == "LID on-state"]["oepsc_amplitude_pA"].values
 
     if len(off_state_data) > 1 and len(on_state_data) > 1:
-        stat, p_value = stats.ttest_ind(off_state_data, on_state_data, equal_var=False)
+        stat, p_value = stats.mannwhitneyu(off_state_data, on_state_data, alternative="two-sided")
         markdown_content += f"""## Statistical Comparison (LID off-state vs. LID on-state)
 
-- **Independent t-test (Welch's t-test):**
-    - **t-statistic:** {stat:.3f}
+- **Mann-Whitney U test (two-sided, as in the paper):**
+    - **U statistic:** {stat:.3f}
     - **p-value:** {p_value:.4f}
     - **Significance:** {'*** (p < 0.001)' if p_value < 0.001 else '** (p < 0.01)' if p_value < 0.01 else '* (p < 0.05)' if p_value < 0.05 else 'Not significant'}
 

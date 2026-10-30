@@ -296,56 +296,51 @@ def analyze_nwb_dataset(nwb_dir: Path, stimulation_type: str = "single_pulse") -
 
     # Process each file
     for nwb_file in nwb_files:
-        try:
-            # Load all trials from this file
-            file_trials = load_nwb_trials_data(nwb_file)
-            print(f"  Loaded {len(file_trials)} trials from {nwb_file.name}")
+        # Load all trials from this file
+        file_trials = load_nwb_trials_data(nwb_file)
+        print(f"  Loaded {len(file_trials)} trials from {nwb_file.name}")
 
-            for region in dict.fromkeys(trial["region"] for trial in file_trials):
-                trials_data = [trial for trial in file_trials if trial["region"] == region]
+        for region in dict.fromkeys(trial["region"] for trial in file_trials):
+            trials_data = [trial for trial in file_trials if trial["region"] == region]
 
-                # Get calibration values for this region
-                Fmax, Fmin = get_calibration_values_from_trials(trials_data)
+            # Get calibration values for this region
+            Fmax, Fmin = get_calibration_values_from_trials(trials_data)
 
-                # Process each trial
-                for trial in trials_data:
-                    # Skip calibration trials for experimental analysis
-                    if trial["treatment"] in ["ACh_calibration", "TTX_calibration"]:
-                        continue
+            # Process each trial
+            for trial in trials_data:
+                # Skip calibration trials for experimental analysis
+                if trial["treatment"] in ["ACh_calibration", "TTX_calibration"]:
+                    continue
 
-                    # Skip trials that don't match the requested stimulation type
-                    if trial["stimulation"] != stimulation_type:
-                        continue
+                # Skip trials that don't match the requested stimulation type
+                if trial["stimulation"] != stimulation_type:
+                    continue
 
-                    # Use stimulus start time from trials table (absolute alignment)
-                    stim_time = trial["stim_time"]
+                # Use stimulus start time from trials table (absolute alignment)
+                stim_time = trial["stim_time"]
 
-                    # Process trial
-                    trial_data = process_bot_trial(trial["timestamps"], trial["fluorescence"], stim_time)
+                # Process trial
+                trial_data = process_bot_trial(trial["timestamps"], trial["fluorescence"], stim_time)
 
-                    # Normalize
-                    trial_data = normalize_fluorescence(trial_data, Fmax, Fmin, stim_time)
+                # Normalize
+                trial_data = normalize_fluorescence(trial_data, Fmax, Fmin, stim_time)
 
-                    # Store results
-                    results.append(
-                        {
-                            "condition": trial["condition"],
-                            "treatment": trial["treatment"],
-                            "subject_id": trial["subject_id"],
-                            "session_id": trial["session_id"],
-                            "series_name": trial["series_name"],
-                            "F0": trial_data["F0"],
-                            "auc_unnormalized": trial_data["auc"],
-                            "auc_normalized": trial_data["auc_normalized"],
-                            "peak_unnormalized": trial_data["peak_response"],
-                            "peak_normalized": trial_data["peak_normalized"],
-                            "region": trial["region"],
-                        }
-                    )
-
-        except Exception as e:
-            print(f"  Error processing {nwb_file.name}: {e}")
-            continue
+                # Store results
+                results.append(
+                    {
+                        "condition": trial["condition"],
+                        "treatment": trial["treatment"],
+                        "subject_id": trial["subject_id"],
+                        "session_id": trial["session_id"],
+                        "series_name": trial["series_name"],
+                        "F0": trial_data["F0"],
+                        "auc_unnormalized": trial_data["auc"],
+                        "auc_normalized": trial_data["auc_normalized"],
+                        "peak_unnormalized": trial_data["peak_response"],
+                        "peak_normalized": trial_data["peak_normalized"],
+                        "region": trial["region"],
+                    }
+                )
 
     return pd.DataFrame(results)
 
