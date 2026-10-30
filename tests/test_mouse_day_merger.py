@@ -493,3 +493,12 @@ def test_lesion_is_in_the_left_medial_forebrain_bundle():
         text = " ".join(general[field].split())
         assert "into the left medial forebrain bundle" in text
         assert "right medial forebrain bundle" not in text
+
+
+def test_grna_only_controls_have_the_wild_type_token():
+    # The Figure 8 gRNA-only controls got M1RCRISPR, the token of the mice with the deletion, while their behaviour
+    # files say WT; without the Cas9 virus their M1R is intact.
+    tokens = {}
+    for bundle in build_figure_bundles("F8"):
+        tokens.setdefault(bundle.subject_entry.category, set()).add(_build_session_id(bundle).split("++")[3])
+    assert tokens == {"CONT": {"WT"}, "M1R CRSPR": {"M1RCRISPR"}}

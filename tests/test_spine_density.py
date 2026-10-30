@@ -74,3 +74,11 @@ def test_descriptions_have_no_literal_quote_marks():
     assert nwbfile.subject.description.startswith("Adult Drd1-Tdtomato transgenic mouse")
     assert nwbfile.session_description.startswith("Dendritic spine density assessment")
     assert '"' not in nwbfile.subject.description + nwbfile.session_description
+
+
+def test_descriptions_end_without_a_newline():
+    # The folded YAML blocks kept their final line break, so every description ended with a newline.
+    lid = convert_data_to_nwb([FIGURE_2 / "LID off-state dSPN/0202a"], "LID off-state dSPN")
+    control = convert_data_to_nwb([FIGURE_2 / "control dSPN/0110b"], "control dSPN")
+    for text in (lid.session_description, lid.subject.description, control.subject.description):
+        assert text == text.strip()

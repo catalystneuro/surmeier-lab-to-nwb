@@ -4,7 +4,7 @@
 # Figure 2 Scripts
 figure_2_spine_density:
   NWBFile:
-    session_description: >
+    session_description: >-
       Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
@@ -15,21 +15,21 @@ figure_2_spine_density:
       - "dSPNs"
       - "methodology validation"
   Subject:
-    description: >
+    description: >-
       Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment for spine density analysis.
       dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
     # The control groups; the description above is for lesioned, levodopa-treated mice
     description_by_state:
-      UnlesionedControl: >
+      UnlesionedControl: >-
         Adult Drd1-Tdtomato transgenic mouse, unlesioned control: no 6-OHDA lesion and no levodopa. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
-      LesionedControl: >
+      LesionedControl: >-
         Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
 
 # Figure 4 Scripts
 figure_4_spine_density:
   NWBFile:
-    session_description: >
+    session_description: >-
       Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
@@ -40,34 +40,34 @@ figure_4_spine_density:
       - "iSPNs"
       - "methodology validation"
   Subject:
-    description: >
+    description: >-
       Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment for spine density analysis.
       iSPNs identified by Drd2-EGFP expression. Session {session_id}.
     # The control groups; the description above is for lesioned, levodopa-treated mice
     description_by_state:
-      UnlesionedControl: >
+      UnlesionedControl: >-
         Adult Drd2-EGFP transgenic mouse, unlesioned control: no 6-OHDA lesion and no levodopa. iSPNs identified by Drd2-EGFP expression. Session {session_id}.
-      LesionedControl: >
+      LesionedControl: >-
         Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. iSPNs identified by Drd2-EGFP expression. Session {session_id}.
 
 figure_4_confocal_spine_density_nikon:
   NWBFile:
-    session_description: >
+    session_description: >-
       High-resolution confocal z-stacks of {num_stacks} proximal dendrite segments of sparsely labeled iSPNs from
       mouse {mouse_number} ({condition}), the data of Figure 4, J and K, and fig. S5. Fixed sagittal sections
       were imaged on a Nikon AXR confocal with a 60x oil immersion objective (NA 1.49), 0.09 µm pixels and 0.125 µm z
       steps, on {imaging_days}. The stacks are the raw acquisitions; the lab then denoised and deconvolved them in
       NIS-Elements AR 5.41.02 and counted spines in Imaris 10.0.0 on segments about 30 µm long, about 30 µm from the
       soma. The session start is the acquisition of the first stack.
-    surgery_addition: >
+    surgery_addition: >-
       To label a few iSPNs, AAV9-pCAG-flex-eGFP-WPRE (Addgene #51502; 0.45 µl, 5 x 10^10 viral genomes/ml), which
       expresses eGFP only in cells with Cre, was injected into the left dorsolateral striatum at AP 0.7, ML -2.35 and
       DV about 3.35 mm relative to Bregma, in Adora2-Cre mice about 2 months old.
-    on_state_pharmacology: >
+    on_state_pharmacology: >-
       On-state mice received a sixth dose of levodopa (12 mg/kg, with 12 mg/kg benserazide) one hour before
       anesthesia.
-    slices: >
+    slices: >-
       Mice were anesthetized with isoflurane and then a ketamine/xylazine mixture, and transcardially perfused with
       PBS (about 20 ml) and then 4% paraformaldehyde (about 30 ml). Brains were post-fixed in 4% paraformaldehyde for
       1.5 to 2 hours and stored at 4 °C in PBS with 0.1% sodium azide. Sagittal sections 60 µm thick containing the
@@ -81,13 +81,13 @@ figure_4_confocal_spine_density_nikon:
       - "Nikon AXR"
       - "iSPN"
   Subject:
-    description: >
+    description: >-
       Adora2-Cre mouse {mouse_number} in the lab's numbering, {group}; iSPNs sparsely labeled with a Cre-dependent
       eGFP virus, see surgery.
 
 figure_4h_confocal_spine_density_olympus:
   NWBFile:
-    session_description: >
+    session_description: >-
       Overview of sparsely labeled iSPNs in the dorsolateral striatum of control mouse {animal_id}, the image of
       Figure 4I: {num_stacks} z-stack tiles, which the lab stitched, taken on an Olympus confocal with a 60x oil
       immersion objective (UPLSAP60xO, NA 1.35) and a 473 nm laser. The session start is the capture of the first
@@ -101,7 +101,7 @@ figure_4h_confocal_spine_density_olympus:
 # Figure 6 Scripts
 figure_6_spine_density:
   NWBFile:
-    session_description: >
+    session_description: >-
       Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma).
@@ -116,7 +116,7 @@ figure_6_spine_density:
       - "M1R"
       - "muscarinic"
   Subject:
-    description: >
+    description: >-
       Adult Drd2-eGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
       Received dyskinesiogenic levodopa treatment and M1R antagonist treatment for spine density analysis.
       iSPNs identified by Drd2-eGFP expression. Session {session_id}.
@@ -124,7 +124,7 @@ figure_6_spine_density:
 # Figure 7 Scripts (CDGI knockout)
 figure_7_spine_density:
   NWBFile:
-    session_description: >
+    session_description: >-
       Dendritic spine density assessment in CDGI knockout mice for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
@@ -140,7 +140,7 @@ figure_7_spine_density:
 # Figure 8 Scripts (M1R CRISPR)
 figure_8_spine_density:
   NWBFile:
-    session_description: >
+    session_description: >-
       Dendritic spine density assessment in M1R CRISPR mice for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.

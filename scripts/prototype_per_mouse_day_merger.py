@@ -737,6 +737,9 @@ def _build_session_id(bundle: MouseDayBundle) -> str:
         "Adora2-Cre": "M1RCRISPR",
     }
     geno = geno_map.get(bundle.subject_entry.animal, "WT")
+    # The gRNA-only controls of Figure 8 are Adora2-Cre mice without the Cas9 virus, so their M1R is intact
+    if bundle.subject_entry.category != "M1R CRSPR" and geno == "M1RCRISPR":
+        geno = "WT"
     return f"{cell_type}++{state}++{pharm}++{geno}++{bundle.subject_entry.date_compact}"
 
 
