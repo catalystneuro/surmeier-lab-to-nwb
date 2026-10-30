@@ -20,7 +20,7 @@ This document provides a comprehensive mapping between experimental protocols an
 ### Figure 1: Dendritic and Somatic Excitability (dSPNs)
 
 #### Figure 1A-E: Dendritic Excitability
-- **Conversion Script**: `dendritic_excitability/figure_1_dendritic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Dendritic patch clamp recordings in current clamp mode
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Dendritic patch clamp methodology
@@ -31,7 +31,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Treatment Groups**: Saline vs L-DOPA treated mice
 
 #### Figure 1F-J: Somatic Excitability
-- **Conversion Script**: `somatic_excitability/figure_1_somatic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Whole-cell patch clamp recordings in current clamp mode
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Somatic patch clamp methodology
@@ -55,7 +55,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Treatment Groups**: Saline vs L-DOPA treated mice
 
 #### Figure 2E-H: Optical Stimulation
-- **Conversion Script**: `optical_stimulation/figure_2_optical_stimuli.py`
+- **Conversion Script**: `merge_oepsc_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Two-photon imaging with optical stimulation protocols
 - **Related Protocols**:
   - `dendritic_calcium_2PLSM.md` - **PRIMARY** - Two-photon imaging with optical stimulation
@@ -69,7 +69,7 @@ This document provides a comprehensive mapping between experimental protocols an
 ### Figure 3: Dendritic and Somatic Excitability (iSPNs)
 
 #### Figure 3A-E: Dendritic Excitability (iSPNs)
-- **Conversion Script**: `dendritic_excitability/figure_3_dendritic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Dendritic patch clamp recordings
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Dendritic patch clamp methodology
@@ -80,7 +80,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Treatment Groups**: Saline vs L-DOPA treated mice
 
 #### Figure 3F-J: Somatic Excitability (iSPNs)
-- **Conversion Script**: `somatic_excitability/figure_3_somatic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Whole-cell patch clamp recordings in current clamp mode
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Somatic patch clamp methodology
@@ -104,7 +104,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Treatment Groups**: Saline vs L-DOPA treated mice
 
 #### Figure 4E-F: Optical Stimulation Analysis
-- **Conversion Script**: `optical_stimulation/figure_4_optical_stimuli.py`
+- **Conversion Script**: `merge_oepsc_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Two-photon imaging with optical stimulation
 - **Related Protocols**:
   - `dendritic_calcium_2PLSM.md` - **PRIMARY** - Two-photon imaging methodology
@@ -139,7 +139,7 @@ This document provides a comprehensive mapping between experimental protocols an
 ### Figure 5: Acetylcholine Biosensor Imaging
 
 #### Figure 5A-H: GRABACh3.0 Biosensor Analysis
-- **Conversion Script**: `acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py`
+- **Conversion Script**: `merge_grab_ach_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: GRABACh3.0 biosensor imaging with two-photon microscopy
 - **Related Protocols**:
   - `genetically_encoded_sensors_2PLSM.md` - **PRIMARY** - Biosensor imaging methodology
@@ -153,7 +153,7 @@ This document provides a comprehensive mapping between experimental protocols an
 ### Figure 6: Combined Excitability and Spine Analysis
 
 #### Figure 6A-C: Dendritic Excitability
-- **Conversion Script**: `dendritic_excitability/figure_6_dendritic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Dendritic patch clamp recordings
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Dendritic patch clamp methodology
@@ -163,7 +163,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Cell Types**: Both dSPNs and iSPNs
 
 #### Figure 6D-F: Somatic Excitability
-- **Conversion Script**: `somatic_excitability/figure_6_somatic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Somatic patch clamp recordings
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Somatic patch clamp methodology
@@ -185,7 +185,7 @@ This document provides a comprehensive mapping between experimental protocols an
 ### Figure 7: Behavioral Assessment and Physiology
 
 #### Figure 7A-C: AIM Behavioral Scoring
-- **Conversion Script**: `aim_behavior/figure_7_behavioral_aim_experiments.py`
+- **Conversion Script**: `src/surmeier_lab_to_nwb/zhai2025/behavior_sessions.py`
 - **Experimental Methods**: AIM (Abnormal Involuntary Movement) behavioral scoring
 - **Related Protocols**:
   - `levodopa_dyskinesia_rating.md` - **PRIMARY** - AIM behavioral scoring methodology
@@ -194,7 +194,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Assessment**: Behavioral rating scales for dyskinesia severity
 
 #### Figure 7D: Behavioral Video Analysis
-- **Conversion Script**: `videos/figure_7_behavioral_videos.py`
+- **Conversion Script**: `src/surmeier_lab_to_nwb/zhai2025/behavior_sessions.py`
 - **Experimental Methods**: Video analysis of dyskinetic behaviors
 - **Related Protocols**:
   - `levodopa_dyskinesia_rating.md` - **PRIMARY** - Video-based behavioral assessment
@@ -203,7 +203,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Analysis**: Computer-assisted behavioral quantification
 
 #### Figure 7E-G: Dendritic Excitability
-- **Conversion Script**: `dendritic_excitability/figure_7_dendritic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Dendritic patch clamp recordings
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Dendritic patch clamp methodology
@@ -213,7 +213,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Cell Types**: Both dSPNs and iSPNs
 
 #### Figure 7H-J: OxoM Dendritic Excitability
-- **Conversion Script**: `dendritic_excitability/figure_7_oxoM_dendritic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Dendritic patch clamp with oxotremorine-M (oxoM) application
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Dendritic patch clamp with pharmacology
@@ -224,7 +224,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Cell Types**: Both dSPNs and iSPNs
 
 #### Figure 7K-M: Somatic Excitability
-- **Conversion Script**: `somatic_excitability/figure_7_somatic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Somatic patch clamp recordings
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Somatic patch clamp methodology
@@ -246,7 +246,7 @@ This document provides a comprehensive mapping between experimental protocols an
 ### Figure 8: Comprehensive Multi-Modal Analysis
 
 #### Figure 8A-C: AIM Behavioral Assessment
-- **Conversion Script**: `aim_behavior/figure_8_behavioral_aim_experiments.py`
+- **Conversion Script**: `src/surmeier_lab_to_nwb/zhai2025/behavior_sessions.py`
 - **Experimental Methods**: Comprehensive AIM behavioral scoring
 - **Related Protocols**:
   - `levodopa_dyskinesia_rating.md` - **PRIMARY** - AIM behavioral scoring
@@ -255,7 +255,7 @@ This document provides a comprehensive mapping between experimental protocols an
 - **Assessment**: Longitudinal behavioral tracking
 
 #### Figure 8D-F: Somatic Excitability
-- **Conversion Script**: `somatic_excitability/figure_8_somatic_excitability.py`
+- **Conversion Script**: `merge_one_mouse_day` in `scripts/prototype_per_mouse_day_merger.py`
 - **Experimental Methods**: Somatic patch clamp in behaviorally characterized animals
 - **Related Protocols**:
   - `patch_clamp_optogenetics.md` - **PRIMARY** - Somatic patch clamp methodology
@@ -278,7 +278,7 @@ This document provides a comprehensive mapping between experimental protocols an
 ## Supplementary Figures
 
 ### Supplementary Figure 3: Extended Behavioral Video Analysis
-- **Conversion Script**: `videos/supplementary_figure_3_behavioral_videos.py`
+- **Conversion Script**: `src/surmeier_lab_to_nwb/zhai2025/behavior_sessions.py`
 - **Experimental Methods**: Extended video analysis of dyskinetic behaviors
 - **Related Protocols**:
   - `levodopa_dyskinesia_rating.md` - **PRIMARY** - Video-based behavioral assessment
@@ -304,39 +304,23 @@ This document provides a comprehensive mapping between experimental protocols an
 
 ### By Experimental Category
 ```
-conversion_scripts/
-├── dendritic_excitability/       # Dendritic patch clamp experiments
-│   ├── figure_1_dendritic_excitability.py
-│   ├── figure_3_dendritic_excitability.py
-│   ├── figure_6_dendritic_excitability.py
-│   ├── figure_7_dendritic_excitability.py
-│   └── figure_7_oxoM_dendritic_excitability.py
-├── somatic_excitability/         # Somatic patch clamp experiments
-│   ├── figure_1_somatic_excitability.py
-│   ├── figure_3_somatic_excitability.py
-│   ├── figure_6_somatic_excitability.py
-│   ├── figure_7_somatic_excitability.py
-│   └── figure_8_somatic_excitability.py
-├── spine_density/                # Two-photon spine density analysis
-│   ├── figure_2_spine_density.py
-│   ├── figure_4_spine_density.py
-│   ├── figure_6_spine_density.py
-│   ├── figure_7_spine_density.py
-│   └── figure_8_spine_density.py
-├── optical_stimulation/          # Optical stimulation experiments
-│   ├── figure_2_optical_stimuli.py
-│   └── figure_4_optical_stimuli.py
-├── confocal_spine_density/       # Confocal microscopy spine analysis
-│   ├── figure_4_confocal_spine_density_nikon.py
-│   └── figure_4h_confocal_spine_density_olympus.py
-├── acetylcholine_biosensor/      # Biosensor imaging experiments
-│   └── figure_5_acetylcholine_biosensor.py
-├── aim_behavior/                 # Behavioral assessment experiments
-│   ├── figure_7_behavioral_aim_experiments.py
-│   └── figure_8_behavioral_aim_experiments.py
-└── videos/                       # Video analysis experiments
-    ├── figure_7_behavioral_videos.py
-    └── supplementary_figure_3_behavioral_videos.py
+scripts/
+├── prototype_per_mouse_day_merger.py   # One file per mouse-day: patch clamp (somatic and dendritic),
+│                                       # Sr2+-oEPSC (merge_oepsc_mouse_day) and GRAB-ACh (merge_grab_ach_mouse_day)
+└── full_per_mouse_day_merge.py         # Runs the merger for every figure
+src/surmeier_lab_to_nwb/zhai2025/
+├── mouse_day_merger.py                 # Groups the lab's recordings by mouse-day
+├── behavior_sessions.py                # AIM scores and rotation videos, one file per mouse and levodopa session
+└── conversion_scripts/
+    ├── spine_density/                  # Two-photon spine density analysis
+    │   ├── figure_2_spine_density.py
+    │   ├── figure_4_spine_density.py
+    │   ├── figure_6_spine_density.py
+    │   ├── figure_7_spine_density.py
+    │   └── figure_8_spine_density.py
+    └── confocal_spine_density/         # Confocal microscopy spine analysis
+        ├── figure_4_confocal_spine_density_nikon.py
+        └── figure_4h_confocal_spine_density_olympus.py
 ```
 
 ## Key Experimental Variables

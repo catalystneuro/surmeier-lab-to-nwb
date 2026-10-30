@@ -247,24 +247,13 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
         tzinfo=ZoneInfo("America/Chicago")
     )
 
-    # Create canonical session ID with explicit parameters
-    # This script processes methodological validation data (no experimental conditions)
-    condition_human_readable = "methodological validation"
-
-    # Create timestamp with detailed format when available
-    if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    else:
-        timestamp = session_start_time.strftime("%Y%m%d")
-
     # The mosaic's mouse, 5104, is one of the control mice of Figure 4J
-    date_token = timestamp[:8]
     session_id = generate_canonical_session_id(
         cell_type="iSPN",  # Indirect pathway SPN
         state="UnlesionedControl",
         pharm="none",  # No pharmacology
         geno="WT",  # Wild-type
-        date=date_token,
+        date=session_start_time.strftime("%Y%m%d"),
     )
 
     # Load general and session-specific metadata from YAML files
