@@ -8,7 +8,6 @@ contralateral rotations. A session's file holds its AIM scores and its videos.
 from __future__ import annotations
 
 import math
-import os
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -16,15 +15,15 @@ from datetime import date, datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import cv2
 import pandas as pd
 from ndx_ethogram import Ethogram
 from ndx_hed import HedLabMetaData, HedTags
 from ndx_hed.utils.hed_nwb_validator import HedNWBValidator
+from neuroconv.datainterfaces import ExternalVideoInterface
+from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.utils import load_dict_from_file
-from pynwb import NWBHDF5IO, NWBFile
+from pynwb import NWBFile
 from pynwb.file import Subject
-from pynwb.image import ImageSeries
 
 from surmeier_lab_to_nwb.zhai2025.subjects import SUBJECTS, SubjectEntry
 
@@ -418,28 +417,26 @@ def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
             if not math.isnan(score):
                 aim_scores.add_row(timestamp=minutes * 60.0, duration=60.0, behavior=behavior, score=score)
 
+    # One video interface per video, placed at its minute after the injection. The lab's files name no camera, so the
+    # videos link to no device.
     for video in sorted(session.videos, key=lambda video: video.minutes):
-        capture = cv2.VideoCapture(str(video.path))
-        rate, frames = capture.get(cv2.CAP_PROP_FPS), int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        capture.release()
-        if not rate or not frames:
+        interface = ExternalVideoInterface(file_paths=[video.path], metadata_key=f"video_{video.minutes}_min")
+        if not all(interface.get_header_frame_rates()) or not all(interface.get_header_frame_counts()):
             raise ValueError(f"Cannot read the frame rate and frame count of {video.path}")
-        nwbfile.add_acquisition(
-            ImageSeries(
-                name=f"Video{video.minutes}Min",
-                description=(
-                    f"Video of the mouse from {video.minutes} min after the levodopa injection, filmed to count its "
-                    f"contralateral rotations. {video.note}"
-                ).strip(),
-                external_file=[os.path.relpath(video.path, output_path.parent)],
-                format="external",
-                starting_frame=[0],
-                num_samples=frames,
-                rate=rate,
-                starting_time=video.minutes * 60.0,
-            )
+        (video_key,) = interface.temporal_alignment.keys()
+        interface.temporal_alignment[video_key].move_start_to(video.minutes * 60.0)
+        metadata = interface.get_metadata()
+        video_metadata = metadata["Behavior"]["ExternalVideos"][interface.metadata_key]
+        del video_metadata["device_metadata_key"]
+        video_metadata.update(
+            name=f"Video{video.minutes}Min",
+            description=(
+                f"Video of the mouse from {video.minutes} min after the levodopa injection, filmed to count its "
+                f"contralateral rotations. {video.note}"
+            ).strip(),
         )
+        interface.add_to_nwbfile(nwbfile, metadata=metadata)
 
-    with NWBHDF5IO(output_path, "w") as io:
-        io.write(nwbfile)
+    # Writes each video's path relative to the NWB file
+    configure_and_write_nwbfile(nwbfile, nwbfile_path=output_path)
     return output_path
