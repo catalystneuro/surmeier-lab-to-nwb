@@ -1,7 +1,7 @@
 """Write one NWB file per behaviour mouse and levodopa session (Figures 7 and 8, Supplementary Figure 3).
 
-Outputs go to nwb_files/behavior/<figure>/<subject_id>_<YYYYMMDD>.nwb. The videos stay where they are and the files
-link to them.
+Outputs go to nwb_files/behavior/<figure>/<subject_id>_<YYYYMMDD>.nwb. The files link to copies of the lab's videos
+without audio, made in nwb_files/behavior/<figure>/videos/ with the lab's folder layout.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def main() -> None:
             if output_path in written:
                 raise ValueError(f"Two sessions would be written to {output_path}")
             written.add(output_path)
-            write_behavior_session(session, output_path)
+            write_behavior_session(session, output_path, video_folder=figure_dir / "videos")
 
 
 if __name__ == "__main__":

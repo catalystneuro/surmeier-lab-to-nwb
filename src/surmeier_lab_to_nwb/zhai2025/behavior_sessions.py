@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import re
+import subprocess
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
@@ -325,9 +326,40 @@ def build_session_id(session: BehaviorSession) -> str:
     return f"pan++OnState++none++{genotype}++{session.aim.date.strftime('%Y%m%d')}"
 
 
-def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
+def _frame_count(video_path: Path) -> int:
+    """The frame count the video's container header states; raises when it states none."""
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames", "-of", "csv=p=0"]
+        + [str(video_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return int(result.stdout)
+
+
+def make_web_playable_copy(video_path: Path, copy_path: Path) -> Path:
+    """Copy a video as an `.mp4` a browser can stream: the same video stream, without re-encoding, with its index at the
+    start of the file and without the audio, which may carry the lab room's conversations. A copy that exists is kept;
+    raises unless the copy has the frame count of the original."""
+    if not copy_path.exists():
+        copy_path.parent.mkdir(parents=True, exist_ok=True)
+        # Written under another name first, so an interrupted copy is never taken for a finished one
+        partial_path = copy_path.with_name(f"partial_{copy_path.name}")
+        subprocess.run(
+            ["ffmpeg", "-nostdin", "-v", "error", "-y", "-i", str(video_path), "-map", "0:v:0", "-c:v", "copy", "-an"]
+            + ["-movflags", "+faststart", str(partial_path)],
+            check=True,
+        )
+        partial_path.rename(copy_path)
+    if _frame_count(copy_path) != _frame_count(video_path):
+        raise ValueError(f"{copy_path} does not have the frame count of {video_path}")
+    return copy_path
+
+
+def write_behavior_session(session: BehaviorSession, output_path: Path, video_folder: Path) -> Path:
     """Write one mouse's session: its AIM scores as intervals and its videos as files the NWB file links to, by a path
-    relative to it."""
+    relative to it. The videos are web-playable copies without audio, made in `video_folder` when missing."""
     general = load_dict_from_file(GENERAL_METADATA)
     nwb_meta, subject_meta = general["NWBFile"], general["Subject"]
     subject, aim = session.subject, session.aim
@@ -420,9 +452,11 @@ def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
     # One video interface per video, placed at its minute after the injection. The lab's files name no camera, so the
     # videos link to no device.
     for video in sorted(session.videos, key=lambda video: video.minutes):
-        interface = ExternalVideoInterface(file_paths=[video.path], metadata_key=f"video_{video.minutes}_min")
+        relative_path = video.path.relative_to(VIDEO_FOLDERS[aim.figure])
+        copy_path = make_web_playable_copy(video.path, video_folder / relative_path.with_suffix(".mp4"))
+        interface = ExternalVideoInterface(file_paths=[copy_path], metadata_key=f"video_{video.minutes}_min")
         if not all(interface.get_header_frame_rates()) or not all(interface.get_header_frame_counts()):
-            raise ValueError(f"Cannot read the frame rate and frame count of {video.path}")
+            raise ValueError(f"Cannot read the frame rate and frame count of {copy_path}")
         (video_key,) = interface.temporal_alignment.keys()
         interface.temporal_alignment[video_key].move_start_to(video.minutes * 60.0)
         metadata = interface.get_metadata()
@@ -432,7 +466,7 @@ def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
             name=f"Video{video.minutes}Min",
             description=(
                 f"Video of the mouse from {video.minutes} min after the levodopa injection, filmed to count its "
-                f"contralateral rotations. {video.note}"
+                f"contralateral rotations. A copy of the lab's video without its audio track. {video.note}"
             ).strip(),
         )
         interface.add_to_nwbfile(nwbfile, metadata=metadata)

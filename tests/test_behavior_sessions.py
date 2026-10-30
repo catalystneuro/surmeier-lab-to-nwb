@@ -1,5 +1,6 @@
 """Tests for the behaviour sessions. They read the lab's raw data through link_to_raw_data."""
 
+import subprocess
 from collections import Counter
 from pathlib import Path
 
@@ -42,7 +43,7 @@ def test_session_file_has_the_mouse_its_scores_and_videos(tmp_path):
     session = next(
         s for s in build_behavior_sessions("Figure 7") if s.subject.mouse_number == 1944 and s.aim.session_number == 1
     )
-    nwbfile_path = write_behavior_session(session, tmp_path / "session.nwb")
+    nwbfile_path = write_behavior_session(session, tmp_path / "session.nwb", video_folder=tmp_path / "videos")
 
     with NWBHDF5IO(nwbfile_path, "r") as io:
         nwbfile = io.read()
@@ -63,3 +64,34 @@ def test_session_file_has_the_mouse_its_scores_and_videos(tmp_path):
         assert nwbfile.lab_meta_data["hed_schema"].hed_schema_version == "8.5.0"
         assert sorted(nwbfile.acquisition) == ["Video20Min", "Video40Min", "Video60Min", "Video80Min"]
         assert nwbfile.acquisition["Video40Min"].starting_time == 2400.0
+
+
+def test_session_file_links_web_playable_copies_without_audio(tmp_path):
+    # The files linked the lab's videos, a quarter of them QuickTime .mov and all with an audio track that may carry the
+    # lab room's conversations.
+    session = next(
+        s for s in build_behavior_sessions("Figure 7") if s.subject.mouse_number == 1944 and s.aim.session_number == 1
+    )
+    nwbfile_path = write_behavior_session(session, tmp_path / "session.nwb", video_folder=tmp_path / "videos")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        video = io.read().acquisition["Video40Min"]
+        (external_file,) = video.external_file[:]
+        assert external_file.startswith("videos/") and external_file.endswith(".mp4")
+        assert "without its audio track" in video.description
+    streams = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+            str(tmp_path / external_file),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    assert streams == ["video"]
