@@ -424,6 +424,51 @@ def _series_name(cell_index: int, modality: str, neurodata_type: str = "CurrentC
     return f"{neurodata_type}Cell{cell_index}{suffix}"
 
 
+# The lab's figure folders follow the preprint's numbering. The published paper (Science Advances) gave the behaviour of
+# preprint Figures 7 and 8 figures of their own, so the M1R deletion recordings of the lab's Figure 8 are Figure 9.
+_PUBLISHED_FIGURE = {"F1": "Figure 1", "F3": "Figure 3", "F6": "Figure 6", "F7": "Figure 7", "F8": "Figure 9"}
+_CELLS_OF_TYPE = {
+    "dSPN": ("direct-pathway spiny projection neuron (dSPN)", "direct-pathway spiny projection neurons (dSPNs)"),
+    "iSPN": ("indirect-pathway spiny projection neuron (iSPN)", "indirect-pathway spiny projection neurons (iSPNs)"),
+}
+
+
+def _patch_clamp_session_description(bundle: MouseDayBundle, cell_type: str) -> str:
+    """What was recorded from the mouse that day: figure, cells, conditions in recording order, and the two assays."""
+    singular, plural = _CELLS_OF_TYPE[cell_type]
+    n_cells = len(bundle.cell_indices())
+    conditions: list[str] = []
+    for sweep in sorted((sw for sweeps in bundle.cells.values() for sw in sweeps), key=lambda sw: sw.pv_scan_date):
+        condition = _CONDITION_LABEL[sweep.condition_subfolder]
+        if sweep.suffix == "oxoM":
+            condition += " with oxo-M"
+        if condition not in conditions:
+            conditions.append(condition)
+    somatic = [cell for cell in bundle.cell_indices() if bundle.sweeps_for(cell, "soma_excitability")]
+    dendritic = [cell for cell in bundle.cell_indices() if bundle.sweeps_for(cell, "dend_excitability")]
+
+    description = (
+        f"Patch-clamp recordings ({_PUBLISHED_FIGURE[bundle.figure_code]}): whole-cell current clamp of {n_cells} "
+        f"{singular if n_cells == 1 else plural} from one mouse. "
+        f"{'Condition' if len(conditions) == 1 else 'Conditions'}: {'; '.join(conditions)}."
+    )
+    if somatic:
+        description += (
+            f" Somatic excitability of {len(somatic)} {'cell' if len(somatic) == 1 else 'cells'}: 500 ms current "
+            "steps injected at the cell body."
+        )
+    if dendritic:
+        description += (
+            f" Dendritic excitability of {len(dendritic)} {'cell' if len(dendritic) == 1 else 'cells'}: spikes evoked "
+            "by brief current injections at the cell body, imaged with two-photon line scans across proximal and "
+            "distal dendrites filled with Alexa Fluor 568 and Fluo-4."
+        )
+    return (
+        description + " The cell, condition and site of each sweep are in the intracellular recordings table and the "
+        "RecordingsIndexTable."
+    )
+
+
 def _protocol_description(protocol_label: str) -> str:
     """Readable protocol for the repetitions table from the internal label ('soma_fi_curve', 'dend_prox1')."""
     if protocol_label == "soma_fi_curve":
@@ -677,14 +722,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     subject_meta = general.get("Subject", {})
     subject_entry = bundle.subject_entry
 
-    session_description = (
-        f"Per-mouse-day icephys merge for {subject_entry.subject_id}: "
-        f"{len(bundle.cell_indices())} patched cell(s), "
-        f"category={subject_entry.category}, animal/reporter={subject_entry.animal}. "
-        f"All cells from this mouse on this day collected in one NWB file with the icephys "
-        f"hierarchical chain populated (IntracellularRecordings -> Simultaneous -> Sequential "
-        f"-> Repetitions -> ExperimentalConditions)."
-    )
+    session_id = _build_session_id(bundle)
+    session_description = _patch_clamp_session_description(bundle, cell_type=session_id.split("++")[0])
     surgery = nwb_meta.get("surgery")
     pharmacology = nwb_meta.get("pharmacology")
     subject_description = (
@@ -709,7 +748,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         ),
         identifier=str(uuid.uuid4()),
         session_start_time=session_start_time,
-        session_id=_build_session_id(bundle),
+        session_id=session_id,
         experimenter=nwb_meta.get("experimenter", ["Zhai, Shenyu"]),
         institution=nwb_meta.get("institution", "Northwestern University"),
         lab=nwb_meta.get("lab", "Surmeier Lab"),
@@ -886,6 +925,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         # with the per-recording compartment.
         dend_subbundle = MouseDayBundle(
             subject_entry=bundle.subject_entry,
+            figure_code=bundle.figure_code,
             cells={cell_index: dend_sweeps},
         )
         # Single concatenated dendritic series for the whole cell.

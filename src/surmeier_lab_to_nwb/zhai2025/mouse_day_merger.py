@@ -140,6 +140,7 @@ class MouseDayBundle:
     """All sweeps from one mouse-day, grouped by cell."""
 
     subject_entry: SubjectEntry
+    figure_code: str  # the lab's figure folder, as in _FIGURE_SPECS: "F1", "F2", ...
     # cell_index -> list of SweepRecord; (slice, ROI) -> list of SweepRecord for GRAB-ACh regions
     cells: dict[int | tuple[int, int], list[SweepRecord]] = field(default_factory=lambda: defaultdict(list))
 
@@ -795,7 +796,7 @@ def build_figure_bundles(figure_code: str = "F1") -> list[MouseDayBundle]:
         subject = find_subject(date_compact, animal, folder_category)
         bundle = bundles_by_date.get(date_compact)
         if bundle is None:
-            bundle = MouseDayBundle(subject_entry=subject)
+            bundle = MouseDayBundle(subject_entry=subject, figure_code=figure_code)
             bundles_by_date[date_compact] = bundle
         patch_cell = _DENDRITIC_CELL_OF_PATCH.get((subject.subject_id, sw.cell_index))
         if sw.modality == "dend_excitability" and patch_cell is not None:

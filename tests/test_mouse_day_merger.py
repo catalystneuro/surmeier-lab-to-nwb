@@ -392,3 +392,20 @@ def test_control_groups_get_the_state_of_their_mice():
                 states.setdefault(condition, set()).add(_build_session_id(bundle).split("++")[1])
     # GRAB-ACh unlesioned mice; Figure 6 vehicle and Figure 8 gRNA-only controls, both off-state mice.
     assert states == {"UL control": {"UnlesionedControl"}, "control": {"OffState"}, "interleaved control": {"OffState"}}
+
+
+def test_session_description_names_the_published_figure_and_paper(tmp_path):
+    # The description was an internal note ("Per-mouse-day icephys merge ... category=M1R CRSPR"), the lab's Figure 8
+    # recordings are Figure 9 of the published paper, and the files cited only the preprint.
+    bundle = next(
+        b for b in build_figure_bundles("F8") if b.subject_entry.subject_id == "Subject20221004M1RCRSPRAdora2Cre"
+    )
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        assert nwbfile.session_description.startswith(
+            "Patch-clamp recordings (Figure 9): whole-cell current clamp of 2 indirect-pathway spiny projection "
+            "neurons (iSPNs) from one mouse. Condition: LID off-state, M1R deletion. Somatic excitability of 2 cells"
+        )
+        assert list(nwbfile.related_publications) == ["https://doi.org/10.1126/sciadv.adv8224"]
