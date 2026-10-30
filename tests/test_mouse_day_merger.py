@@ -13,6 +13,8 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from prototype_per_mouse_day_merger import (  # noqa: E402
     _build_session_id,
+    _general_metadata,
+    _parse_voltage_output,
     merge_grab_ach_mouse_day,
     merge_oepsc_mouse_day,
     merge_one_mouse_day,
@@ -472,3 +474,22 @@ def test_figure_6_and_8_files_name_their_treatments(tmp_path, figure, subject_id
     bundle = next(b for b in build_figure_bundles(figure) if b.subject_entry.subject_id == subject_id)
     with NWBHDF5IO(merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb"), "r") as io:
         assert expected in getattr(io.read(), field)
+
+
+def test_stimulus_current_has_no_float_noise():
+    # 0.55 V at 400 pA/V is 220.00000000000003 in floating point, which 88 somatic sweeps had in stimulus_current_pA.
+    xml_path = (
+        REPO_ROOT / "link_to_raw_data/Figure 1/Somatic excitability/LID off-state/02022017_1/cell1-017"
+        "/cell1-017_Cycle00001_VoltageOutput_001.xml"
+    )
+    assert repr(_parse_voltage_output(xml_path).amplitude_pA) == "220.0"
+
+
+def test_lesion_is_in_the_left_medial_forebrain_bundle():
+    # The surgery and pharmacology text said the right one. The lesion protocol's ML -1.2 mm is left in the paper's
+    # convention (it injects "the left DLS" at ML -2.35), and the protocol keeps mice that rarely use the right paw.
+    general = _general_metadata()["NWBFile"]
+    for field in ("surgery", "pharmacology"):
+        text = " ".join(general[field].split())
+        assert "into the left medial forebrain bundle" in text
+        assert "right medial forebrain bundle" not in text

@@ -32,6 +32,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -237,7 +238,7 @@ def _parse_voltage_output(xml_path: Path) -> StimulusProtocol:
     waveforms = [w for w in root.findall("Waveform") if w.findtext("Enabled", default="false").lower() == "true"]
     if [w.findtext("Name") for w in waveforms] != ["700B"] or waveforms[0].findtext("Units") != "pA":
         raise ValueError(f"{xml_path} does not have the 700B current command as its only output")
-    scale_factor = float(waveforms[0].findtext("UnitScaleFactor"))
+    scale_factor = Decimal(waveforms[0].findtext("UnitScaleFactor"))
     amplitudes: set[float] = set()
     pulses_ms: list[tuple[float, float]] = []
     component_start = 0.0
@@ -254,7 +255,8 @@ def _parse_voltage_output(xml_path: Path) -> StimulusProtocol:
             raise ValueError(f"{xml_path}: component {component.findtext('Name')} is not one train of equal pulses")
         count, width, spacing = int(values["PulseCount"]), values["PulseWidth"], values["PulseSpacing"]
         first_start = component_start + values["FirstPulseDelay"]
-        amplitude = values["PulsePotentialStart"] * scale_factor
+        # In decimal, so 0.55 V at 400 pA/V is 220 pA and not 220.00000000000003
+        amplitude = float(Decimal(component.findtext("PulsePotentialStart")) * scale_factor)
         if amplitude != 0:
             amplitudes.add(amplitude)
             pulses_ms.extend((first_start + number * (width + spacing), width) for number in range(count))

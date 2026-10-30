@@ -66,3 +66,11 @@ def test_crispr_mice_have_the_cre_line_as_genotype():
     assert nwbfile.subject.subject_id == "Subject20221005M1RCRSPRAdora2Cre"
     assert nwbfile.subject.genotype == "Tg(Adora2a-cre)KG139Gsat (RRID:MMRRC_031168-UCD)"
     assert nwbfile.subject.strain is None
+
+
+def test_descriptions_have_no_literal_quote_marks():
+    # The YAML wrapped the default descriptions in quote marks inside folded blocks, and the files kept them.
+    nwbfile = convert_data_to_nwb([FIGURE_2 / "LID off-state dSPN/0202a"], "LID off-state dSPN")
+    assert nwbfile.subject.description.startswith("Adult Drd1-Tdtomato transgenic mouse")
+    assert nwbfile.session_description.startswith("Dendritic spine density assessment")
+    assert '"' not in nwbfile.subject.description + nwbfile.session_description

@@ -26,7 +26,7 @@ NWBFile:
     - Surmeier, D. James
   surgery: |
     Unilateral stereotaxic lesion: 1 µl of 6-hydroxydopamine
-    (≈3 µg in 0.02 % ascorbate-saline) injected into the right
+    (≈3 µg in 0.02 % ascorbate-saline) injected into the left
     medial forebrain bundle. Stereotaxic coordinates per the lab's
     6-OHDA lesion protocol: AP -0.7 mm and ML -1.2 mm from bregma;
     DV -4.75 mm from the dura surface (NOT from bregma; the protocol
@@ -42,7 +42,7 @@ NWBFile:
     2 % for maintenance). Pre-operative analgesia: meloxicam
     0.1 mg kg⁻¹ s.c. Lesion: intracranial 6-hydroxydopamine, 1 µl
     of 3.5 mg ml⁻¹ free-base 6-OHDA in 0.02 % ascorbate-saline
-    into the right medial forebrain bundle. L-DOPA priming for LID:
+    into the left medial forebrain bundle. L-DOPA priming for LID:
     five i.p. injections every other day—6 mg kg⁻¹ for the first
     two sessions, 12 mg kg⁻¹ thereafter—each co-administered with
     benserazide 12 mg kg⁻¹ to inhibit peripheral decarboxylation.
