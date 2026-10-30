@@ -17,9 +17,9 @@ from pynwb.device import DeviceModel
 def get_or_create_bruker_ultima_model(nwbfile: NWBFile) -> DeviceModel:
     """Return the Bruker Ultima In Vitro multiphoton microscope model.
 
-    Shared across line-scan dendritic excitability (`ophys_interfaces`),
-    Brightness-Over-Time biosensor imaging (`prairie_view_fluorescence_interface`),
-    and two-photon spine-density acquisitions (`spine_density_utils`). The lab's
+    Shared across the dendritic line scans, the Brightness-Over-Time biosensor
+    imaging (both in `scripts/prototype_per_mouse_day_merger.py`), and two-photon
+    spine-density acquisitions (`spine_density_utils`). The lab's
     paper identifies the same physical Bruker Ultima In Vitro rig mounted on an
     Olympus BX-51 chassis for all three.
     """

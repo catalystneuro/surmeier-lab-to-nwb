@@ -227,9 +227,9 @@ Figure 1/Dendritic excitability/
 **Parameter Interpretation**:
 - **PulseCount**: 3 → Three current injections
 - **PulseWidth**: 2 ms → Each injection lasts 2 ms
-- **PulseSpacing**: 18 ms → 18 ms between pulse starts (16 ms gap + 2 ms pulse = ~55 Hz)
+- **PulseSpacing**: 18 ms → 18 ms from the end of one pulse to the start of the next, so a pulse starts every 20 ms (50 Hz, as in the paper)
 - **PulsePotentialStart**: 5 → With UnitScaleFactor 400 and Units "pA" = 2000 pA = 2 nA
-- **FirstPulseDelay**: 900 ms → Stimulus starts 900 ms after recording begins
+- **FirstPulseDelay**: 900 ms → The first pulse starts 900 ms after this component begins. It follows a 100 ms first component of 0 pA, so the pulses start at 1000, 1020 and 1040 ms into the sweep
 
 ## Channel Assignments
 
