@@ -48,8 +48,42 @@ def test_line_scans_kept_when_the_scan_line_changes_length(tmp_path):
         assert nwbfile.acquisition["LineScanAlexa568Cell2Proximal2Line2"].data.shape[1] == 19
 
 
-def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
-    # Cells 1 and 3 of this mouse-day each have a location whose scan line moves between trials.
+def test_each_scan_line_gets_its_own_roi(tmp_path):
+    # Cell 3 Proximal 2 of this mouse-day keeps its 21-pixel length but the line moves, so it gets two ROIs.
+    bundle = next(
+        b for b in build_figure_bundles("F1") if b.subject_entry.subject_id == "Subject20161111LIDOFFtDTomato"
+    )
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        fluorescence = nwbfile.processing["ophys"]["Fluorescence"]
+        image_masks = []
+        for line in ("Line1", "Line2"):
+            rois = fluorescence[f"RoiResponseSeriesAlexa568Cell3Proximal2{line}"].rois
+            image_masks.append(np.asarray(rois.table["image_mask"][rois.data[0]]))
+        assert not np.array_equal(*image_masks)
+
+
+def test_fluorescence_roi_is_the_window_prairie_view_averages(tmp_path):
+    # Prairie View's line profile is the mean of the line scan over the pixels of its profile window, 0 to 16 of
+    # this 19-pixel line, and not over the whole line, which the files used to give as the ROI.
+    bundle = next(
+        b for b in build_figure_bundles("F1") if b.subject_entry.subject_id == "Subject20161111LIDOFFtDTomato"
+    )
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        roi_response = nwbfile.processing["ophys"]["Fluorescence"]["RoiResponseSeriesFluo4Cell2Proximal2Line2"]
+        rois = roi_response.rois
+        assert np.asarray(rois.table["image_mask"][rois.data[0]]).sum() == 17
+        line_scan = nwbfile.acquisition["LineScanFluo4Cell2Proximal2Line2"].data[:]
+        np.testing.assert_allclose(roi_response.data[:, 0], line_scan[:, :17].mean(axis=1), atol=1)
+
+
+def test_line_scans_start_with_their_sweeps(tmp_path):
+    # The trials of a site used to be stored back to back from the first one's start, so later trials sat too early.
     bundle = next(
         b for b in build_figure_bundles("F1") if b.subject_entry.subject_id == "Subject20161111LIDOFFtDTomato"
     )
@@ -58,22 +92,12 @@ def test_each_trial_roi_is_the_scan_line_of_its_kymograph(tmp_path):
     with NWBHDF5IO(nwbfile_path, "r") as io:
         nwbfile = io.read()
         dendrite_type = nwbfile.intracellular_recordings["dendrite_type"].data[:]
+        sweep_start_time = nwbfile.intracellular_recordings["sweep_start_time"].data[:]
         index = nwbfile.processing["recordings_index"]["RecordingsIndexTable"]
-        for row, kind in enumerate(dendrite_type):
-            if kind == "Soma":
-                continue
-            for channel in ("alexa568", "fluo4"):
-                kymograph = index[f"line_scan_{channel}"][row].timeseries
-                rois = index[f"roi_response_{channel}"][row].timeseries.rois
-                n_pixels = len(rois.table["pixel_mask"][rois.data[0]])
-                assert n_pixels == kymograph.data.shape[1], f"row {row} {channel}: ROI has {n_pixels} pixels"
-        # Cell 3 Proximal 2 keeps its 21-pixel length but the line moves, so it gets two ROIs.
-        fluorescence = nwbfile.processing["ophys"]["Fluorescence"]
-        pixel_masks = []
-        for line in ("Line1", "Line2"):
-            rois = fluorescence[f"RoiResponseSeriesAlexa568Cell3Proximal2{line}"].rois
-            pixel_masks.append([tuple(pixel) for pixel in rois.table["pixel_mask"][rois.data[0]]])
-        assert pixel_masks[0] != pixel_masks[1]
+        for column in ("line_scan_alexa568", "line_scan_fluo4", "roi_response_alexa568", "roi_response_fluo4"):
+            for row, kind in enumerate(dendrite_type):
+                if kind != "Soma":
+                    assert index[column][row].timestamps[0] == sweep_start_time[row], f"{column} row {row}"
 
 
 def test_real_trials_kept_apart_from_the_first_patch(tmp_path):

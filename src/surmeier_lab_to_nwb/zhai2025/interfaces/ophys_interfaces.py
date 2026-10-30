@@ -2,8 +2,7 @@
 
 Only ``BrukerReferenceImagesInterface`` remains here. The Bruker BOT and line-scan
 flows have moved to dedicated portable interface modules in this package
-(:mod:`bruker_bot_segmentation_interface`, :mod:`bruker_line_scan_interface`,
-:mod:`bruker_line_scan_kymograph_interface`, :mod:`bruker_line_scan_source_image_interface`).
+(:mod:`bruker_bot_segmentation_interface`, :mod:`bruker_line_scan_interface`).
 """
 
 from pathlib import Path

@@ -78,8 +78,9 @@ def calculate_calcium_auc(fluo4_series, alexa568_series) -> float:
     """
     try:
         # Get calcium and structural data
-        fluo4_data = fluo4_series.data[:]  # Green channel (Ch2)
-        alexa568_data = alexa568_series.data[:]  # Red channel (Ch1)
+        # The fluorescence series have one column, for the one ROI of the scan line
+        fluo4_data = fluo4_series.data[:, 0]  # Green channel (Ch2)
+        alexa568_data = alexa568_series.data[:, 0]  # Red channel (Ch1)
 
         if len(fluo4_data) != len(alexa568_data):
             print(f"Warning: Data length mismatch - Fluo4: {len(fluo4_data)}, Alexa568: {len(alexa568_data)}")
