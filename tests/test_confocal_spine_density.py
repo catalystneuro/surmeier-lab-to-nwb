@@ -35,6 +35,8 @@ def test_mouse_file_holds_its_stacks_under_the_sheet_mouse():
     assert nwbfile.subject.genotype == "Tg(Adora2a-cre)KG139Gsat (RRID:MMRRC_031168-UCD)"
     assert nwbfile.subject.strain is None
     assert nwbfile.session_id == "iSPN++UnlesionedControl++none++WT++20240116"
+    # Figure 4J of the preprint is Figure 4K of the published paper
+    assert "the data of Figure 4, J and K, and fig. S5" in nwbfile.session_description
     assert nwbfile.surgery.startswith("No 6-OHDA lesion") and "AAV9-pCAG-flex-eGFP" in nwbfile.surgery
     assert "levodopa" not in nwbfile.subject.description.replace("no levodopa", "")
     # Cell 1 of slide 1, slice 2 has two imaged dendrites.
@@ -60,5 +62,6 @@ def test_olympus_session_starts_when_the_mosaic_was_captured():
     nwbfile = convert_olympus_session_to_nwbfile(FIGURE_4H / "5104-3 60x str_Cycle")
     assert nwbfile.session_start_time == datetime(2024, 9, 28, 12, 53, 12, tzinfo=ZoneInfo("America/Chicago"))
     assert nwbfile.session_id == "iSPN++UnlesionedControl++none++WT++20240928"
+    assert "the image of Figure 4I" in nwbfile.session_description
     assert nwbfile.subject.subject_id == "Subject20230820CONTAdora2CreM5104"
     assert nwbfile.subject.genotype.startswith("Tg(Adora2a-cre)")

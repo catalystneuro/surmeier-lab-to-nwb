@@ -168,7 +168,7 @@ def parse_oif_stack_info(oif_folder: Path) -> Dict[str, Any]:
             f"High-resolution confocal Z-stack {stack_id} from Olympus FV10i system. "
             f"Acquired at 60x magnification (NA=1.35) with 0.125 μm z-steps and "
             f"~0.207 μm pixels for spine density methodology validation. "
-            f"Part of Figure 4H demonstrating confocal vs two-photon resolution differences."
+            f"One tile of the image of Figure 4I."
         ),
     }
 

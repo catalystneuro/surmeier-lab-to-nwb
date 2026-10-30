@@ -174,7 +174,7 @@ figure_4_confocal_spine_density_nikon:
   NWBFile:
     session_description: >
       High-resolution confocal z-stacks of {num_stacks} proximal dendrite segments of sparsely labeled iSPNs from
-      mouse {mouse_number} ({condition}), the data of Figure 4J and Supplementary Figure 5. Fixed sagittal sections
+      mouse {mouse_number} ({condition}), the data of Figure 4, J and K, and fig. S5. Fixed sagittal sections
       were imaged on a Nikon AXR confocal with a 60x oil immersion objective (NA 1.49), 0.09 µm pixels and 0.125 µm z
       steps, on {imaging_days}. The stacks are the raw acquisitions; the lab then denoised and deconvolved them in
       NIS-Elements AR 5.41.02 and counted spines in Imaris 10.0.0 on segments about 30 µm long, about 30 µm from the
@@ -208,7 +208,7 @@ figure_4h_confocal_spine_density_olympus:
   NWBFile:
     session_description: >
       Overview of sparsely labeled iSPNs in the dorsolateral striatum of control mouse {animal_id}, the image of
-      Figure 4H: {num_stacks} z-stack tiles, which the lab stitched, taken on an Olympus confocal with a 60x oil
+      Figure 4I: {num_stacks} z-stack tiles, which the lab stitched, taken on an Olympus confocal with a 60x oil
       immersion objective (UPLSAP60xO, NA 1.35) and a 473 nm laser. The session start is the capture of the first
       tile.
     keywords:

@@ -41,6 +41,9 @@ VIDEO_FOLDERS = {
     "Figure 7": RAW_DATA_ROOT / "Figure 7" / "contralateral rotations" / "CDGI KO videos",
     "Figure 8": RAW_DATA_ROOT / "Sup. Figure 3" / "M1R CRISPR videos",
 }
+# The lab's folders follow the preprint's figure numbers; the published paper (Science Advances) has the behaviour of the
+# CDGI knockout mice in Figure 8 and of the M1R deletion mice in Figure 10
+_PUBLISHED_FIGURE = {"Figure 7": "Figure 8", "Figure 8": "Figure 10"}
 
 _RE_MOUSE = re.compile(r"ET#\s*0*(\d+)")
 _RE_MINUTES = re.compile(r"^\s*(\d+)\s*min\s*$")
@@ -333,7 +336,8 @@ def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
     dose = _LEVODOPA_DOSE_MG_PER_KG[aim.session_number]
 
     description = (
-        f"Levodopa session {aim.session_number} of 5 of mouse {subject.mouse_number} ({group}, {aim.figure}): AIM "
+        f"Levodopa session {aim.session_number} of 5 of mouse {subject.mouse_number} ({group}, "
+        f"{_PUBLISHED_FIGURE[aim.figure]}): AIM "
         "(abnormal involuntary movement) scores and the videos filmed to count contralateral rotations. After an "
         f"i.p. injection of levodopa ({dose} mg/kg) with benserazide (12 mg/kg), axial, limb and orolingual "
         "movements were each observed for one minute every 20 min and rated from 0 to 4. Times in this file count "
@@ -351,8 +355,8 @@ def write_behavior_session(session: BehaviorSession, output_path: Path) -> Path:
         session_start_time=datetime.combine(aim.date, time(0), tzinfo=TIMEZONE),
         session_id=build_session_id(session),
         experiment_description=(
-            "Levodopa-induced dyskinesia in 6-OHDA-lesioned mice: CDGI knockout and wild-type mice (Figure 7), and "
-            "mice with M1R deleted from iSPNs by CRISPR-Cas9 and their controls (Figure 8, Supplementary Figure 3)."
+            "Levodopa-induced dyskinesia in 6-OHDA-lesioned mice: CDGI knockout and wild-type mice (Figure 8 and fig. "
+            "S2A), and mice with M1R deleted from iSPNs by CRISPR-Cas9 and their controls (Figure 10)."
         ),
         experimenter=nwb_meta["experimenter"],
         institution=nwb_meta["institution"],

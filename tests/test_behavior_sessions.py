@@ -50,6 +50,8 @@ def test_session_file_has_the_mouse_its_scores_and_videos(tmp_path):
         assert nwbfile.subject.genotype.startswith("CDGI knockout")
         assert nwbfile.subject.weight == "26.6 g"
         assert nwbfile.session_id == "pan++OnState++none++CDGIKO++20180223"
+        # The lab's Figure 7 behaviour is Figure 8 of the published paper
+        assert nwbfile.session_description.startswith("Levodopa session 1 of 5 of mouse 1944 (CDGI knockout, Figure 8)")
         ratings = (
             nwbfile.events["aim_scores"].to_dataframe().pivot(index="timestamp", columns="behavior", values="score")
         )
