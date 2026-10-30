@@ -76,6 +76,10 @@ from pynwb.icephys import (
 )
 from pynwb.image import Image
 
+from surmeier_lab_to_nwb.zhai2025.behavior_sessions import (
+    _CRISPR_INJECTION,
+    _CRISPR_VIRUSES,
+)
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (
     MouseDayBundle,
@@ -508,6 +512,20 @@ _OXO_M_PHARMACOLOGY = (
     "lab's ReadMe: trials 1 to 3 at a site are before oxo-M, trials 4 to 6 or 7 to 9 after). Each trial's condition "
     "says whether oxo-M was present."
 )
+# Figure 6: the M1R antagonist or saline, injected in the off-state; the antagonist mice's slices were kept in a second
+# antagonist.
+_M1R_ANTAGONIST_PHARMACOLOGY = {
+    "M1R ant": " About 2 hours after the last levodopa dose, at the start of the off-state, the M1R antagonist "
+    "trihexyphenidyl hydrochloride (3 mg/kg) was injected i.p.; brain slices were made 16 hours later and kept in the "
+    "selective M1R antagonist VU 0255035 (5 µM) throughout the recordings.",
+    "CONT": " About 2 hours after the last levodopa dose, at the start of the off-state, saline was injected i.p. (the "
+    "control for the M1R antagonist trihexyphenidyl); brain slices were made 16 hours later.",
+}
+# Figure 8: the CRISPR or control virus, as in the behaviour files, plus the reporter virus of the ex vivo experiments.
+_CRISPR_REPORTER = (
+    " As in all ex vivo experiments that needed the CRISPR-expressing iSPNs identified, a third virus, "
+    "AAV9-EF1a-DIO-eYFP (Addgene #27056), was mixed in (1:1:1)."
+)
 
 # The subject description of the patch-clamp and Sr2+-oEPSC files: the mouse line, then what was done to the mouse, in
 # the paper's words. Keyed by the line and group as the lab's Data Connections sheet writes them.
@@ -804,6 +822,11 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     if subject_entry.category == "NAIVE":
         surgery = _NAIVE_SURGERY
         pharmacology = _OXO_M_PHARMACOLOGY
+    elif bundle.figure_code == "F6":
+        pharmacology = pharmacology.rstrip() + _M1R_ANTAGONIST_PHARMACOLOGY[subject_entry.category]
+    elif bundle.figure_code == "F8":
+        viruses = _CRISPR_VIRUSES[subject_entry.category]
+        surgery = surgery.rstrip() + _CRISPR_INJECTION.format(viruses=viruses) + _CRISPR_REPORTER
     nwbfile = NWBFile(
         session_description=session_description,
         experiment_description=nwb_meta.get(

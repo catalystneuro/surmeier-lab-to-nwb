@@ -432,3 +432,19 @@ def test_subject_description_describes_the_mouse(tmp_path):
         description = io.read().subject.description
     assert "brain slices were made 24 to 48 hours after the last dose, in the off-state" in description
     assert "A channelrhodopsin-2 (ChR2) virus was injected into the motor cortex" in description
+
+
+@pytest.mark.parametrize(
+    "figure, subject_id, field, expected",
+    [
+        ("F6", "Subject20200722M1RanteGFP", "pharmacology", "VU 0255035 (5 µM)"),
+        ("F6", "Subject20200811CONTeGFP", "pharmacology", "saline was injected i.p."),
+        ("F8", "Subject20221004M1RCRSPRAdora2Cre", "surgery", "AAV9-hSyn-DIO-saCAS-minWPRE"),
+    ],
+)
+def test_figure_6_and_8_files_name_their_treatments(tmp_path, figure, subject_id, field, expected):
+    # The files had the general lesion and levodopa text only: no trihexyphenidyl, saline or VU 0255035 for Figure 6,
+    # no CRISPR virus for Figure 8.
+    bundle = next(b for b in build_figure_bundles(figure) if b.subject_entry.subject_id == subject_id)
+    with NWBHDF5IO(merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb"), "r") as io:
+        assert expected in getattr(io.read(), field)
