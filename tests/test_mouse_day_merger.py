@@ -409,3 +409,26 @@ def test_session_description_names_the_published_figure_and_paper(tmp_path):
             "neurons (iSPNs) from one mouse. Condition: LID off-state, M1R deletion. Somatic excitability of 2 cells"
         )
         assert list(nwbfile.related_publications) == ["https://doi.org/10.1126/sciadv.adv8224"]
+
+
+def test_subject_description_describes_the_mouse(tmp_path):
+    # The description was an internal note ("Reporter line Adora2-Cre, category M1R CRSPR, ... See general_metadata.yaml
+    # surgery section"), the same for every group.
+    bundle = next(
+        b for b in build_figure_bundles("F8") if b.subject_entry.subject_id == "Subject20221004M1RCRSPRAdora2Cre"
+    )
+    with NWBHDF5IO(merge_one_mouse_day(bundle, tmp_path / "patch_clamp.nwb"), "r") as io:
+        description = io.read().subject.description
+    assert description.startswith(
+        "Adora2a-Cre transgenic mouse, whose indirect-pathway spiny projection neurons (iSPNs) express Cre recombinase. "
+        "It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle and, after the "
+        "cylinder test, an injection of adeno-associated viruses (AAVs) carrying Cre-dependent Cas9"
+    )
+
+    bundle = next(
+        b for b in build_figure_bundles("F2") if b.subject_entry.subject_id == "Subject20230706LIDOFFtDTomato"
+    )
+    with NWBHDF5IO(merge_oepsc_mouse_day(bundle, tmp_path / "sr_oepsc.nwb"), "r") as io:
+        description = io.read().subject.description
+    assert "brain slices were made 24 to 48 hours after the last dose, in the off-state" in description
+    assert "A channelrhodopsin-2 (ChR2) virus was injected into the motor cortex" in description

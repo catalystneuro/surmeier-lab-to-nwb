@@ -509,6 +509,81 @@ _OXO_M_PHARMACOLOGY = (
     "says whether oxo-M was present."
 )
 
+# The subject description of the patch-clamp and Sr2+-oEPSC files: the mouse line, then what was done to the mouse, in
+# the paper's words. Keyed by the line and group as the lab's Data Connections sheet writes them.
+_LINE_DESCRIPTION = {
+    "tD-Tomato": (
+        "Drd1-tdTomato BAC (bacterial artificial chromosome) transgenic mouse, whose direct-pathway spiny projection "
+        "neurons (dSPNs) express tdTomato."
+    ),
+    "eGFP": (
+        "Drd2-eGFP BAC (bacterial artificial chromosome) transgenic mouse, whose indirect-pathway spiny projection "
+        "neurons (iSPNs) express eGFP."
+    ),
+    "CDGIko X eGFP": (
+        "CalDAG-GEFI (CDGI) knockout mouse crossed with the Drd2-eGFP BAC (bacterial artificial chromosome) "
+        "transgenic line: it lacks CDGI, and its indirect-pathway spiny projection neurons (iSPNs) express eGFP."
+    ),
+    "Adora2-Cre": (
+        "Adora2a-Cre transgenic mouse, whose indirect-pathway spiny projection neurons (iSPNs) express Cre "
+        "recombinase."
+    ),
+}
+_LESION = "It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle"
+_LEVODOPA = "levodopa (with benserazide) every other day for at least five sessions to induce dyskinesia"
+_LESION_AND_LEVODOPA = f"{_LESION}, then {_LEVODOPA}"
+_M1R_INJECTION = (
+    ". About 2 hours after the last dose, at the start of the off-state, it was injected intraperitoneally with "
+    "{drug}; brain slices were made 16 hours later."
+)
+_CRISPR = (
+    f"{_LESION} and, after the cylinder test, an injection of {{viruses}} into the dorsolateral striatum on the side "
+    f"of the lesion. About a month later it was given {_LEVODOPA}, and it was studied in the off-state of "
+    "levodopa-induced dyskinesia (LID)."
+)
+_GROUP_DESCRIPTION = {
+    "LID OFF": _LESION_AND_LEVODOPA + "; brain slices were made 24 to 48 hours after the last dose, in the off-state "
+    "of levodopa-induced dyskinesia (LID).",
+    "LID ON": _LESION_AND_LEVODOPA + "; brain slices were made 30 min after the last dose, in the on-state of "
+    "levodopa-induced dyskinesia (LID).",
+    "M1R ant": _LESION_AND_LEVODOPA
+    + _M1R_INJECTION.format(drug="the M1 muscarinic receptor (M1R) antagonist trihexyphenidyl (3 mg/kg)"),
+    "M1R CRSPR": _CRISPR.format(
+        viruses="adeno-associated viruses (AAVs) carrying Cre-dependent Cas9 and guide RNAs against Chrm1, the gene "
+        "of the M1 muscarinic receptor (M1R), which delete M1R from iSPNs,"
+    ),
+    "NAIVE": (
+        "It is naive: no 6-hydroxydopamine (6-OHDA) lesion and no levodopa, as the paper describes the mice of Figure "
+        "7D-E. The lab's Data Connections sheet labels this day 'LID ON' (lesioned and levodopa-treated) instead; the "
+        "recordings themselves do not say."
+    ),
+}
+# The lab's "CONT" is a different control in each figure.
+_CONTROL_DESCRIPTION = {
+    "F6": _LESION_AND_LEVODOPA
+    + _M1R_INJECTION.format(drug="saline (the control for the M1 muscarinic receptor antagonist)"),
+    "F8": _CRISPR.format(viruses="only the guide RNA virus, without Cas9 (control),"),
+}
+
+
+def _patch_clamp_subject_description(bundle: MouseDayBundle, virus: str = "") -> str:
+    """The mouse line and what was done to the mouse, for the patch-clamp and Sr2+-oEPSC files."""
+    subject_entry = bundle.subject_entry
+    if subject_entry.category == "CONT":
+        group = _CONTROL_DESCRIPTION[bundle.figure_code]
+    else:
+        group = _GROUP_DESCRIPTION[subject_entry.category]
+    return " ".join(
+        sentence
+        for sentence in [
+            _LINE_DESCRIPTION[subject_entry.animal],
+            group,
+            virus,
+            "The lab gave this mouse no number; its Data Connections sheet identifies it by date, line and condition.",
+        ]
+        if sentence
+    )
+
 
 def _ensure_devices(nwbfile: NWBFile) -> tuple[Device, Device]:
     """Add Bruker microscope and Multiclamp amplifier devices."""
@@ -726,19 +801,9 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     session_description = _patch_clamp_session_description(bundle, cell_type=session_id.split("++")[0])
     surgery = nwb_meta.get("surgery")
     pharmacology = nwb_meta.get("pharmacology")
-    subject_description = (
-        f"Reporter line {subject_entry.animal}, category {subject_entry.category}, "
-        "ipsilateral 6-OHDA lesion of the medial forebrain bundle. "
-        f"See general_metadata.yaml surgery section for the lesion protocol."
-    )
     if subject_entry.category == "NAIVE":
         surgery = _NAIVE_SURGERY
         pharmacology = _OXO_M_PHARMACOLOGY
-        subject_description = (
-            f"Reporter line {subject_entry.animal}, naive: no 6-OHDA lesion and no levodopa, as the paper describes "
-            "the mice of Figure 7D-E. The lab's Data Connections sheet labels this day 'LID ON' (lesioned and "
-            "levodopa-treated) instead; the recordings themselves do not say."
-        )
     nwbfile = NWBFile(
         session_description=session_description,
         experiment_description=nwb_meta.get(
@@ -765,7 +830,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         genotype=subject_entry.genotype,
         sex=subject_meta.get("sex", "M"),
         age=subject_meta.get("age", "P7W/P12W"),
-        description=subject_description,
+        description=_patch_clamp_subject_description(bundle),
     )
 
     bruker, amp = _ensure_devices(nwbfile)
@@ -1880,9 +1945,10 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         genotype=subject_entry.genotype,
         sex=subject_meta["sex"],
         age=subject_meta["age"],
-        description=(
-            f"Reporter line {subject_entry.animal}, category {subject_entry.category}. Unilateral 6-OHDA lesion of "
-            "the medial forebrain bundle and ChR2 virus injected into the motor cortex on the same side; see surgery."
+        description=_patch_clamp_subject_description(
+            bundle,
+            virus="A channelrhodopsin-2 (ChR2) virus was injected into the motor cortex on the side of the lesion; see "
+            "surgery.",
         ),
     )
     amplifier = Device(name="MultiClamp700B", description="Molecular Devices MultiClamp 700B patch-clamp amplifier.")
