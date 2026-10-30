@@ -5,10 +5,8 @@ both parse the master `.xml` file that Prairie View writes alongside each record
 This module centralises the parsing so the same logic is not reimplemented in each
 interface.
 
-See `obsidian_docs/source_formats/bruker/prairie_view_xml_format.md` for the XML
-structure these helpers operate on. The roiextractors `BrukerTiffImagingExtractor`
-parses the same XML with lxml; we use xmltodict here because the two custom
-acquisition modes Surmeier uses (PVLinescanDefinition, PVBOTs) are not supported by
+The roiextractors `BrukerTiffImagingExtractor` parses the same XML with lxml; we use
+xmltodict here because the two custom acquisition modes Surmeier uses (PVLinescanDefinition, PVBOTs) are not supported by
 the upstream extractor, so reusing its instance-bound parser is not an option.
 """
 

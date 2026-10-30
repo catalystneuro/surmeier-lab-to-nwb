@@ -4,8 +4,6 @@ For now the merger only knows Figure 1 (dSPN somatic + dendritic excitability ac
 LID off, LID on, and LID on+SCH conditions). The folder conventions for other patch-clamp
 figures differ in surface detail (some use MMDDYYYY_N, others MMDD<letter>, Figure 8 uses
 YYYYMMDD<letter>); add per-figure handlers in `_figure_specs` to extend coverage.
-
-See `obsidian_docs/plan_per_cell_merge_with_full_icephys_chain.md` for the design.
 """
 
 from __future__ import annotations
