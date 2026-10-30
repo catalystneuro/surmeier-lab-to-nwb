@@ -112,7 +112,7 @@ The `session_id` follows a 5-token format: `<cellType>++<state>++<pharm>++<genot
 
 ### Reading from the dandiset
 
-The notebooks under `notebooks/` stream files directly from DANDI without downloading. Start with `how_to_use_this_dataset.ipynb` for a tour of the new per-mouse-day patch-clamp files, the `RecordingsIndexTable`, line-scan access, AIM `DynamicTable`, optogenetic Sr-oEPSC, and acetylcholine biosensor data. The per-figure reproduction notebooks (`figure_1E_dspn_somatic_excitability.ipynb`, `figure_2GH_oepsc_analysis.ipynb`, `figure_5F_acetylcholine_biosensor.ipynb`) demonstrate downstream analysis on the published figures.
+The notebooks under `notebooks/` stream files directly from DANDI without downloading. Start with `how_to_use_this_dataset.ipynb` for a tour of the per-mouse-day patch-clamp files, the `RecordingsIndexTable`, line-scan access, the behaviour files with AIM ratings and videos, the Sr-oEPSC recordings, and the acetylcholine biosensor data. The per-figure reproduction notebooks (`figure_1E_dspn_somatic_excitability.ipynb`, `figure_2GH_oepsc_analysis.ipynb`, `figure_5F_acetylcholine_biosensor.ipynb`) demonstrate downstream analysis on the published figures.
 
 **Note:** All installation methods above install the repository in [editable mode](https://pip.pypa.io/en/stable/cli/pip_install/#editable-installs), allowing you to modify the source code if needed.
 
