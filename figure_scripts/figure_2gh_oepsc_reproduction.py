@@ -4,14 +4,15 @@ Figure 2 G and H oEPSC Reproduction Script (Fixed)
 
 This script reproduces Figure 2 G and H from Zhai et al. 2025 using NWB files
 containing Sr²⁺-oEPSC data. It loads voltage clamp recordings, detects oEPSC
-events with a robust median-absolute-deviation (MAD) method within the defined
-"detection" window from the NWB `intervals/optogenetic_epochs_table`, and then
-generates cumulative probability curves and box plots.
+events with a robust median-absolute-deviation (MAD) method within the paper's
+detection window, 40 ms to 400 ms after each LED flash in the NWB
+`intervals/optogenetic_pulses_table`, and then generates cumulative probability
+curves and box plots.
 
 Updates in this version:
-- Adjusts to the updated NWB file structure where condition is encoded as
-  `OnState`/`OffState` in the filename and optogenetic timing comes from
-  `intervals['optogenetic_epochs_table']` with `stage_name` columns.
+- Reads the per-mouse-day files (nwb_files/merged/F2), where the condition is a
+  column of the intracellular recordings table and each sweep's flash is a row
+  of `intervals['optogenetic_pulses_table']`.
 - Robustly derives timestamps for sweeps whether `timestamps` are stored
   explicitly or via `starting_time` + `rate`.
 - Uses a MAD-based event detection with a 100 ms shift after the original
@@ -203,23 +204,28 @@ def merge_nearby_events(
 
 def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
     """
-    Load oEPSC data from NWB files.
+    Load oEPSC data from the per-mouse-day NWB files.
+
+    Each file holds every cell recorded from one mouse on one day: one VoltageClampSeries per cell with its sweeps
+    stored back to back, the intracellular recordings table with one row per sweep (cell_id, condition,
+    sweep_start_time and a reference to the sweep's slice of the series), and the optogenetic pulses table with the
+    LED flash of each sweep (start_time, cell_id, led_setting).
 
     Parameters
     ----------
     nwb_dir : Path
-        Directory containing Figure 2 Sr²⁺-oEPSC NWB files.
+        Directory containing the Figure 2 Sr²⁺-oEPSC mouse-day NWB files.
 
     Returns
     -------
     pd.DataFrame
         Combined dataframe with all oEPSC amplitudes and conditions.
     """
-    nwb_files = list(nwb_dir.glob("*.nwb"))
+    nwb_files = sorted(nwb_dir.glob("*.nwb"))
 
     if not nwb_files:
         raise FileNotFoundError(
-            f"No NWB files found in {nwb_dir}. " "Please run figure_2_optical_stimuli.py first to generate NWB files."
+            f"No NWB files found in {nwb_dir}. Please run scripts/full_per_mouse_day_merge.py first to generate them."
         )
 
     all_data = []
@@ -229,58 +235,53 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
         with NWBHDF5IO(str(nwb_file), "r") as io:
             nwb = io.read()
 
-            # Extract condition from filename (updated naming: OnState/OffState)
-            condition = "unknown"
-            name_lower = nwb_file.name.lower()
-            if "offstate" in name_lower:
-                condition = "LID off-state"
-            elif "onstate" in name_lower:
-                condition = "LID on-state"
-
             # Get session info
             session_id = nwb.session_id
             subject_id = nwb.subject.subject_id
 
-            # Access intracellular recordings table
-            icephys_table = nwb.get_intracellular_recordings()
-
-            # Get optogenetic epochs table
-            opto_epochs = nwb.intervals["optogenetic_epochs_table"]
-            opto_df = opto_epochs.to_dataframe()
-
-            # Identify detection and stimulation stage windows as RELATIVE offsets per sweep
-            # Compute offsets from the first 'pre_stimulation' start time
-            if "stage_name" not in opto_df.columns:
-                raise ValueError(f"optogenetic_epochs_table missing 'stage_name' in {nwb_file.name}")
-            pre_rows = opto_df[opto_df["stage_name"] == "pre_stimulation"].copy()
-            det_rows = opto_df[opto_df["stage_name"] == "detection"].copy()
-            stim_rows = opto_df[opto_df["stage_name"] == "stimulation"].copy()
-            if pre_rows.empty or det_rows.empty:
-                raise ValueError(f"Missing required stage rows in optogenetic_epochs_table for {nwb_file.name}")
-            pre0 = float(pre_rows.iloc[0]["start_time"])
-            det0_start = float(det_rows.iloc[0]["start_time"]) - pre0
-            det0_stop = float(det_rows.iloc[0]["stop_time"]) - pre0
-            stim0_start = float(stim_rows.iloc[0]["start_time"]) - pre0 if not stim_rows.empty else det0_start
+            recordings_df = nwb.intracellular_recordings.to_dataframe()
+            pulses_df = nwb.intervals["optogenetic_pulses_table"].to_dataframe()
 
             # Detection parameters
             detection_window_shift_ms = 100.0
 
-            # Iterate over sweeps and detect events
-            for idx in range(len(icephys_table.id)):
-                row = icephys_table[idx]
-                cell_number = row[("intracellular_recordings", "cell_number")].iloc[0]
-                led_intensity = row[("intracellular_recordings", "led_intensity")].iloc[0]
-                sweep_number = row[("intracellular_recordings", "sweep_number")].iloc[0]
-                recording_id = f"Cell{cell_number}_LED{led_intensity}_Sweep{sweep_number}"
+            sweep_counts: Dict[int, int] = {}
+            for _, row in recordings_df.iterrows():
+                cell_number = int(row[("intracellular_recordings", "cell_id")])
+                condition = row[("intracellular_recordings", "condition")]
+                sweep_start_time = float(row[("intracellular_recordings", "sweep_start_time")])
+                sweep_number = sweep_counts[cell_number] = sweep_counts.get(cell_number, 0) + 1
 
                 # Get the voltage clamp series (oEPSC trace)
-                response_ref = row[("responses", "response")].iloc[0]
+                response_ref = row[("responses", "response")]
                 ts = response_ref.timeseries
-                data_A, time_s = _get_ts_slice_in_si_units(ts, response_ref.idx_start, response_ref.count)
+                data_A, _ = _get_ts_slice_in_si_units(ts, response_ref.idx_start, response_ref.count)
+                sweep_duration = response_ref.count / float(ts.rate)
+
+                # The LED flash of this sweep, timed from the sweep start
+                sweep_pulses = pulses_df[
+                    (pulses_df["cell_id"] == cell_number)
+                    & (pulses_df["start_time"] >= sweep_start_time)
+                    & (pulses_df["start_time"] < sweep_start_time + sweep_duration)
+                ]
+                if len(sweep_pulses) != 1:
+                    raise ValueError(
+                        f"{nwb_file.name}: cell {cell_number} sweep {sweep_number} has {len(sweep_pulses)} LED flashes"
+                    )
+                pulse = sweep_pulses.iloc[0]
+                led_intensity = pulse["led_setting"]
+                recording_id = f"Cell{cell_number}_LED{led_intensity}_Sweep{sweep_number}"
+                # On the sample grid, so the window edges fall on samples as in one file per sweep
+                rate = float(ts.rate)
+                stim0_start = round((float(pulse["start_time"]) - sweep_start_time) * rate) / rate
+
+                # The paper measured events from 40 ms to 400 ms after the flash
+                det0_start = stim0_start + 0.040
+                det0_stop = stim0_start + 0.400
 
                 # Convert to pA and relative ms for detection (0 at sweep start)
                 data_pA = data_A * 1e12
-                time_ms = (time_s - time_s[0]) * 1000.0
+                time_ms = np.arange(response_ref.count) / rate * 1000.0
 
                 # Detect events within the (shifted) detection window
                 detection = detect_events_mad(
@@ -299,6 +300,7 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
                             "session_id": session_id,
                             "subject_id": subject_id,
                             "condition": condition,
+                            "cell": f"{subject_id} cell {cell_number}",
                             "recording_id": recording_id,
                             "oepsc_amplitude_pA": float(amp_pA),
                             "event_time_ms": float(t_ms),
@@ -320,7 +322,7 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
     # Filter out NaN amplitudes
     df = df.dropna(subset=["oepsc_amplitude_pA"])
     print(
-        f"Loaded {len(df)} detected events from {len(df.session_id.unique())} cells across {len(df.nwb_file.unique())} NWB files."
+        f"Loaded {len(df)} detected events from {len(df.cell.unique())} cells across {len(df.nwb_file.unique())} NWB files."
     )
     return df
 
@@ -403,12 +405,8 @@ def create_amplitude_boxplot(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
     condition_order = ["LID off-state", "LID on-state"]
     condition_labels = ["off-state", "on-state"]
 
-    # Compute per-NWB-file (subject-level) mean amplitudes per condition
-    per_file_means = (
-        df.groupby(["condition", "nwb_file"])["oepsc_amplitude_pA"]  # each NWB file is treated as a subject
-        .mean()
-        .reset_index()
-    )
+    # Compute per-cell mean amplitudes per condition (the paper's n is cells)
+    per_file_means = df.groupby(["condition", "cell"])["oepsc_amplitude_pA"].mean().reset_index()
 
     plot_data = []
     for condition in condition_order:
@@ -442,7 +440,7 @@ def create_amplitude_boxplot(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
 
     ax.set_title("Figure 2H: dSPN oEPSC Amplitude Comparison", fontsize=14, pad=20)
 
-    # Perform statistical test on per-file means (subject-level)
+    # Perform statistical test on per-cell means
     off_state_data = per_file_means[per_file_means["condition"] == "LID off-state"]["oepsc_amplitude_pA"].values
     on_state_data = per_file_means[per_file_means["condition"] == "LID on-state"]["oepsc_amplitude_pA"].values
 
@@ -592,8 +590,10 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "optical_stimulation" / "figure_2"
-    assert nwb_dir.exists(), f"NWB directory {nwb_dir} does not exist. Please run figure_2_optical_stimuli.py first."
+    nwb_dir = base_dir / "nwb_files" / "merged" / "F2"
+    assert (
+        nwb_dir.exists()
+    ), f"NWB directory {nwb_dir} does not exist. Please run scripts/full_per_mouse_day_merge.py first."
     output_dir = base_dir / "analysis_outputs" / "figure_2gh"
 
     # Ensure output directory exists
