@@ -247,8 +247,9 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
                 response = row[("responses", "response")]
                 voltage_trace = response.data * response.timeseries.conversion * 1000  # Convert to mV
 
-                # Time from the start of the sweep
-                timestamps = np.arange(response.count) / response.timeseries.rate
+                # Time from the start of the sweep, from the sampling rate so the analysis windows fall on samples
+                sampling_rate = round(1 / (response.timestamps[1] - response.timestamps[0]))
+                timestamps = np.arange(response.count) / sampling_rate
 
                 # Count action potentials (during stimulus period)
                 spike_count = count_action_potentials(voltage_trace, timestamps)

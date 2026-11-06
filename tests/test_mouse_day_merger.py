@@ -102,6 +102,28 @@ def test_line_scans_start_with_their_sweeps(tmp_path):
                     assert index[column][row].timestamps[0] == sweep_start_time[row], f"{column} row {row}"
 
 
+@pytest.mark.parametrize(
+    "figure, subject_id, merge",
+    [
+        ("F3", "Subject20160524LIDOFFeGFP", merge_one_mouse_day),
+        ("F2", "Subject20230705LIDONtDTomato", merge_oepsc_mouse_day),
+    ],
+)
+def test_sweeps_start_at_their_recorded_time(tmp_path, figure, subject_id, merge):
+    # The sweeps of a cell used to be stored back to back from the first one's start, so later sweeps sat too early.
+    # The patch-clamp day has two sweeps recorded for 1 s, whose stimulus outlasts the recording.
+    bundle = next(b for b in build_figure_bundles(figure) if b.subject_entry.subject_id == subject_id)
+    nwbfile_path = merge(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        irt = nwbfile.intracellular_recordings
+        sweep_start_time = irt["sweep_start_time"].data[:]
+        for category, column in (("responses", "response"), ("stimuli", "stimulus")):
+            for row, (start_index, _, series) in enumerate(irt.category_tables[category][column].data[:]):
+                assert series.timestamps[start_index] == sweep_start_time[row], f"{column} row {row}"
+
+
 def test_real_trials_kept_apart_from_the_first_patch(tmp_path):
     # At Distal 1 of cell 2 the lab recorded three trials, moved the microscope to another patch of the same
     # dendrite and recorded three more in folders marked "dist1real".
@@ -203,7 +225,7 @@ def test_stimulus_is_the_commanded_current(tmp_path):
         assert {kind == "Soma" for kind in dendrite_type} == {True, False}
         short_trials = 0
         for row, ((start_index, count, series), (_, response_count, _)) in enumerate(zip(stimuli, responses)):
-            samples_per_ms = series.rate / 1000
+            samples_per_ms = round(1 / (series.timestamps[start_index + 1] - series.timestamps[start_index])) / 1000
             expected_pA = np.zeros(count)
             if dendrite_type[row] == "Soma":
                 expected_pA[round(200 * samples_per_ms) : round(700 * samples_per_ms)] = current_pA[row]

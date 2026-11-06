@@ -588,6 +588,17 @@ def _build_electrode(nwbfile: NWBFile, cell_index: int, device: Device) -> Intra
     )
 
 
+def _sweep_timestamps(starts: list[float], counts: list[int], rate: float, series_name: str) -> np.ndarray:
+    """Time of every sample of sweeps stored one after another: each sweep's start plus its samples at `rate`.
+
+    The pauses between sweeps stay in the timestamps; sweeps that overlap once placed at their starts raise.
+    """
+    timestamps = np.concatenate([start + np.arange(count) / rate for start, count in zip(starts, counts)])
+    if np.any(np.diff(timestamps) <= 0):
+        raise ValueError(f"Placed at their start times, the sweeps of {series_name} overlap.")
+    return timestamps
+
+
 def _build_concatenated_series(
     nwbfile: NWBFile,
     bundle: MouseDayBundle,
@@ -670,28 +681,37 @@ def _build_concatenated_series(
             "their recording."
         )
     numbering = "".join(f" {note}" for note in sorted({sw.numbering_note for sw in sweeps if sw.numbering_note}))
+    sweep_starts = [sweep_start for _, _, sweep_start, *_ in sweep_slices]
     response = CurrentClampSeries(
         name=series_name,
         data=data_concat,
         electrode=electrode,
         gain=1.0,
-        rate=float(sample_rate),
-        starting_time=sweep_slices[0][2],
+        timestamps=_sweep_timestamps(
+            sweep_starts, [count for _, count, *_ in sweep_slices], float(sample_rate), series_name
+        ),
         description=(
             f"Current-clamp recordings from cell {cell_index}, {recording} The {len(sweep_slices)} sweeps are "
-            "stored back to back; each sweep's start time is in the sweep_start_time column of the intracellular "
-            "recordings table." + short_sweeps + numbering
+            "stored one after another, each at its start time (the sweep_start_time column of the intracellular "
+            "recordings table), so the pauses between sweeps are kept in the timestamps." + short_sweeps + numbering
         ),
     )
     nwbfile.add_acquisition(response)
 
+    stimulus_name = _series_name(cell_index, modality, "CurrentClampStimulusSeries")
+    if len(stim_concat) != len(data_concat):
+        # The commands of the short sweeps outlast their recordings, so the stimulus has samples of its own
+        stimulus_timestamps = _sweep_timestamps(
+            sweep_starts, [count for *_, count in sweep_slices], float(sample_rate), stimulus_name
+        )
+    else:
+        stimulus_timestamps = response
     stim = CurrentClampStimulusSeries(
-        name=_series_name(cell_index, modality, "CurrentClampStimulusSeries"),
+        name=stimulus_name,
         data=stim_concat,
         electrode=electrode,
         gain=1.0,
-        rate=float(sample_rate),
-        starting_time=sweep_slices[0][2],
+        timestamps=stimulus_timestamps,
         description=(
             f"Commanded current waveform paired with {series_name}. Synthesized from each "
             "sweep's Bruker VoltageOutput XML (every current pulse, with its amplitude, width and timing); the "
@@ -852,8 +872,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         description=(
             "Per-sweep wall-clock offset (seconds) from session_start_time. "
             "Sourced from the Prairie View XML PVScan @date attribute at 1-second "
-            "precision. Inter-sweep gaps (amplifier idle between sweeps) are not "
-            "carried in the parent PatchClampSeries' uniform rate."
+            "precision. The sweep's samples in its PatchClampSeries start at this time."
         ),
     )
     irt.add_column(
@@ -1702,8 +1721,7 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         name="sweep_start_time",
         description=(
             "Start of the sweep in seconds from session_start_time, from the Prairie View XML at 1-second precision. "
-            "The voltage-clamp series store the sweeps back to back, so their own time axis does not show the gaps "
-            "between sweeps."
+            "The sweep's samples in its voltage-clamp series start at this time."
         ),
     )
 
@@ -1737,13 +1755,18 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             description=(
                 f"Whole-cell voltage-clamp current from cell {cell_index}, held at -70 mV (paper Methods). Each 1 s "
                 "sweep has one blue LED flash at 20 ms (see the optogenetic pulses table) and a -5 mV, 50 ms command "
-                f"step at 920 ms. {_OEPSC_ANALYSIS_WINDOW} The {len(sweeps)} sweeps are stored back to back; each "
-                "sweep's start time is in the sweep_start_time column of the intracellular recordings table."
+                f"step at 920 ms. {_OEPSC_ANALYSIS_WINDOW} The {len(sweeps)} sweeps are stored one after another, "
+                "each at its start time (the sweep_start_time column of the intracellular recordings table), so the "
+                "pauses between sweeps are kept in the timestamps."
             ),
             data=np.concatenate(currents),
             electrode=electrode,
-            rate=sample_rate,
-            starting_time=sweep_slices[0][2],
+            timestamps=_sweep_timestamps(
+                [sweep_start for _, _, sweep_start, *_ in sweep_slices],
+                [count for _, count, *_ in sweep_slices],
+                float(sample_rate),
+                f"VoltageClampSeriesCell{cell_index}",
+            ),
         )
         nwbfile.add_acquisition(response)
         stimulus = VoltageClampStimulusSeries(
@@ -1755,8 +1778,7 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             ),
             data=np.concatenate(commands),
             electrode=electrode,
-            rate=sample_rate,
-            starting_time=sweep_slices[0][2],
+            timestamps=response,
         )
         nwbfile.add_stimulus(stimulus)
 

@@ -255,8 +255,9 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
                 # Get the voltage clamp series (oEPSC trace)
                 response_ref = row[("responses", "response")]
                 ts = response_ref.timeseries
-                data_A, _ = _get_ts_slice_in_si_units(ts, response_ref.idx_start, response_ref.count)
-                sweep_duration = response_ref.count / float(ts.rate)
+                data_A, sweep_times = _get_ts_slice_in_si_units(ts, response_ref.idx_start, response_ref.count)
+                rate = round(1 / (sweep_times[1] - sweep_times[0]))
+                sweep_duration = response_ref.count / rate
 
                 # The LED flash of this sweep, timed from the sweep start
                 sweep_pulses = pulses_df[
@@ -272,7 +273,6 @@ def load_oepsc_data(nwb_dir: Path) -> pd.DataFrame:
                 led_intensity = pulse["led_setting"]
                 recording_id = f"Cell{cell_number}_LED{led_intensity}_Sweep{sweep_number}"
                 # On the sample grid, so the window edges fall on samples as in one file per sweep
-                rate = float(ts.rate)
                 stim0_start = round((float(pulse["start_time"]) - sweep_start_time) * rate) / rate
 
                 # The paper measured events from 40 ms to 400 ms after the flash
