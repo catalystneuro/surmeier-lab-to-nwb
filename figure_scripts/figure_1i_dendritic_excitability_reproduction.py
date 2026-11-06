@@ -201,7 +201,7 @@ def load_dendritic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
 
             # Each file holds the cells recorded from one mouse on one day. The RecordingsIndexTable has one row per
             # sweep; a dendritic sweep's row points to its slices of the Fluo-4 and Alexa 568 line-scan profiles
-            index_df = nwb.processing["recordings_index"]["RecordingsIndexTable"].to_dataframe()
+            index_df = nwb.processing["icephys"]["RecordingsIndexTable"].to_dataframe()
             dendritic_df = index_df[index_df["dendrite_type"].isin(["Proximal", "Distal"])]
 
             for (cell_id, condition), cell_df in dendritic_df.groupby(["cell_id", "condition"]):

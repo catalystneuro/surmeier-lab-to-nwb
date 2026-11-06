@@ -1075,7 +1075,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             ]
             series_note = (
                 " All trials at this site, in recording order and each at its own start time; each trial's samples "
-                "are in the {column} column of processing/recordings_index/RecordingsIndexTable." + site_note
+                "are in the {column} column of processing/icephys/RecordingsIndexTable." + site_note
             )
             kymograph, roi_response, sample_ranges = _add_line_scan(
                 nwbfile,
@@ -1470,7 +1470,7 @@ def _build_recordings_index_table(
     )
 
     module = nwbfile.create_processing_module(
-        name="recordings_index",
+        name="icephys",
         description=(
             "RecordingsIndexTable, which gathers for each sweep its details, its rows in the intracellular tables "
             "and its slices of the line-scan and fluorescence series."

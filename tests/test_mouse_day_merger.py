@@ -41,7 +41,7 @@ def test_line_scans_kept_when_the_scan_line_changes_length(tmp_path):
     with NWBHDF5IO(nwbfile_path, "r") as io:
         nwbfile = io.read()
         dendrite_type = nwbfile.intracellular_recordings["dendrite_type"].data[:]
-        index = nwbfile.processing["recordings_index"]["RecordingsIndexTable"]
+        index = nwbfile.processing["icephys"]["RecordingsIndexTable"]
         for column in ("line_scan_alexa568", "line_scan_fluo4"):
             references = index[column].data[:]
             missing = [row for row, kind in enumerate(dendrite_type) if kind != "Soma" and references[row][0] < 0]
@@ -95,7 +95,7 @@ def test_line_scans_start_with_their_sweeps(tmp_path):
         nwbfile = io.read()
         dendrite_type = nwbfile.intracellular_recordings["dendrite_type"].data[:]
         sweep_start_time = nwbfile.intracellular_recordings["sweep_start_time"].data[:]
-        index = nwbfile.processing["recordings_index"]["RecordingsIndexTable"]
+        index = nwbfile.processing["icephys"]["RecordingsIndexTable"]
         for column in ("line_scan_alexa568", "line_scan_fluo4", "roi_response_alexa568", "roi_response_fluo4"):
             for row, kind in enumerate(dendrite_type):
                 if kind != "Soma":

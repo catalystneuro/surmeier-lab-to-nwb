@@ -106,7 +106,7 @@ For Figures 1, 3, 6, 7, and 8 (somatic + dendritic excitability), the conversion
 - One `CurrentClampSeries` per (cell, modality) holding all sweeps concatenated end-to-end (Pattern B). Individual sweeps are sliced via `idx_start + count` columns on the `IntracellularRecordingsTable`.
 - The full 5-level icephys hierarchical chain (`IntracellularRecordings` -> `SimultaneousRecordings` -> `SequentialRecordings` -> `RepetitionsTable` -> `ExperimentalConditionsTable`).
 - Paired line-scan kymographs for dendritic sweeps, consolidated per (cell, channel, dendrite location).
-- A denormalized `RecordingsIndexTable` in `processing/recordings_index/` that pre-joins the chain for fast pandas-style queries.
+- A denormalized `RecordingsIndexTable` in `processing/icephys/` that pre-joins the chain for fast pandas-style queries.
 
 The `session_id` follows a 5-token format: `<cellType>++<state>++<pharm>++<genotype>++<date>` (e.g., `dSPN++OffState++none++WT++20170202`).
 
