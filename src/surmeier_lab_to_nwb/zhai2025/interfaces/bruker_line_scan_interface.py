@@ -64,6 +64,7 @@ class BrukerLineScanInterface(BaseSegmentationExtractorInterface):
         folder_paths: list[DirectoryPath],
         *,
         channel_name: str = "Ch1",
+        roi_id: str = "LineProfile",
         metadata_key: str | None = None,
         verbose: bool = False,
     ):
@@ -74,6 +75,9 @@ class BrukerLineScanInterface(BaseSegmentationExtractorInterface):
             The trial folders, each holding a PrairieView line scan of the same line.
         channel_name : str, default: "Ch1"
             PrairieView channel, as the XML names it (``"Ch1"``, ``"Ch2"``).
+        roi_id : str, default: "LineProfile"
+            ID of the ROI, written as its ``roi_name``. Line scans whose ROIs share a ``PlaneSegmentation`` need
+            different IDs.
         metadata_key : str, optional
             Key of this line scan's entries in the metadata. Defaults to ``"bruker_line_scan_{channel_name}"``.
         verbose : bool, default: False
@@ -81,6 +85,7 @@ class BrukerLineScanInterface(BaseSegmentationExtractorInterface):
         super().__init__(
             folder_paths=folder_paths,
             channel_name=channel_name,
+            roi_id=roi_id,
             metadata_key=metadata_key or f"bruker_line_scan_{channel_name}",
             verbose=verbose,
         )

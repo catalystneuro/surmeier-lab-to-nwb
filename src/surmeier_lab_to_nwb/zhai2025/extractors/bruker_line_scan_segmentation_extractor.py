@@ -144,11 +144,13 @@ class BrukerLineScanSegmentationExtractor(SegmentationExtractor):
         and snapshot size must be the same.
     channel_name : str, default: "Ch1"
         PrairieView channel, as the XML names it.
+    roi_id : str, default: "LineProfile"
+        ID of the ROI. Line scans whose ROIs share a table need different IDs.
     """
 
     extractor_name = "BrukerLineScanSegmentation"
 
-    def __init__(self, folder_paths: list[PathType], channel_name: str = "Ch1"):
+    def __init__(self, folder_paths: list[PathType], channel_name: str = "Ch1", roi_id: str = "LineProfile"):
         SegmentationExtractor.__init__(self)
         if not folder_paths:
             raise ValueError("folder_paths is empty; give at least one trial folder.")
@@ -182,7 +184,6 @@ class BrukerLineScanSegmentationExtractor(SegmentationExtractor):
         self._timestamps = np.concatenate(timestamps)
         self._sampling_frequency = 1 / first.scan_line_period
 
-        roi_id = "LineProfile"
         self._roi_ids = [roi_id]
         self._roi_responses.append(_RoiResponse("raw", np.concatenate(profiles)[:, np.newaxis], self._roi_ids))
 

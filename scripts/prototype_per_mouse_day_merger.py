@@ -145,6 +145,7 @@ def _add_line_scan(
     sweep_start_times: list[float],
     channel: str,
     name: str,
+    roi_name: str,
     about: str,
     kymograph_note: str,
     roi_response_note: str,
@@ -152,13 +153,17 @@ def _add_line_scan(
 ) -> tuple[TimeSeries, TimeSeries, dict[str, tuple[int, int]]]:
     """Write one channel of the line scans of sweeps that share a scan line, each sweep at its start time.
 
-    The objects are named with `name` after their type (`LineScan{name}`, `RoiResponseSeries{name}`,
-    `PlaneSegmentation{name}`), `about` says what was scanned and the notes end the descriptions of the two series.
-    `images` gives the name and description of each sweep's source image, in the order of `sweeps`. Returns the
-    line scan, the fluorescence and the first sample and number of samples of each sweep in them, by folder name.
+    The series are named with `name` after their type (`LineScan{name}`, `RoiResponseSeries{name}`), and the ROI is
+    the row `roi_name` of the dye's `PlaneSegmentation{dye}`, which every line scan of that dye shares. `about` says
+    what was scanned and the notes end the descriptions of the two series. `images` gives the name and description
+    of each sweep's source image, in the order of `sweeps`. Returns the line scan, the fluorescence and the first
+    sample and number of samples of each sweep in them, by folder name.
     """
     interface = BrukerLineScanInterface(
-        folder_paths=[sweep.recording_path for sweep in sweeps], channel_name=channel, metadata_key=name
+        folder_paths=[sweep.recording_path for sweep in sweeps],
+        channel_name=channel,
+        roi_id=roi_name,
+        metadata_key=name,
     )
     for sweep, sweep_start_time in zip(sweeps, sweep_start_times):
         interface.temporal_alignment[sweep.recording_path.name].move_start_to(sweep_start_time)
@@ -178,13 +183,18 @@ def _add_line_scan(
         location="Caudoputamen",
         optical_channel=[dict(name=f"OpticalChannel{dye}", description=_DETECTOR[channel], emission_lambda=np.nan)],
     )
-    ophys["PlaneSegmentations"][name].update(
-        name=f"PlaneSegmentation{name}",
-        description=(
-            f"The ROI of RoiResponseSeries{name}: pixels {x0} to {x1} along the scan line, counted from its start "
-            "at 0, which Prairie View averaged into its line profile. Its coordinates are pixels of the source images."
-        ),
-    )
+    ophys["SegmentationTables"] = {
+        f"LineScan{dye}": dict(
+            name=f"PlaneSegmentation{dye}",
+            description=(
+                f"The ROIs of the line scans imaged with {_DYE_DESCRIPTION[channel]}, one row per scan line: the "
+                "pixels of the line, counted from its start at 0, that Prairie View averaged into its line profile. "
+                "The roi_name gives the cell, site and line, as the name of the line's RoiResponseSeries does. The "
+                "coordinates are pixels of the source images."
+            ),
+        )
+    }
+    ophys["PlaneSegmentations"][name]["segmentation_table_metadata_key"] = f"LineScan{dye}"
     ophys["RoiResponses"][name]["raw"].update(
         name=f"RoiResponseSeries{name}",
         description=(
@@ -1054,6 +1064,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 sweep_start_times=[sweep_start for _, _, sweep_start in trials],
                 channel=chan_name,
                 name=f"{dye}Cell{cell_index}{dendrite_type_pretty}{loc_num}{spot}{line_suffix}",
+                roi_name=f"Cell{cell_index}{dendrite_type_pretty}{loc_num}{spot}{line_suffix}",
                 about=f"Cell {cell_index} {dendrite_type_pretty} location {loc_num}, {_DYE_DESCRIPTION[chan_name]}",
                 kymograph_note=series_note.format(column=f"line_scan_{dye.lower()}"),
                 roi_response_note=series_note.format(column=f"roi_response_{dye.lower()}"),
@@ -1082,6 +1093,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     sweep_start_times=[(sw.pv_scan_date - session_start_time_naive).total_seconds()],
                     channel=chan_name,
                     name=f"Background{dye}Cell{cell_index}{site}",
+                    roi_name=f"BackgroundCell{cell_index}{site}",
                     about=f"the background scan for Cell {cell_index} {site}, {_DYE_DESCRIPTION[chan_name]}",
                     kymograph_note=background_note,
                     roi_response_note=background_note,
