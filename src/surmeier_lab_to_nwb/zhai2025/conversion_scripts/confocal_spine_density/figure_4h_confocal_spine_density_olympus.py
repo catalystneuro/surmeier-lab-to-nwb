@@ -274,6 +274,7 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
             "session_description": script_template["NWBFile"]["session_description"].format(
                 num_stacks=len(oif_files), animal_id=mouse_number
             ),
+            "experiment_description": confocal_template["NWBFile"]["experiment_description"],
             "session_start_time": session_start_time,
             "session_id": session_id,
             "surgery": surgery + " " + confocal_template["NWBFile"]["surgery_addition"],

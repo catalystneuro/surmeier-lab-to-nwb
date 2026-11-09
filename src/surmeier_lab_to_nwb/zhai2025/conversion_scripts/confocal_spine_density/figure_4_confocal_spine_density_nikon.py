@@ -147,6 +147,7 @@ def convert_mouse_to_nwbfile(nd2_files: List[Path], condition: str) -> NWBFile:
                 condition=_GROUP_TEXT[state],
                 imaging_days=", ".join(imaging_days),
             ),
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_start_time": session_start_time,
             "session_id": session_id,
             "surgery": surgery + " " + script_template["NWBFile"]["surgery_addition"],

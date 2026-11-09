@@ -8,6 +8,10 @@ figure_2_spine_density:
       Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+    experiment_description: >-
+      Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+      levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+      ex vivo brain slices.
     keywords:
       - "spine density"
       - "dendritic spines"
@@ -33,6 +37,10 @@ figure_4_spine_density:
       Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+    experiment_description: >-
+      Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+      levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+      ex vivo brain slices.
     keywords:
       - "spine density"
       - "dendritic spines"
@@ -60,6 +68,9 @@ figure_4_confocal_spine_density_nikon:
       steps, on {imaging_days}. The stacks are the raw acquisitions; the lab then denoised and deconvolved them in
       NIS-Elements AR 5.41.02 and counted spines in Imaris 10.0.0 on segments about 30 µm long, about 30 µm from the
       soma. The session start is the acquisition of the first stack.
+    experiment_description: >-
+      Dendritic spine density of indirect pathway spiny projection neurons (iSPNs) measured with high-resolution
+      confocal microscopy in fixed tissue, to compare with the two-photon estimates from brain slices.
     surgery_addition: >-
       To label a few iSPNs, AAV9-pCAG-flex-eGFP-WPRE (Addgene #51502; 0.45 µl, 5 x 10^10 viral genomes/ml), which
       expresses eGFP only in cells with Cre, was injected into the left dorsolateral striatum at AP 0.7, ML -2.35 and
@@ -106,6 +117,10 @@ figure_6_spine_density:
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma).
       Testing M1R contribution to LID-induced spine density changes. Cells {cells} of this mouse.
+    experiment_description: >-
+      Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+      levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+      ex vivo brain slices.
     pharmacology_conditions:
       antagonist: "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced spine density changes."
     keywords:
@@ -128,6 +143,10 @@ figure_7_spine_density:
       Dendritic spine density assessment in CDGI knockout mice for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+    experiment_description: >-
+      Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+      levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+      ex vivo brain slices.
     keywords:
       - "spine density"
       - "dendritic spines"
@@ -144,6 +163,10 @@ figure_8_spine_density:
       Dendritic spine density assessment in M1R CRISPR mice for condition {condition}.
       Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
       proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+    experiment_description: >-
+      Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+      levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+      ex vivo brain slices.
     surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
     keywords:
       - "spine density"

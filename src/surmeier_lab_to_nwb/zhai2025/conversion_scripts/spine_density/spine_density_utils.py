@@ -716,6 +716,7 @@ def convert_spine_density_mouse_day_to_nwbfile(
                 cells=cells_text,
                 date_str=date_str,
             ),
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "identifier": str(uuid.uuid4()),
             "session_start_time": session_start_time,
             "session_id": session_id,
