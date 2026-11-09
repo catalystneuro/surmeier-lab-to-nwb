@@ -29,7 +29,7 @@ dependencies = [
   "tqdm>=4.67.3",
   "imagecodecs>=2026.5.10",
   "dandi>=0.76.0",
-  "ndx-ophys-devices>=0.3.1",
+  "ndx-ophys-devices>=0.3.1,<0.4",
   "ndx-ethogram>=0.1.0",
   "ndx-hed>=0.3.0",
 ]
@@ -102,7 +102,7 @@ known-first-party = ["surmeier_lab_to_nwb"]
 [tool.uv.sources]
 neuroconv = { git = "https://github.com/catalystneuro/neuroconv.git", branch = "main" }
 roiextractors = { git = "https://github.com/catalystneuro/roiextractors.git", branch = "main" }
-ndx-optogenetics = { git = "https://github.com/rly/ndx-optogenetics.git", branch = "main" }
+ndx-optogenetics = { git = "https://github.com/rly/ndx-optogenetics.git", rev = "b1214258b691fb0b635d55d96df7e89882bd9041" }
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
