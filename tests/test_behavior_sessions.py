@@ -60,7 +60,11 @@ def test_session_file_has_the_mouse_its_scores_and_videos(tmp_path):
         assert (ratings["total"] == ratings[["axial", "limb", "orolingual"]].sum(axis=1)).all()
         ethogram = nwbfile.processing["behavior"]["AimEthogram"].to_dataframe()
         assert list(ethogram["behavior"]) == ["axial", "limb", "orolingual", "total"]
-        assert ethogram["HED"].iloc[0] == "Animal-agent, Observation, (Move-torso, Involuntary, Abnormal)"
+        # The HED tags were on the catalogue, which no rating links to, and called axial the trunk without the neck
+        behavior_meanings = nwbfile.events["aim_scores"].get_meanings_for_column("behavior")
+        hed = dict(zip(behavior_meanings["value"].data[:], behavior_meanings["HED"].data[:]))
+        assert "(Move-body-part, Neck, Involuntary, Abnormal)" in hed["axial"]
+        assert "{behavior}" in nwbfile.events["aim_scores"]["score"].hed
         assert nwbfile.lab_meta_data["hed_schema"].hed_schema_version == "8.5.0"
         assert sorted(nwbfile.acquisition) == ["Video20Min", "Video40Min", "Video60Min", "Video80Min"]
         assert nwbfile.acquisition["Video40Min"].starting_time == 2400.0

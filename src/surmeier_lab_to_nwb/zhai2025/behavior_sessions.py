@@ -17,8 +17,10 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+from hdmf.common import MeaningsTable
+from hed.errors import ErrorHandler
 from ndx_ethogram import Ethogram
-from ndx_hed import HedLabMetaData, HedTags
+from ndx_hed import HedLabMetaData, HedTags, HedValueVector
 from ndx_hed.utils.hed_nwb_validator import HedNWBValidator
 from neuroconv.datainterfaces import ExternalVideoInterface
 from neuroconv.tools import configure_and_write_nwbfile
@@ -66,15 +68,33 @@ _AIM_CATEGORIES = {
     "total": "The lab's total of the axial, limb and orolingual scores at one time, from 0 to 12, as its AIM sheet "
     "writes it.",
 }
-# HED tags of each category: an animal, observed, moving the body part of the category involuntarily and abnormally.
-# HED has no forelimb or jaw, so limb is the upper extremity and orolingual the face, and no tag for a rating.
+# HED tags of each category, on the values of the AIM events' behavior column: the experimenter's one-minute observation
+# of the mouse moving the category's body parts involuntarily and abnormally, or the lab's sum for the total. The body
+# parts are those of the AIM definitions of Cenci's group (Lerner et al. 2017, Sci Rep, doi:10.1038/s41598-017-16228-1):
+# axial is the neck and upper body, limb the forelimb, orolingual the jaw and tongue. HED has no forelimb or rating, so
+# limb is the upper extremity and the score a parameter. The score's tags take in the category's, so each rating is one
+# group and the ratings taken at one time stay apart.
 _HED_SCHEMA_VERSION = "8.5.0"
+_AIM_AGENT = "(Animal-agent, Experiment-participant)"
 _AIM_HED = {
-    "axial": "Animal-agent, Observation, (Move-torso, Involuntary, Abnormal)",
-    "limb": "Animal-agent, Observation, (Move-upper-extremity, Involuntary, Abnormal)",
-    "orolingual": "Animal-agent, Observation, (Move-face, Involuntary, Abnormal)",
-    "total": "Animal-agent, Observation, (Move-body, Involuntary, Abnormal)",
+    "axial": (
+        "Experiment-procedure, (Observation, Label/Experimenter_Axial-AIM), "
+        f"({_AIM_AGENT}, (Move-torso, Involuntary, Abnormal), (Move-body-part, Neck, Involuntary, Abnormal))"
+    ),
+    "limb": (
+        "Experiment-procedure, (Observation, Label/Experimenter_Limb-AIM), "
+        f"({_AIM_AGENT}, (Move-upper-extremity, Involuntary, Abnormal))"
+    ),
+    "orolingual": (
+        "Experiment-procedure, (Observation, Label/Experimenter_Orolingual-AIM), "
+        f"({_AIM_AGENT}, (Move-face, Involuntary, Abnormal), (Move-body-part, Tongue, Involuntary, Abnormal))"
+    ),
+    "total": (
+        "Experiment-procedure, (Computed-feature, Label/Sum_Total-AIM), "
+        f"({_AIM_AGENT}, (Move-body-part, Involuntary, Abnormal))"
+    ),
 }
+_AIM_SCORE_HED = "({behavior}, (Parameter-label/AIM-score, Parameter-value/#))"
 # Cells the lab used as column headers or left empty, which say nothing about a session
 _HEADER_CELLS = {"cage", "cage#", "date:", "(wt)", "(ko)", "g"}
 
@@ -420,17 +440,6 @@ def write_behavior_session(session: BehaviorSession, output_path: Path, video_fo
     )
     for behavior, definition in _AIM_CATEGORIES.items():
         ethogram.add_row(behavior=behavior, definition=definition, behavior_type="point")
-    ethogram.add_column(
-        name="HED",
-        description="HED (Hierarchical Event Descriptors) tags of each category.",
-        data=[_AIM_HED[behavior] for behavior in _AIM_CATEGORIES],
-        col_cls=HedTags,
-    )
-    hed_metadata = HedLabMetaData(hed_schema_version=_HED_SCHEMA_VERSION)
-    issues = HedNWBValidator(hed_metadata).validate_table(ethogram)
-    if issues:
-        raise ValueError(f"The AIM HED tags do not validate against HED {_HED_SCHEMA_VERSION}: {issues}")
-    nwbfile.add_lab_meta_data(hed_metadata)
     nwbfile.create_processing_module(name="behavior", description="The AIM rating scheme.").add(ethogram)
     aim_scores = nwbfile.create_events_table(
         name="aim_scores",
@@ -442,12 +451,29 @@ def write_behavior_session(session: BehaviorSession, output_path: Path, video_fo
         source_description="Rated by eye by the experimenter, following the lab's protocol.",
     )
     aim_scores.add_column(name="behavior", description="The category rated, a behavior of the AimEthogram catalogue.")
-    aim_scores.add_column(name="score", description="The rating, as the AimEthogram defines it for the category.")
+    aim_scores.add_column(
+        name="score",
+        description="The rating, as the AimEthogram defines it for the category.",
+        col_cls=HedValueVector,
+        hed=_AIM_SCORE_HED,
+    )
     for minutes, total in sorted(aim.totals.items()):
         ratings = {name: aim.scores[name][minutes] for name in _LABELS.values()}
         for behavior, score in [*ratings.items(), ("total", total)]:
             if not math.isnan(score):
                 aim_scores.add_row(timestamp=minutes * 60.0, duration=60.0, behavior=behavior, score=score)
+    behavior_meanings = MeaningsTable(target=aim_scores["behavior"], description="Meaning of each category.")
+    behavior_meanings.add_column(
+        name="HED", description="HED (Hierarchical Event Descriptors) tags of each category.", col_cls=HedTags
+    )
+    for behavior, definition in _AIM_CATEGORIES.items():
+        behavior_meanings.add_row(value=behavior, meaning=definition, HED=_AIM_HED[behavior])
+    aim_scores.add_meanings_table(behavior_meanings)
+    hed_metadata = HedLabMetaData(hed_schema_version=_HED_SCHEMA_VERSION)
+    nwbfile.add_lab_meta_data(hed_metadata)
+    issues = HedNWBValidator(hed_metadata).validate_file(nwbfile, ErrorHandler(check_for_warnings=True))
+    if issues:
+        raise ValueError(f"The AIM HED tags do not validate against HED {_HED_SCHEMA_VERSION}: {issues}")
 
     # One video interface per video, placed at its minute after the injection. The lab's files name no camera, so the
     # videos link to no device.
