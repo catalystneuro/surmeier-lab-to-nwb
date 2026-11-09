@@ -386,6 +386,7 @@ if __name__ == "__main__":
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "confocal_spine_density" / "figure_4"
+    general_metadata = load_dict_from_file(Path(__file__).parent.parent.parent / "general_metadata.yaml")
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Get all session folders
@@ -415,4 +416,4 @@ if __name__ == "__main__":
         nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
         # Write NWB file
-        configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+        configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path, metadata=general_metadata)

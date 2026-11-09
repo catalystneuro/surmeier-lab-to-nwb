@@ -1232,7 +1232,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # via get_default_backend_configuration (saves ~50% disk vs plain contiguous writes).
     from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
 
-    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5")
+    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5", metadata=_general_metadata())
     return output_path
 
 
@@ -1833,7 +1833,7 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
 
-    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5")
+    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5", metadata=_general_metadata())
     return output_path
 
 
@@ -2310,7 +2310,7 @@ def merge_grab_ach_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
 
-    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5")
+    configure_and_write_nwbfile(nwbfile=nwbfile, nwbfile_path=output_path, backend="hdf5", metadata=_general_metadata())
     return output_path
 
 

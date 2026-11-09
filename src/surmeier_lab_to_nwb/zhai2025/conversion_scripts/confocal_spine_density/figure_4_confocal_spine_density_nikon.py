@@ -206,6 +206,7 @@ if __name__ == "__main__":
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "confocal_spine_density" / "figure_4"
+    general_metadata = load_dict_from_file(Path(__file__).parent.parent.parent / "general_metadata.yaml")
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     for condition in _STATE:
@@ -217,4 +218,4 @@ if __name__ == "__main__":
         ):
             nwbfile = convert_mouse_to_nwbfile(nd2_files, condition)
             nwbfile_path = nwb_files_dir / f"{nwbfile.subject.subject_id}.nwb"
-            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path, metadata=general_metadata)

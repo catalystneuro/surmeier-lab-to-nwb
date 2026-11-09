@@ -58,3 +58,56 @@ Subject:
   strain: "C57BL/6"
   sex: "M"
   age: "P7W/P12W"  # Adult mice, 7-12 weeks in ISO 8601 format
+
+# Ontology terms for the values the files carry, written into each file as HERD references when
+# configure_and_write_nwbfile gets this metadata. Each map is keyed by the exact value it annotates.
+ExternalResources:
+  species:
+    Mus musculus:
+      id: "NCBITaxon:10090"
+      uri: "http://purl.obolibrary.org/obo/NCBITaxon_10090"
+  # Only the GRAB-ACh mice have a substrain; C57BL/6 without one has no term
+  strain:
+    C57BL/6J:
+      id: "RRID:IMSR_JAX:000664"
+      uri: "https://scicrunch.org/resolver/RRID:IMSR_JAX:000664"
+  anatomical_structures:
+    Caudoputamen:
+      - id: "MBA:672"
+        uri: "https://purl.brain-bican.org/ontology/mbao/MBA_672"
+      - id: "UBERON:0005383"
+        uri: "http://purl.obolibrary.org/obo/UBERON_0005383"
+    Primary motor area:
+      - id: "MBA:985"
+        uri: "https://purl.brain-bican.org/ontology/mbao/MBA_985"
+      - id: "UBERON:0001384"
+        uri: "http://purl.obolibrary.org/obo/UBERON_0001384"
+  experimenter:
+    "Zhai, Shenyu":
+      id: "orcid:0000-0002-7097-9387"
+      uri: "https://orcid.org/0000-0002-7097-9387"
+    "Cui, Qiaoling":
+      id: "orcid:0000-0002-2074-9655"
+      uri: "https://orcid.org/0000-0002-2074-9655"
+    "Wokosin, David":
+      id: "orcid:0000-0002-5497-6944"
+      uri: "https://orcid.org/0000-0002-5497-6944"
+    "Sun, Linqing":
+      id: "orcid:0000-0002-1217-277X"
+      uri: "https://orcid.org/0000-0002-1217-277X"
+    "Tkatch, Tatiana":
+      id: "orcid:0000-0001-6626-7435"
+      uri: "https://orcid.org/0000-0001-6626-7435"
+    "Crittenden, Jill R.":
+      id: "orcid:0000-0002-1981-1917"
+      uri: "https://orcid.org/0000-0002-1981-1917"
+    "Graybiel, Ann M.":
+      id: "orcid:0000-0002-4326-7720"
+      uri: "https://orcid.org/0000-0002-4326-7720"
+    "Surmeier, D. James":
+      id: "orcid:0000-0002-6376-5225"
+      uri: "https://orcid.org/0000-0002-6376-5225"
+  institution:
+    Northwestern University:
+      id: "ror:000e0be47"
+      uri: "https://ror.org/000e0be47"

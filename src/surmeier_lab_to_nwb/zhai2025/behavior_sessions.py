@@ -472,5 +472,5 @@ def write_behavior_session(session: BehaviorSession, output_path: Path, video_fo
         interface.add_to_nwbfile(nwbfile, metadata=metadata)
 
     # Writes each video's path relative to the NWB file
-    configure_and_write_nwbfile(nwbfile, nwbfile_path=output_path)
+    configure_and_write_nwbfile(nwbfile, nwbfile_path=output_path, metadata=general)
     return output_path

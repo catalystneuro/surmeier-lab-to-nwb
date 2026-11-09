@@ -14,6 +14,7 @@ see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_8_conversi
 from pathlib import Path
 
 from neuroconv.tools import configure_and_write_nwbfile
+from neuroconv.utils import load_dict_from_file
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import str_to_bool
@@ -121,6 +122,7 @@ if __name__ == "__main__":
     # Create nwb_files directory at root level
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "spine_density" / "figure_8"
+    general_metadata = load_dict_from_file(Path(__file__).parent.parent.parent / "general_metadata.yaml")
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Figure 8 conditions use iSPNs (indirect pathway) with M1R CRISPR
@@ -157,4 +159,4 @@ if __name__ == "__main__":
             written_paths.add(nwbfile_path)
 
             # Write NWB file
-            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path, metadata=general_metadata)
