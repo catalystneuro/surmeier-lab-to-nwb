@@ -133,8 +133,6 @@ Each conversion is organized in a directory of its own in the `src` directory:
     │   ├── convert_behavior_sessions.py # Behaviour sessions runner
     │   ├── full_per_mouse_day_merge.py  # Production patch-clamp merger
     │   ├── prototype_per_mouse_day_merger.py  # Merger core (library)
-    │   ├── validate_all_fi_curves.py    # Paper-panel F-I validation
-    │   ├── validate_figure_7c.py
     │   ├── validate_against_dandi_streaming.py  # Cross-validation vs DANDI
     │   └── wipe_dandiset.py             # Bulk-delete DANDI assets (re-upload)
     └── src/
