@@ -15,6 +15,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
+from zoneinfo import ZoneInfo
 
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools import configure_and_write_nwbfile
@@ -25,8 +26,10 @@ from pynwb.device import Device
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
+    surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_olympus_fv10i_model
+from surmeier_lab_to_nwb.zhai2025.subjects import SUBJECTS
 
 
 def parse_pty_file(pty_file: Path, verbose: bool = False) -> Dict[str, Any]:
@@ -165,7 +168,7 @@ def parse_oif_stack_info(oif_folder: Path) -> Dict[str, Any]:
             f"High-resolution confocal Z-stack {stack_id} from Olympus FV10i system. "
             f"Acquired at 60x magnification (NA=1.35) with 0.125 μm z-steps and "
             f"~0.207 μm pixels for spine density methodology validation. "
-            f"Part of Figure 4H demonstrating confocal vs two-photon resolution differences."
+            f"One tile of the image of Figure 4I."
         ),
     }
 
@@ -233,30 +236,24 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
 
     # Parse session info from folder name
     session_name = session_folder.name
-    # Extract animal ID (first part before space or dash)
-    animal_id = session_name.split()[0] if " " in session_name else session_name.split("-")[0]
+    mouse_number = int(re.match(r"\d+", session_name).group())  # "5104-3 60x str_Cycle" is mouse 5104
 
-    # Use current date as session start time (OIF files don't contain reliable timestamps)
-    session_start_time = datetime.now().astimezone()
+    # The first tile's OIF file records when the mosaic was started, in the lab's local time
+    oif_text = oif_files[0].read_text(encoding="utf-16")
+    capture_match = re.search(r"^ImageCaputreDate='([^']+)'", oif_text, re.MULTILINE)  # codespell:ignore caputre
+    if capture_match is None:
+        raise ValueError(f"No capture date in {oif_files[0]}")
+    session_start_time = datetime.strptime(capture_match.group(1), "%Y-%m-%d %H:%M:%S").replace(
+        tzinfo=ZoneInfo("America/Chicago")
+    )
 
-    # Create canonical session ID with explicit parameters
-    # This script processes methodological validation data (no experimental conditions)
-    condition_human_readable = "methodological validation"
-
-    # Create timestamp with detailed format when available
-    if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    else:
-        timestamp = session_start_time.strftime("%Y%m%d")
-
-    # For methodological validation, we use control state
-    date_token = timestamp[:8]
+    # The mosaic's mouse, 5104, is one of the control mice of Figure 4J
     session_id = generate_canonical_session_id(
         cell_type="iSPN",  # Indirect pathway SPN
-        state="CTRL",  # Control for methodological validation
+        state="UnlesionedControl",
         pharm="none",  # No pharmacology
         geno="WT",  # Wild-type
-        date=date_token,
+        date=session_start_time.strftime("%Y%m%d"),
     )
 
     # Load general and session-specific metadata from YAML files
@@ -266,27 +263,39 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_4h_confocal_spine_density_olympus"]
+    # The mouse, its surgery and its sections are those of the Figure 4J confocal mice
+    confocal_template = session_metadata_template["figure_4_confocal_spine_density_nikon"]
+    surgery, pharmacology = surgery_and_pharmacology("UnlesionedControl", general_metadata)
+    subject = next(subject for subject in SUBJECTS if subject.mouse_number == mouse_number)
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                num_stacks=len(oif_files), animal_id=animal_id
+                num_stacks=len(oif_files), animal_id=mouse_number
             ),
+            "experiment_description": confocal_template["NWBFile"]["experiment_description"],
             "session_start_time": session_start_time,
             "session_id": session_id,
-            "surgery": general_metadata["NWBFile"]["surgery"] + " " + script_template["NWBFile"]["surgery_addition"],
+            "surgery": surgery + " " + confocal_template["NWBFile"]["surgery_addition"],
+            "pharmacology": pharmacology,
+            "slices": confocal_template["NWBFile"]["slices"],
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_confocal_olympus_mouse_{animal_id}",
-            "description": script_template["Subject"]["description"].format(animal_id=animal_id),
-            "genotype": script_template["Subject"]["genotype"],
+            "subject_id": subject.subject_id,
+            "description": confocal_template["Subject"]["description"].format(
+                mouse_number=mouse_number, group="unlesioned control: no 6-OHDA lesion and no levodopa"
+            ),
+            "strain": subject.strain,
+            "genotype": subject.genotype,
         },
     }
 
     # Merge general metadata with session-specific metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
+    if subject.strain is None:  # the paper gives no background for this line
+        del merged_metadata["Subject"]["strain"]
 
     # Create NWB file using neuroconv helper function
     nwbfile = make_nwbfile_from_metadata(merged_metadata)
@@ -367,7 +376,7 @@ if __name__ == "__main__":
 
     # Control verbose output
     verbose = False  # Set to True for detailed output
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
+    stub_test = False  # Set to True to process only first 2 files per condition for testing
 
     logging.getLogger("PIL").setLevel(logging.ERROR)
 
@@ -377,6 +386,7 @@ if __name__ == "__main__":
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "confocal_spine_density" / "figure_4"
+    general_metadata = load_dict_from_file(Path(__file__).parent.parent.parent / "general_metadata.yaml")
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Get all session folders
@@ -406,4 +416,4 @@ if __name__ == "__main__":
         nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
 
         # Write NWB file
-        configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+        configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path, metadata=general_metadata)

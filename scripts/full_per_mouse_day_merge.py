@@ -1,6 +1,7 @@
 """Run the per-mouse-day merger across all patch-clamp figures.
 
-Builds per-mouse-day NWB files for every bundle in F1, F3, F6, F7, F8.
+Builds per-mouse-day NWB files for every bundle in F1, F3, F6, F7, F8 (patch clamp), F2, F4 (Sr2+-oEPSC)
+and F5 (GRAB-ACh).
 Writes outputs to nwb_files/merged/<figure>/<subject_id>.nwb and reports a
 summary plus nwbinspector check on a sample of the produced files.
 
@@ -23,20 +24,27 @@ from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (
 
 # Import the merger function from the prototype script.
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
-from prototype_per_mouse_day_merger import merge_one_mouse_day  # noqa: E402
+from prototype_per_mouse_day_merger import (  # noqa: E402
+    merge_grab_ach_mouse_day,
+    merge_oepsc_mouse_day,
+    merge_one_mouse_day,
+)
 
 OUTPUT_DIR = REPO_ROOT / "nwb_files" / "merged"
 
 
 def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    figures = ["F1", "F3", "F6", "F7", "F8"]
+    figures = ["F1", "F3", "F6", "F7", "F8", "F2", "F4", "F5"]
     total_files = 0
     total_seconds = 0.0
     total_size_mb = 0.0
     per_figure: dict[str, dict] = {}
     for fig in figures:
         bundles = build_figure_bundles(fig)
+        merge = {"F2": merge_oepsc_mouse_day, "F4": merge_oepsc_mouse_day, "F5": merge_grab_ach_mouse_day}.get(
+            fig, merge_one_mouse_day
+        )
         print(f"\n=== {fig}: {len(bundles)} mouse-days ===")
         fig_dir = OUTPUT_DIR / fig
         fig_dir.mkdir(parents=True, exist_ok=True)
@@ -47,7 +55,7 @@ def main() -> int:
         for b in bundles:
             output = fig_dir / f"{b.subject_entry.subject_id}.nwb"
             try:
-                final_path = merge_one_mouse_day(b, output)
+                final_path = merge(b, output)
                 successes += 1
                 size_mb_local += final_path.stat().st_size / 1024 / 1024
                 print(

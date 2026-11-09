@@ -177,10 +177,10 @@ Figure 1/Dendritic excitability/
 **File Bundle per Recording**:
 ```
 07062017_Cell1_dist1_trio-001/
-├── *_Cycle00001_Ch1_000001.ome.tif          # Fluo-4 calcium channel kymograph
-├── *-Cycle00001_Ch1Source.tif               # Field of view with scan line overlay
-├── *_Cycle00001_Ch2_000001.ome.tif          # Alexa Fluor 568 structural channel
-├── *-Cycle00001_Ch2Source.tif               # Structural channel field of view
+├── *_Cycle00001_Ch1_000001.ome.tif          # Alexa Fluor 568 structural channel kymograph
+├── *-Cycle00001_Ch1Source.tif               # Structural channel field of view (scan line not drawn on it)
+├── *_Cycle00001_Ch2_000001.ome.tif          # Fluo-4 calcium channel kymograph
+├── *-Cycle00001_Ch2Source.tif               # Calcium channel field of view (scan line not drawn on it)
 ├── *_Cycle00001_LineProfileData.csv         # Averaged fluorescence traces
 ├── *_Cycle00001_VoltageOutput_001.xml       # Stimulus protocol definition
 ├── *_Cycle00001_VoltageRecording_001.csv    # Raw electrophysiology data
@@ -227,19 +227,19 @@ Figure 1/Dendritic excitability/
 **Parameter Interpretation**:
 - **PulseCount**: 3 → Three current injections
 - **PulseWidth**: 2 ms → Each injection lasts 2 ms
-- **PulseSpacing**: 18 ms → 18 ms between pulse starts (16 ms gap + 2 ms pulse = ~55 Hz)
+- **PulseSpacing**: 18 ms → 18 ms from the end of one pulse to the start of the next, so a pulse starts every 20 ms (50 Hz, as in the paper)
 - **PulsePotentialStart**: 5 → With UnitScaleFactor 400 and Units "pA" = 2000 pA = 2 nA
-- **FirstPulseDelay**: 900 ms → Stimulus starts 900 ms after recording begins
+- **FirstPulseDelay**: 900 ms → The first pulse starts 900 ms after this component begins. It follows a 100 ms first component of 0 pA, so the pulses start at 1000, 1020 and 1040 ms into the sweep
 
 ## Channel Assignments
 
 ### Two-Photon Imaging Channels
-- **Channel 1 (Ch1)**: Fluo-4 calcium-sensitive dye (green, 490-560 nm)
-- **Channel 2 (Ch2)**: Alexa Fluor 568 structural dye (red, 580-620 nm)
+- **Channel 1 (Ch1)**: Alexa Fluor 568 structural dye (red, 580-620 nm)
+- **Channel 2 (Ch2)**: Fluo-4 calcium-sensitive dye (green, 490-560 nm)
 
 ### Kymograph Structure
-- **Dimensions**: (C, T, X) where C=channels, T=time/lines, X=pixels along scan line
-- **Typical size**: 2 channels × 2500 time points × 64 pixels per line
+- **Dimensions**: (T, X) in each channel's file, where T=time/lines, X=pixels along scan line
+- **Typical size**: 2500 time points × about 20 pixels per line (16 to 99 in this dataset)
 
 ## Acquisition Parameters
 

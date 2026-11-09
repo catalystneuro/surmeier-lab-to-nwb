@@ -73,20 +73,17 @@ All conversion tasks are wired up as `poethepoet` tasks defined in `pyproject.to
 uv run poe convert_all_full
 ```
 
-This runs the seven-step pipeline in order: per-mouse-day patch-clamp merge, then spine density, confocal, AIM behavior, videos, biosensor, and optical stimulation conversions. Total runtime is roughly 30-45 minutes; outputs land in `nwb_files/`.
+This runs the four-step pipeline in order: per-mouse-day merge (patch clamp, Sr2+-oEPSC and GRAB-ACh), then spine density, confocal, and the behaviour sessions (AIM scores and videos). Total runtime is roughly 30-45 minutes; outputs land in `nwb_files/`.
 
 Other useful entry points:
 
 ```bash
-# Patch-clamp only (the merged per-mouse-day files: Figures 1, 3, 6, 7, 8)
+# The merged per-mouse-day files: patch clamp (Figures 1, 3, 6, 7, 8), Sr2+-oEPSC (2, 4) and GRAB-ACh (5)
 uv run poe merge_patch_clamp
 
 # Single modality
 uv run poe convert_spine_full
-uv run poe convert_biosensor_full
-uv run poe convert_behavior_full
-uv run poe convert_videos_full
-uv run poe convert_optical_full
+uv run poe convert_behavior
 uv run poe convert_confocal_full
 
 # Quick stub-test variants (small subset of data, for development)
@@ -98,8 +95,8 @@ uv run poe convert_all
 Each figure-specific script under `src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/` can also be invoked directly. The poe tasks above are thin wrappers around these; they exist as a fallback for fine-grained re-runs.
 
 ```bash
-# Convert Figure 5 acetylcholine biosensor data
-python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py --stub-test=False
+# Convert Figure 2 spine density data
+python src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_2_spine_density.py --stub-test=False
 ```
 
 ### Per-mouse-day file architecture (patch-clamp)
@@ -109,13 +106,13 @@ For Figures 1, 3, 6, 7, and 8 (somatic + dendritic excitability), the conversion
 - One `CurrentClampSeries` per (cell, modality) holding all sweeps concatenated end-to-end (Pattern B). Individual sweeps are sliced via `idx_start + count` columns on the `IntracellularRecordingsTable`.
 - The full 5-level icephys hierarchical chain (`IntracellularRecordings` -> `SimultaneousRecordings` -> `SequentialRecordings` -> `RepetitionsTable` -> `ExperimentalConditionsTable`).
 - Paired line-scan kymographs for dendritic sweeps, consolidated per (cell, channel, dendrite location).
-- A denormalized `RecordingsIndexTable` in `processing/recordings_index/` that pre-joins the chain for fast pandas-style queries.
+- A denormalized `RecordingsIndexTable` in `processing/icephys/` that pre-joins the chain for fast pandas-style queries.
 
 The `session_id` follows a 5-token format: `<cellType>++<state>++<pharm>++<genotype>++<date>` (e.g., `dSPN++OffState++none++WT++20170202`).
 
 ### Reading from the dandiset
 
-The notebooks under `notebooks/` stream files directly from DANDI without downloading. Start with `how_to_use_this_dataset.ipynb` for a tour of the new per-mouse-day patch-clamp files, the `RecordingsIndexTable`, line-scan access, AIM `DynamicTable`, optogenetic Sr-oEPSC, and acetylcholine biosensor data. The per-figure reproduction notebooks (`figure_1E_dspn_somatic_excitability.ipynb`, `figure_2GH_oepsc_analysis.ipynb`, `figure_5F_acetylcholine_biosensor.ipynb`) demonstrate downstream analysis on the published figures.
+The notebooks under `notebooks/` stream files directly from DANDI without downloading. Start with `how_to_use_this_dataset.ipynb` for a tour of the per-mouse-day patch-clamp files, the `RecordingsIndexTable`, line-scan access, the behaviour files with AIM ratings and videos, the Sr-oEPSC recordings, and the acetylcholine biosensor data. The per-figure reproduction notebooks (`figure_1E_dspn_somatic_excitability.ipynb`, `figure_2GH_oepsc_analysis.ipynb`, `figure_5F_acetylcholine_biosensor.ipynb`) demonstrate downstream analysis on the published figures.
 
 **Note:** All installation methods above install the repository in [editable mode](https://pip.pypa.io/en/stable/cli/pip_install/#editable-installs), allowing you to modify the source code if needed.
 
@@ -133,54 +130,38 @@ Each conversion is organized in a directory of its own in the `src` directory:
     │   ├── figure_2GH_oepsc_analysis.ipynb
     │   └── figure_5F_acetylcholine_biosensor.ipynb
     ├── scripts/                         # Conversion runners and validation
+    │   ├── convert_behavior_sessions.py # Behaviour sessions runner
     │   ├── full_per_mouse_day_merge.py  # Production patch-clamp merger
     │   ├── prototype_per_mouse_day_merger.py  # Merger core (library)
-    │   ├── validate_all_fi_curves.py    # Paper-panel F-I validation
-    │   ├── validate_figure_7c.py
     │   ├── validate_against_dandi_streaming.py  # Cross-validation vs DANDI
     │   └── wipe_dandiset.py             # Bulk-delete DANDI assets (re-upload)
     └── src/
         └── surmeier_lab_to_nwb/
             └── zhai2025/
+                ├── behavior_sessions.py       # AIM scores and videos, one file per mouse and levodopa session
                 ├── conversion_notes_folder/   # Detailed conversion documentation
                 ├── conversion_scripts/        # Per-figure conversion scripts
-                │   ├── acetylcholine_biosensor/
-                │   ├── aim_behavior/
                 │   ├── confocal_spine_density/
-                │   ├── dendritic_excitability/
-                │   ├── optical_stimulation/
-                │   ├── somatic_excitability/
-                │   ├── spine_density/
-                │   └── videos/
-                ├── interfaces/                # Custom NeuroConv interfaces (Bruker BOT, line-scan, behavior)
+                │   └── spine_density/
+                ├── interfaces/                # Custom NeuroConv interfaces (Bruker BOT, line-scan)
                 ├── mouse_day_merger.py        # Per-mouse-day bundle builder (raw folders → bundles)
-                ├── subject_registry.py        # Data Connections spreadsheet parser
+                ├── subjects.py                # Every mouse: subject ID, line, group, strain and genotype
                 └── utils/                     # Utility functions
 
 ## Figure-Specific Conversions
 
-The `zhai2025` conversion includes specialized scripts for each figure in the paper. **For the dandiset deposit, the patch-clamp scripts under Dendritic Excitability and Somatic Excitability are superseded by the per-mouse-day merger** (`uv run poe merge_patch_clamp`). The per-figure scripts below are still functional and used as the lower-level converters that feed the merger; they remain the right entry point for ad-hoc per-condition output.
+The `zhai2025` conversion includes specialized scripts for each figure in the paper. Patch-clamp (somatic and dendritic excitability), Sr2+-oEPSC and GRAB-ACh data are written by the per-mouse-day merger (`uv run poe merge_patch_clamp`), one file per mouse and day.
 
-### Dendritic Excitability (Figures 1, 3, 6, 7) — merged into per-mouse-day files
+### Dendritic Excitability (Figures 1, 3, 6, 7), merged into per-mouse-day files
 - Two-photon calcium imaging with patch-clamp electrophysiology
-- Back-propagating action potential measurements
+- Back-propagating action potential measurements, including before and after oxo-M (Figure 7E)
 - Cell-type specific analysis (dSPNs vs iSPNs)
-- **Scripts**:
-  - [Figure 1](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_1_dendritic_excitability.py)
-  - [Figure 3](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_3_dendritic_excitability.py)
-  - [Figure 6](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_6_dendritic_excitability.py)
-  - [Figure 7](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_dendritic_excitability.py)
-  - [Figure 7 OxoM](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/dendritic_excitability/figure_7_oxoM_dendritic_excitability.py)
+- **Script**: `merge_one_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
 
-### Somatic Excitability (Figures 1, 3, 6, 7, 8) — merged into per-mouse-day files
+### Somatic Excitability (Figures 1, 3, 6, 7, 8), merged into per-mouse-day files
 - Patch-clamp electrophysiology recordings
 - Current injection protocols and F-I curves
-- **Scripts**:
-  - [Figure 1](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_1_somatic_excitability.py)
-  - [Figure 3](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_3_somatic_excitability.py)
-  - [Figure 6](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_6_somatic_excitability.py)
-  - [Figure 7](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_7_somatic_excitability.py)
-  - [Figure 8](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/somatic_excitability/figure_8_somatic_excitability.py)
+- **Script**: `merge_one_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
 
 ### Spine Density Analysis (Figures 2, 4, 6, 7, 8)
 - Two-photon and confocal microscopy
@@ -195,25 +176,18 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
   - [Figure 7](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_7_spine_density.py)
   - [Figure 8](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/spine_density/figure_8_spine_density.py)
 
-### Acetylcholine Biosensor (Figure 5)
+### Acetylcholine Biosensor (Figure 5), merged into per-mouse-day files
 - GRABACh3.0 fluorescent sensor recordings
 - Two-photon line scans and full-field imaging
 - Real-time acetylcholine dynamics
-- **Script**: [Figure 5](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/acetylcholine_biosensor/figure_5_acetylcholine_biosensor.py)
+- **Script**: `merge_grab_ach_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
 
-### Behavioral Analysis (Figures 7, 8)
-- AIM (Abnormal Involuntary Movement) scoring
-- Contralateral rotation counting
-- Video recording integration
-- **Scripts**:
-  - [Figure 7 AIM](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_7_behavioral_aim_experiments.py)
-  - [Figure 7 Videos](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/figure_7_behavioral_videos.py)
-  - [Figure 8 AIM](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/aim_behavior/figure_8_behavioral_aim_experiments.py)
-  - [Supplementary Figure 3 Videos](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/videos/supplementary_figure_3_behavioral_videos.py)
+### Behavioral Analysis (Figures 7, 8, Supplementary Figure 3), one file per mouse and levodopa session
+- AIM (Abnormal Involuntary Movement) scores, one row per one-minute observation
+- Videos filmed to count contralateral rotations, linked as external files
+- **Script**: [behavior_sessions.py](src/surmeier_lab_to_nwb/zhai2025/behavior_sessions.py), run by `uv run poe convert_behavior`
 
-### Optogenetics (Figures 2, 4)
+### Optogenetics (Figures 2, 4), merged into per-mouse-day files
 - Light-evoked postsynaptic currents (oEPSCs)
 - Stimulus timing and metadata
-- **Scripts**:
-  - [Figure 2](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_2_optical_stimuli.py)
-  - [Figure 4](src/surmeier_lab_to_nwb/zhai2025/conversion_scripts/optical_stimulation/figure_4_optical_stimuli.py)
+- **Script**: `merge_oepsc_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`

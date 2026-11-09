@@ -2,18 +2,19 @@
 Figure 4 Confocal Spine Density Conversion Script (Nikon) - Zhai et al. 2025
 =======================================================================
 
-This script converts confocal spine density imaging data acquired with Nikon microscopy
-from Figure 4 of Zhai et al. 2025 into NWB (Neurodata Without Borders) format.
-The data examines dendritic spine density changes in a mouse model of Parkinson's
-disease and levodopa-induced dyskinesia.
+This script converts the high-resolution confocal z-stacks of Figure 4J and Supplementary Figure 5 into NWB, one file
+per mouse with every dendrite segment the lab imaged in it. The mice are Adora2-Cre mice whose iSPNs were sparsely
+labeled with a Cre-dependent eGFP virus, in four groups: control, 6-OHDA, LID off-state and LID on-state.
 
 For detailed experimental context, protocols, data structure, and analysis methods,
 see: /src/surmeier_lab_to_nwb/zhai2025/conversion_notes_folder/figure_4_conversion_notes.md
 """
 
 import re
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
+from zoneinfo import ZoneInfo
 
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
@@ -22,142 +23,110 @@ from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     generate_canonical_session_id,
+    surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
     NikonImageStackInterface,
 )
+from surmeier_lab_to_nwb.zhai2025.subjects import SUBJECTS
+
+# "3824-slide 2-slice 2-cell 2 proxi", "5108-slice 2-cell 1 den3 proxi", "5104-slice 3-cell 1 proxi3",
+# "8038-slide 1-slice 2-cell 1 proxi_0001", "5105-slide 2-slice 3-cell 1den2 proxi": mouse, slide (some names leave it
+# out), slice, cell, and the dendrite when the cell has more than one imaged
+_RE_STACK_NAME = re.compile(
+    r"^(?P<mouse>\d+)-(?:slide (?P<slide>\d+)-)?slice (?P<slice>\d+)-cell (?P<cell>\d+) ?(?:den ?(?P<dendrite>\d+) )?"
+    r"proxi(?:3|_0001)?$"
+)
+_STATE = {"control": "UnlesionedControl", "6-OHDA": "LesionedControl", "off-state": "OffState", "on-state": "OnState"}
+_GROUP_TEXT = {
+    "UnlesionedControl": "unlesioned control: no 6-OHDA lesion and no levodopa",
+    "LesionedControl": "6-OHDA lesioned, without levodopa",
+    "OffState": "6-OHDA lesioned and given levodopa until dyskinetic, perfused in the LID off-state",
+    "OnState": "6-OHDA lesioned and given levodopa until dyskinetic, perfused in the LID on-state",
+}
+TIMEZONE = ZoneInfo("America/Chicago")
+# Stacks whose clocks disagree: the text NIS-Elements writes gives 2024-02-23 and the frame clock 2024-06-04, but the
+# data share dates the files 2024-01-03, before both, so when they were acquired is uncertain
+_UNCERTAIN_ACQUISITION_TIME = {
+    "8040-slide 1-slice 3-cell 2 proxi.nd2",
+    "8040-slide 1-slice 3-cell 2 den2 proxi.nd2",
+    "8041-slide 2-slice 3-cell 2 proxi.nd2",
+}
 
 
 def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
     """
-    Parse ND2 filename to extract metadata.
+    Read the mouse, slide, slice, cell and dendrite of a stack from its file name; raises on a name it cannot read.
 
-    Example filenames:
-    - "3824-slide 2-slice 2-cell 2 proxi.nd2"
-    - "8939-slide 1-slice 3-cell 2 den2 proxi.nd2"
-    - "5107-slide 2-slice 2-cell 1 den 2 proxi.nd2"
-
-    Parameters
-    ----------
-    nd2_file : Path
-        Path to ND2 file
-
-    Returns
-    -------
-    Dict[str, Any]
-        Dictionary containing extracted metadata
+    Returns the mouse number and the name of the stack's Images container, e.g. "ImagesSlide2Slice2Cell2Dendrite1".
     """
-    filename = nd2_file.stem
-
-    # Extract animal/session ID (first part before dash)
-    parts = filename.split("-")
-    animal_id = parts[0] if parts else "unknown"
-
-    # Extract slide, slice, cell information
-    slide_match = re.search(r"slide\s+(\d+)", filename, re.IGNORECASE)
-    slice_match = re.search(r"slice\s+(\d+)", filename, re.IGNORECASE)
-    cell_match = re.search(r"cell\s+(\d+)", filename, re.IGNORECASE)
-
-    slide_num = slide_match.group(1) if slide_match else "1"
-    slice_num = slice_match.group(1) if slice_match else "1"
-    cell_num = cell_match.group(1) if cell_match else "1"
-
-    # Extract dendrite information
-    dendrite_info = ""
-    if "den2" in filename.lower() or "den 2" in filename.lower():
-        dendrite_info = "den2"
-    elif "den3" in filename.lower() or "den 3" in filename.lower():
-        dendrite_info = "den3"
-    elif "den" in filename.lower():
-        dendrite_info = "den1"
-
-    # Extract location (proximal/distal)
-    location = "proximal" if "proxi" in filename.lower() else "unknown"
-
-    # Create container name - simplified format
-    container_name = f"ImagesCell{cell_num}"
-    if dendrite_info:
-        container_name += f"_{dendrite_info}"
-
+    match = _RE_STACK_NAME.match(nd2_file.stem)
+    if match is None:
+        raise ValueError(f"Unrecognized confocal stack name: {nd2_file}")
+    slide, slice_number, cell = match.group("slide"), match.group("slice"), match.group("cell")
+    dendrite = match.group("dendrite") or "1"
+    location = f"slide {slide}, slice {slice_number}" if slide else f"slice {slice_number}"
     return {
-        "animal_id": animal_id,
-        "slide_number": slide_num,
-        "slice_number": slice_num,
-        "cell_number": cell_num,
-        "dendrite_info": dendrite_info,
-        "location": location,
-        "container_name": container_name,
-        "description": (
-            f"High-resolution confocal image stack of {location} dendrite from iSPN cell {cell_num} "
-            f"({dendrite_info if dendrite_info else 'primary dendrite'}). "
-            f"Acquired from slide {slide_num}, slice {slice_num} using Nikon AXR confocal microscope "
-            f"with 60x oil immersion objective (NA=1.49), 0.09 μm pixels, 0.125 μm z-steps. "
-            f"Images processed with Nikon NIS-Elements and analyzed using Imaris 10.0.0 for "
-            f"spine density quantification with supervised learning algorithms."
-        ),
+        "mouse_number": int(match.group("mouse")),
+        "container_name": f"Images{f'Slide{slide}' if slide else ''}Slice{slice_number}Cell{cell}Dendrite{dendrite}",
+        "description": f"Confocal z-stack of proximal dendrite {dendrite} of cell {cell} ({location})",
     }
 
 
-def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = False) -> NWBFile:
+def get_acquisition_time(nd2_file: Path, interface: NikonImageStackInterface) -> datetime | None:
+    """When a stack was acquired, from its frame clock checked against the date in its text; None where uncertain."""
+    if nd2_file.name in _UNCERTAIN_ACQUISITION_TIME:
+        return None
+    acquisition_time = interface.get_session_start_time().astimezone(TIMEZONE)
+    text_date = datetime.strptime(interface.file_handle.text_info["date"].split()[0], "%m/%d/%Y").date()
+    if acquisition_time.date() != text_date:
+        raise ValueError(f"{nd2_file}: the frame clock says {acquisition_time}, the text {text_date}")
+    return acquisition_time
+
+
+def group_stacks_by_mouse(condition_folder: Path) -> Dict[int, List[Path]]:
+    """Group the stacks of one condition folder by the mouse their file names give."""
+    stacks_per_mouse: Dict[int, List[Path]] = {}
+    for nd2_file in sorted(condition_folder.glob("*.nd2")):
+        stacks_per_mouse.setdefault(parse_nd2_filename(nd2_file)["mouse_number"], []).append(nd2_file)
+    return stacks_per_mouse
+
+
+def convert_mouse_to_nwbfile(nd2_files: List[Path], condition: str) -> NWBFile:
     """
-    Convert single confocal ND2 file to NWB format.
+    Convert every confocal stack of one mouse into one NWB file.
 
     Parameters
     ----------
-    nd2_file : Path
-        Path to ND2 file
+    nd2_files : list of Path
+        The mouse's ND2 stacks
     condition : str
-        Experimental condition (e.g., 'control', 'LID on-state')
-    verbose : bool, default=False
-        Enable verbose output
+        Its condition folder: "control", "6-OHDA", "off-state" or "on-state"
 
     Returns
     -------
     NWBFile
         The populated NWB file object
     """
-    # Parse filename metadata
-    file_info = parse_nd2_filename(nd2_file)
+    state = _STATE[condition]
+    stacks = [(nd2_file, parse_nd2_filename(nd2_file), NikonImageStackInterface(nd2_file)) for nd2_file in nd2_files]
+    (mouse_number,) = {info["mouse_number"] for _, info, _ in stacks}
+    subject = next(subject for subject in SUBJECTS if subject.mouse_number == mouse_number)
+    container_names = [info["container_name"] for _, info, _ in stacks]
+    if len(set(container_names)) != len(container_names):
+        raise ValueError(f"Two stacks of mouse {mouse_number} have the same slide, slice, cell and dendrite")
 
-    # Create NikonImageStackInterface
-    interface = NikonImageStackInterface(nd2_file)
-
-    # Get session start time from ND2 metadata
-    session_start_time = interface.get_session_start_time()
-
-    # Create canonical session ID with explicit parameters
-    # Map simple condition names to human readable format
-    condition_mapping = {"control": "control", "6-OHDA": "PD", "off-state": "LID off-state", "on-state": "LID on-state"}
-    condition_human_readable = condition_mapping.get(condition, condition)
-
-    # Create timestamp with detailed format when available
-    if hasattr(session_start_time, "hour"):
-        timestamp = session_start_time.strftime("%Y%m%d%H%M%S")
-    else:
-        timestamp = session_start_time.strftime("%Y%m%d")
-
-    # Map condition to explicit state
-    if condition == "LID off-state iSPN" or condition == "off-state":
-        state = "OFF"
-    elif condition == "LID on-state iSPN" or condition == "on-state":
-        state = "ON"
-    elif condition == "control iSPN" or condition == "control":
-        state = "CTRL"
-    elif condition == "PD iSPN" or condition == "6-OHDA":
-        state = "PD"
-    else:
-        raise ValueError(f"Unknown condition: {condition}")
-
-    date_token = timestamp[:8]
+    acquisition_times = [get_acquisition_time(nd2_file, interface) for nd2_file, _, interface in stacks]
+    known_times = [time for time in acquisition_times if time is not None]
+    session_start_time = min(known_times)
+    imaging_days = sorted({time.strftime("%Y-%m-%d") for time in known_times})
     session_id = generate_canonical_session_id(
         cell_type="iSPN",  # Indirect pathway SPN
         state=state,
         pharm="none",  # No pharmacology
-        geno="WT",  # Wild-type
-        date=date_token,
+        geno="WT",  # Not a knockout
+        date=session_start_time.strftime("%Y%m%d"),
     )
-
-    base_session_id = session_id  # Keep for compatibility
 
     # Load general and session-specific metadata from YAML files
     general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
@@ -166,44 +135,60 @@ def convert_session_to_nwbfile(nd2_file: Path, condition: str, verbose: bool = F
     session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
     session_metadata_template = load_dict_from_file(session_metadata_path)
     script_template = session_metadata_template["figure_4_confocal_spine_density_nikon"]
+    surgery, pharmacology = surgery_and_pharmacology(state, general_metadata)
+    if state == "OnState":
+        pharmacology += " " + script_template["NWBFile"]["on_state_pharmacology"]
 
-    # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
         "NWBFile": {
             "session_description": script_template["NWBFile"]["session_description"].format(
-                condition=condition_human_readable,
-                animal_id=file_info["animal_id"],
-                cell_number=file_info["cell_number"],
+                num_stacks=len(stacks),
+                mouse_number=mouse_number,
+                condition=_GROUP_TEXT[state],
+                imaging_days=", ".join(imaging_days),
             ),
+            "experiment_description": script_template["NWBFile"]["experiment_description"],
             "session_start_time": session_start_time,
-            "session_id": f"{base_session_id}_Cell{file_info['cell_number']}_Slide{file_info['slide_number']}_Slice{file_info['slice_number']}",
+            "session_id": session_id,
+            "surgery": surgery + " " + script_template["NWBFile"]["surgery_addition"],
+            "pharmacology": pharmacology,
+            "slices": script_template["NWBFile"]["slices"],
             "keywords": script_template["NWBFile"]["keywords"],
         },
         "Subject": {
-            "subject_id": f"iSPN_confocal_mouse_{file_info['animal_id']}",
+            "subject_id": subject.subject_id,
             "description": script_template["Subject"]["description"].format(
-                animal_id=file_info["animal_id"], cell_number=file_info["cell_number"]
+                mouse_number=mouse_number, group=_GROUP_TEXT[state]
             ),
-            "genotype": script_template["Subject"]["genotype"],
+            "strain": subject.strain,
+            "genotype": subject.genotype,
         },
     }
 
     # Merge general metadata with session-specific metadata
     merged_metadata = dict_deep_update(general_metadata, session_specific_metadata)
+    if subject.strain is None:  # the paper gives no background for this line
+        del merged_metadata["Subject"]["strain"]
 
     # Create NWB file using neuroconv helper function
     nwbfile = make_nwbfile_from_metadata(merged_metadata)
 
-    # Create metadata for the interface with custom container information
-    # Following the same pattern as NeuroConv's ImageInterface
-    interface_metadata = {
-        "Images": {
-            file_info["container_name"]: {"name": file_info["container_name"], "description": file_info["description"]}
+    for (nd2_file, info, interface), acquisition_time in zip(stacks, acquisition_times):
+        if acquisition_time is None:
+            acquired = (
+                "whose clocks disagree (2024-02-23 in the text NIS-Elements writes, 2024-06-04 from its frames) while "
+                "the data share dates it 2024-01-03, so when it was acquired is uncertain; acquired"
+            )
+        else:
+            acquired = f"acquired {acquisition_time:%Y-%m-%d %H:%M} (Chicago time)"
+        description = (
+            f"{info['description']}, the lab's file '{nd2_file.name}', {acquired} on a Nikon AXR confocal with a 60x "
+            "oil immersion objective (NA 1.49), 0.09 µm pixels and 0.125 µm z steps."
+        )
+        interface_metadata = {
+            "Images": {info["container_name"]: {"name": info["container_name"], "description": description}}
         }
-    }
-
-    # Add to NWB file using interface with custom metadata
-    interface.add_to_nwbfile(nwbfile, metadata=interface_metadata)
+        interface.add_to_nwbfile(nwbfile, metadata=interface_metadata)
 
     return nwbfile
 
@@ -213,61 +198,24 @@ if __name__ == "__main__":
 
     from tqdm import tqdm
 
-    # Control verbose output
-    verbose = False  # Set to True for detailed output
-    stub_test = True  # Set to True to process only first 2 files per condition for testing
-
     logging.getLogger("nd2").setLevel(logging.ERROR)
 
-    # Process both Figure 4I and Figure 4J data
-    datasets = [
-        {
-            "name": "Fig4I",
-            "path": Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4I/raw"),
-            "conditions": ["control", "6-OHDA", "off-state", "on-state"],
-        },
-        {
-            "name": "Fig4J",
-            "path": Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4J and Suppl Fig 5/raw"),
-            "conditions": ["control", "6-OHDA", "off-state", "on-state"],
-        },
-    ]
+    # The four Figure 4I stacks are byte-identical copies of Figure 4J stacks, so only Figure 4J is converted
+    data_path = Path("./link_to_raw_data/Figure 4_SF1B_SF5/Confocal spine density/Fig 4J and Suppl Fig 5/raw")
 
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "confocal_spine_density" / "figure_4"
+    general_metadata = load_dict_from_file(Path(__file__).parent.parent.parent / "general_metadata.yaml")
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
-    for dataset in datasets:
-
-        for condition in dataset["conditions"]:
-            condition_path = dataset["path"] / condition
-            assert condition_path.exists(), f"Condition path {condition_path} does not exist"
-
-            # Get all ND2 files in condition folder
-            nd2_files = list(condition_path.glob("*.nd2"))
-            nd2_files.sort()
-
-            # Apply stub_test filtering if enabled
-            if stub_test:
-                nd2_files = nd2_files[:2]
-
-            # Process each ND2 file with progress bar
-            file_iterator = tqdm(
-                nd2_files,
-                desc=f"Converting Figure4 ConfocalSpineDensity {dataset['name']} {condition}",
-                unit=" session",
-            )
-
-            for nd2_file in file_iterator:
-
-                # Convert ND2 file to NWB format
-                nwbfile = convert_session_to_nwbfile(nd2_file, condition, verbose=verbose)
-
-                # Create safe filename
-                nd2_name = nd2_file.stem.replace(" ", "_").replace("-", "_")
-                condition_safe = condition.replace("-", "_")
-                nwbfile_path = nwb_files_dir / f"{nwbfile.session_id}.nwb"
-
-                # Write NWB file
-                configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path)
+    for condition in _STATE:
+        condition_path = data_path / condition
+        assert condition_path.exists(), f"Condition path {condition_path} does not exist"
+        stacks_per_mouse = group_stacks_by_mouse(condition_path)
+        for nd2_files in tqdm(
+            stacks_per_mouse.values(), desc=f"Converting Figure 4J confocal {condition}", unit=" mouse"
+        ):
+            nwbfile = convert_mouse_to_nwbfile(nd2_files, condition)
+            nwbfile_path = nwb_files_dir / f"{nwbfile.subject.subject_id}.nwb"
+            configure_and_write_nwbfile(nwbfile, nwbfile_path=nwbfile_path, metadata=general_metadata)
