@@ -66,8 +66,11 @@ ExternalResources:
     Mus musculus:
       id: "NCBITaxon:10090"
       uri: "http://purl.obolibrary.org/obo/NCBITaxon_10090"
-  # Only the GRAB-ACh mice have a substrain; C57BL/6 without one has no term
+  # The paper names a substrain only for the GRAB-ACh mice; the others are C57BL/6, which MGI keeps as a strain family
   strain:
+    C57BL/6:
+      id: "MGI:2159769"
+      uri: "https://www.informatics.jax.org/strain/MGI:2159769"
     C57BL/6J:
       id: "RRID:IMSR_JAX:000664"
       uri: "https://scicrunch.org/resolver/RRID:IMSR_JAX:000664"
