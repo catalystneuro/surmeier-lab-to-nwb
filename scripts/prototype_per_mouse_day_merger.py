@@ -63,18 +63,13 @@ from ndx_optogenetics import (
     OptogeneticViruses,
     OptogeneticVirusInjections,
 )
+from neuroconv.datainterfaces import BrukerVoltageRecordingInterface
 from neuroconv.utils import load_dict_from_file
 from pynwb import NWBFile
 from pynwb.base import TimeSeries, TimeSeriesReference, TimeSeriesReferenceVectorData
 from pynwb.device import Device
 from pynwb.file import Subject
-from pynwb.icephys import (
-    CurrentClampSeries,
-    CurrentClampStimulusSeries,
-    IntracellularElectrode,
-    VoltageClampSeries,
-    VoltageClampStimulusSeries,
-)
+from pynwb.icephys import IntracellularElectrode
 from pynwb.image import Image
 
 from surmeier_lab_to_nwb.zhai2025.behavior_sessions import (
@@ -287,82 +282,99 @@ def _find_voltage_output_xml(sweep_path: Path) -> Path | None:
     return None
 
 
-def _synthesize_stimulus_waveform(
-    protocol: StimulusProtocol,
-    n_samples: int,
-    rate_hz: float,
-) -> np.ndarray:
-    """Build the commanded current waveform (in amperes) from a parsed protocol: its pulses on a zero baseline.
+def _voltage_recording_csv(sweep: SweepRecord) -> Path:
+    """The sweep's VoltageRecording CSV."""
+    csv_paths = list(sweep.recording_path.glob("*_VoltageRecording_001.csv"))
+    if len(csv_paths) != 1:
+        raise FileNotFoundError(f"Expected one VoltageRecording CSV in {sweep.recording_path}")
+    return csv_paths[0]
 
-    The waveform covers the recorded sweep, or the whole command when the recording stops before it ends.
+
+def _acquisition_stem(sweep: SweepRecord) -> str:
+    """The name Prairie View gave the sweep's acquisition, which NeuroConv's Bruker interface labels a protocol run by."""
+    return re.sub(r"_Cycle\d+_VoltageRecording_\d+$", "", _voltage_recording_csv(sweep).stem)
+
+
+def _recorded_seconds(sweep: SweepRecord) -> float:
+    """How long the sweep's voltage recording lasts, from the time column of its CSV."""
+    time_ms = pd.read_csv(_voltage_recording_csv(sweep), usecols=[0]).iloc[:, 0].to_numpy()
+    return len(time_ms) / round(1000.0 / (time_ms[1] - time_ms[0]))
+
+
+def _voltage_recording_interface(sweeps: list[SweepRecord], **options) -> BrukerVoltageRecordingInterface:
+    """NeuroConv's Bruker interface over the sweeps' amplifier recordings (the Primary signal).
+
+    It refuses a sweep without its master XML beside it, whose start would come from its VoltageRecording DateTime,
+    which can be seconds early.
     """
-    n_samples = max(n_samples, int(round(protocol.duration_ms * 1e-3 * rate_hz)))
-    waveform = np.zeros(n_samples, dtype=np.float32)
-    for start_ms, width_ms in protocol.pulses_ms:
-        start_sample = int(round(start_ms * 1e-3 * rate_hz))
-        end_sample = start_sample + int(round(width_ms * 1e-3 * rate_hz))
-        waveform[start_sample:end_sample] = protocol.amplitude_pA * 1e-12
-    return waveform
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error", message=".*have no PVScan XML beside them")
+        return BrukerVoltageRecordingInterface(
+            file_paths=[_voltage_recording_csv(sweep) for sweep in sweeps], response_signal_name="Primary", **options
+        )
 
 
-# --------- reading per-sweep voltage data ---------------------------------------------------
+def _recording_start(sweep: SweepRecord, session_start_time: datetime) -> float:
+    """Start of the sweep's voltage recording in seconds from `session_start_time`: the master XML's Sequence time
+    plus the recording's offset in it, as NeuroConv's Bruker interface reads it."""
+    interface = _voltage_recording_interface([sweep])
+    return (interface.get_metadata()["NWBFile"]["session_start_time"] - session_start_time).total_seconds()
 
 
-def _read_signal_gain(sweep_path: Path) -> tuple[float, float]:
-    """Parse the Primary signal's gain (multiplier/divisor) from the VoltageRecording XML.
+def _sample_time(series: TimeSeries, index: int) -> float:
+    if series.timestamps is not None:
+        return float(series.timestamps[index])
+    return series.starting_time + index / series.rate
 
-    Returns (multiplier, divisor). Defaults to (1, 1) if not parseable.
-    The conversion is `value_mV = raw * (multiplier / divisor)`.
+
+def _add_sweeps_through_neuroconv(
+    nwbfile: NWBFile,
+    *,
+    sweeps: list[SweepRecord],
+    electrode: IntracellularElectrode,
+    name: str,
+    stimulus_name: str,
+    description: str,
+    stimulus_description: str,
+    session_start_time: datetime,
+) -> list[tuple[int, float]]:
+    """Write the sweeps' recordings as one series, and their amplifier commands as its stimulus, with one
+    intracellular recordings row per sweep, through NeuroConv's Bruker interface.
+
+    The interface places each sweep at its start (the master XML's Sequence time plus the recording's offset in it)
+    and draws each sweep's command from its VoltageOutput XML over the command's own span. It writes each row's
+    protocol_run as the acquisition stem of the series' first sweep; the caller relabels the rows by protocol run.
+    Returns each sweep's row and start in seconds from `session_start_time`, in the order of `sweeps`.
     """
-    xml_candidates = list(sweep_path.glob("*_VoltageRecording_001.xml"))
-    if not xml_candidates:
-        return 1.0, 1.0
-    try:
-        text = xml_candidates[0].read_text(errors="replace", encoding="utf-8")
-    except OSError:
-        return 1.0, 1.0
-    # Match the FIRST Unit block (Primary signal). The pattern captures the
-    # multiplier and divisor that follow the Unit tag.
-    m = re.search(
-        r"<Unit>\s*<UnitName>mV</UnitName>\s*<Multiplier>([^<]+)</Multiplier>\s*<Divisor>([^<]+)</Divisor>", text
+    interface = _voltage_recording_interface(sweeps, stimulus_command="700B", metadata_key=name)
+    metadata = interface.get_metadata()
+    interface.temporal_alignment.shift_times(
+        (metadata["NWBFile"]["session_start_time"] - session_start_time).total_seconds()
     )
-    if not m:
-        return 1.0, 1.0
-    try:
-        return float(m.group(1)), float(m.group(2))
-    except (TypeError, ValueError):
-        return 1.0, 1.0
+    series_metadata = metadata["Icephys"]["PatchClampSeries"][name]
+    # The cell's electrode is in the file already; the interface reuses it by name
+    metadata["Icephys"]["IntracellularElectrodes"][series_metadata["electrode_metadata_key"]]["name"] = electrode.name
+    series_metadata.update(name=name, description=description)
+    metadata["Icephys"]["PatchClampStimulusSeries"][name].update(name=stimulus_name, description=stimulus_description)
 
-
-def _read_sweep_voltage(sweep_path: Path) -> tuple[np.ndarray, float]:
-    """Read voltage trace and sample rate for one sweep.
-
-    Applies the multiplier/divisor gain conversion from the VoltageRecording XML
-    so the stored data is in true volts (Prairie View convention is to store the
-    Primary channel scaled by 1/multiplier × divisor; we invert that and then
-    convert mV -> volts for NWB storage).
-
-    Returns (voltage_volts, sample_rate_hz).
-    """
-    csv_candidates = list(sweep_path.glob("*_VoltageRecording_001.csv"))
-    if not csv_candidates:
-        csv_candidates = list(sweep_path.glob("*.csv"))
-    if not csv_candidates:
-        raise FileNotFoundError(f"No voltage CSV in {sweep_path}")
-    csv_path = csv_candidates[0]
-    df = pd.read_csv(csv_path, header=0)
-    time_ms = df.iloc[:, 0].values
-    raw_primary = df.iloc[:, 1].values
-    multiplier, divisor = _read_signal_gain(sweep_path)
-    # Apply gain conversion to get true mV, then convert to volts for NWB.
-    voltage_mV = raw_primary * (multiplier / divisor) if divisor != 0 else raw_primary
-    voltage_v = voltage_mV / 1000.0
-    if len(time_ms) < 2:
-        sample_rate = 10000.0
-    else:
-        dt_s = (time_ms[1] - time_ms[0]) / 1000.0
-        sample_rate = round(1.0 / dt_s)
-    return voltage_v.astype(np.float32), float(sample_rate)
+    recordings = nwbfile.get_intracellular_recordings()
+    first_row = len(recordings)
+    interface.add_to_nwbfile(nwbfile, metadata=metadata)
+    rows = range(first_row, len(recordings))
+    if len(rows) != len(sweeps):
+        raise ValueError(f"NeuroConv wrote {len(rows)} rows for the {len(sweeps)} sweeps of {name}")
+    series = nwbfile.acquisition[name]
+    responses = recordings.category_tables["responses"]["response"]
+    session_start_date = session_start_time.replace(tzinfo=None)
+    rows_and_starts = []
+    for sweep, row in zip(sweeps, rows):
+        start = _sample_time(series, responses.data[row].idx_start)
+        # The PVScan date is the Sequence time truncated to the second, and the recording starts a few milliseconds
+        # into the Sequence, which ties each row to its sweep
+        if not 0 <= start - (sweep.pv_scan_date - session_start_date).total_seconds() < 1.1:
+            raise ValueError(f"Row {row} of {name} starts at {start} s, outside the second of {sweep.recording_path}")
+        rows_and_starts.append((row, start))
+    return rows_and_starts
 
 
 # --------- core merger logic ---------------------------------------------------
@@ -588,84 +600,36 @@ def _build_electrode(nwbfile: NWBFile, cell_index: int, device: Device) -> Intra
     )
 
 
-def _sweep_timestamps(starts: list[float], counts: list[int], rate: float, series_name: str) -> np.ndarray:
-    """Time of every sample of sweeps stored one after another: each sweep's start plus its samples at `rate`.
-
-    The pauses between sweeps stay in the timestamps; sweeps that overlap once placed at their starts raise.
-    """
-    timestamps = np.concatenate([start + np.arange(count) / rate for start, count in zip(starts, counts)])
-    if np.any(np.diff(timestamps) <= 0):
-        raise ValueError(f"Placed at their start times, the sweeps of {series_name} overlap.")
-    return timestamps
-
-
-def _build_concatenated_series(
+def _add_patch_clamp_series(
     nwbfile: NWBFile,
-    bundle: MouseDayBundle,
+    sweeps: list[SweepRecord],
     cell_index: int,
     modality: str,
     electrode: IntracellularElectrode,
-    session_start_time,
-) -> (
-    tuple[
-        CurrentClampSeries,
-        CurrentClampStimulusSeries,
-        list[tuple[int, int, float, StimulusProtocol, int, int]],
-    ]
-    | None
-):
-    """Concatenate all sweeps of (cell, modality) into one PatchClampSeries.
+    session_start_time: datetime,
+) -> list[tuple[SweepRecord, int, float, StimulusProtocol]]:
+    """Write all sweeps of (cell, modality) as one CurrentClampSeries and its stimulus through NeuroConv's Bruker
+    interface, which adds one intracellular recordings row per sweep.
 
-    Returns (response_series, stimulus_series, sweep_slices) where each slice carries
-    (idx_start, count, sweep_start_time_seconds, stimulus_protocol, stimulus_start, stimulus_count); the
-    stimulus slice differs from the response slice only for a sweep recorded shorter than its command. The stimulus
-    protocol is parsed from the VoltageOutput XML alongside each sweep and used to
-    populate the IRT's `stimulus_current_pA` column plus the synthesized stimulus waveform.
+    Returns, per sweep in recording order, the sweep, its row, its start in seconds from the session start and its
+    stimulus protocol, parsed from the VoltageOutput XML beside it for the stimulus_current_pA and
+    stimulus_protocol_name columns.
     """
-    sweeps = bundle.sweeps_for(cell_index, modality)
-    if not sweeps:
-        return None
-
-    voltage_chunks: list[np.ndarray] = []
-    stim_chunks: list[np.ndarray] = []
-    sweep_slices: list[tuple[int, int, float, StimulusProtocol, int, int]] = []
-    sample_rate: float | None = None
-    cumulative = 0
-    stimulus_cumulative = 0
+    protocols: list[StimulusProtocol] = []
     # Durations of the sweeps whose recording stops before their current command ends.
     short_sweep_seconds: list[float] = []
     for sw in sweeps:
-        voltage, rate = _read_sweep_voltage(sw.recording_path)
-        if sample_rate is None:
-            sample_rate = rate
-        elif abs(rate - sample_rate) > 1.0:
-            raise ValueError(f"{sw.recording_path} is sampled at {rate} Hz, the other sweeps at {sample_rate} Hz")
-        # Parse the stimulus protocol from the VoltageOutput XML for this sweep.
         vo_xml = _find_voltage_output_xml(sw.recording_path)
         if vo_xml is None:
             raise FileNotFoundError(f"No VoltageOutput file with the current command in {sw.recording_path}")
         protocol = _parse_voltage_output(vo_xml)
-        if sum(protocol.pulses_ms[-1]) > len(voltage) / sample_rate * 1e3:
+        recorded_seconds = _recorded_seconds(sw)
+        if sum(protocol.pulses_ms[-1]) > recorded_seconds * 1e3:
             if modality != "dend_excitability":
                 raise ValueError(f"{sw.recording_path} is recorded for less time than its current command lasts")
-            short_sweep_seconds.append(len(voltage) / sample_rate)
-        stim_waveform = _synthesize_stimulus_waveform(
-            protocol,
-            n_samples=len(voltage),
-            rate_hz=float(sample_rate),
-        )
-        voltage_chunks.append(voltage)
-        stim_chunks.append(stim_waveform)
-        offset_s = (sw.pv_scan_date - session_start_time).total_seconds()
-        sweep_slices.append((cumulative, len(voltage), offset_s, protocol, stimulus_cumulative, len(stim_waveform)))
-        cumulative += len(voltage)
-        stimulus_cumulative += len(stim_waveform)
+            short_sweep_seconds.append(recorded_seconds)
+        protocols.append(protocol)
 
-    if not voltage_chunks:
-        return None
-
-    data_concat = np.concatenate(voltage_chunks)
-    stim_concat = np.concatenate(stim_chunks)
     series_name = _series_name(cell_index, modality)
     if modality == "soma_excitability":
         recording = "while current steps were injected at the cell body to measure its firing (F-I curve)."
@@ -681,47 +645,30 @@ def _build_concatenated_series(
             "their recording."
         )
     numbering = "".join(f" {note}" for note in sorted({sw.numbering_note for sw in sweeps if sw.numbering_note}))
-    sweep_starts = [sweep_start for _, _, sweep_start, *_ in sweep_slices]
-    response = CurrentClampSeries(
+    rows_and_starts = _add_sweeps_through_neuroconv(
+        nwbfile,
+        sweeps=sweeps,
+        electrode=electrode,
         name=series_name,
-        data=data_concat,
-        electrode=electrode,
-        gain=1.0,
-        timestamps=_sweep_timestamps(
-            sweep_starts, [count for _, count, *_ in sweep_slices], float(sample_rate), series_name
-        ),
+        stimulus_name=_series_name(cell_index, modality, "CurrentClampStimulusSeries"),
         description=(
-            f"Current-clamp recordings from cell {cell_index}, {recording} The {len(sweep_slices)} sweeps are "
-            "stored one after another, each at its start time (the sweep_start_time column of the intracellular "
-            "recordings table), so the pauses between sweeps are kept in the timestamps." + short_sweeps + numbering
+            f"Current-clamp recordings from cell {cell_index}, {recording} The {len(sweeps)} sweeps are stored one "
+            "after another, each at its start time (the sweep_start_time column of the intracellular recordings "
+            "table), so the pauses between sweeps are kept in the timestamps." + short_sweeps + numbering
         ),
-    )
-    nwbfile.add_acquisition(response)
-
-    stimulus_name = _series_name(cell_index, modality, "CurrentClampStimulusSeries")
-    if len(stim_concat) != len(data_concat):
-        # The commands of the short sweeps outlast their recordings, so the stimulus has samples of its own
-        stimulus_timestamps = _sweep_timestamps(
-            sweep_starts, [count for *_, count in sweep_slices], float(sample_rate), stimulus_name
-        )
-    else:
-        stimulus_timestamps = response
-    stim = CurrentClampStimulusSeries(
-        name=stimulus_name,
-        data=stim_concat,
-        electrode=electrode,
-        gain=1.0,
-        timestamps=stimulus_timestamps,
-        description=(
-            f"Commanded current waveform paired with {series_name}. Synthesized from each "
-            "sweep's Bruker VoltageOutput XML (every current pulse, with its amplitude, width and timing); the "
-            "per-sweep amplitude is also exposed via the IntracellularRecordingsTable.stimulus_current_pA column."
-            + short_sweeps
+        stimulus_description=(
+            f"Commanded current paired with {series_name}: the 700B command Prairie View sent to the amplifier, drawn "
+            "from each sweep's VoltageOutput XML (every current pulse, with its amplitude, width and timing) over the "
+            "command's span, which can end before or after the sweep's recording. It adds to any holding current set "
+            "on the amplifier, which Prairie View does not record. The per-sweep amplitude is also in the "
+            "stimulus_current_pA column of the intracellular recordings table." + short_sweeps
         ),
+        session_start_time=session_start_time,
     )
-    nwbfile.add_stimulus(stim)
-
-    return response, stim, sweep_slices
+    return [
+        (sw, row, start, protocol)
+        for sw, (row, start), protocol in zip(sweeps, rows_and_starts, protocols, strict=True)
+    ]
 
 
 def _build_session_id(bundle: MouseDayBundle) -> str:
@@ -771,6 +718,21 @@ def _build_session_id(bundle: MouseDayBundle) -> str:
     if bundle.subject_entry.category != "M1R CRSPR" and geno == "M1RCRISPR":
         geno = "WT"
     return f"{cell_type}++{state}++{pharm}++{geno}++{bundle.subject_entry.date_compact}"
+
+
+def _label_protocol_runs(irt, rows_per_protocol_run, sweep_per_row: dict[int, SweepRecord]) -> None:
+    """Give each row the protocol run it belongs to (one sequential recording), labelled as NeuroConv's Bruker
+    interface labels a run of its own: the acquisition stem of its first sweep. The interface wrote one label for
+    all the rows of a series, whose sweeps span several protocol runs."""
+    protocol_runs = irt["protocol_run"].data
+    labels = []
+    for rows in rows_per_protocol_run:
+        label = _acquisition_stem(sweep_per_row[rows[0]])
+        labels.append(label)
+        for row in rows:
+            protocol_runs[row] = label
+    if len(set(labels)) != len(labels):
+        raise ValueError(f"Two protocol runs of one file start with the same acquisition: {sorted(labels)}")
 
 
 def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
@@ -850,97 +812,66 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     # The number of each trial at its location, in recording order, by IRT row; it names the source images.
     trial_number_at_location: dict[int, int] = {}
 
-    # Add custom columns to IntracellularRecordingsTable BEFORE adding rows.
-    # The `electrodes` aligned sub-table doesn't exist until the first add; using
-    # the convenience add_intracellular_recording call below pre-creates it.
+    # The intracellular recordings rows come from NeuroConv's Bruker interface, one series at a time; the columns
+    # this script adds take their values once every row exists, from irt_values[row][column].
     irt = nwbfile.get_intracellular_recordings()
-    irt.add_column(
-        name="cell_id", description="Cell number within this file (the cells recorded from this mouse on this day)."
-    )
-    irt.add_column(
-        name="dendrite_type",
-        description="Dendritic region imaged during the sweep (Proximal or Distal); Soma for somatic sweeps, "
-        "which have no imaging. The recording electrode is always at the cell body.",
-    )
-    irt.add_column(
-        name="dendrite_distance_um",
-        description="Approximate distance of the imaged site from the cell body in micrometers: 40 for Proximal and "
-        "90 for Distal, as set in the lab protocol; 0 for somatic sweeps.",
-    )
-    irt.add_column(
-        name="sweep_start_time",
-        description=(
-            "Per-sweep wall-clock offset (seconds) from session_start_time. "
-            "Sourced from the Prairie View XML PVScan @date attribute at 1-second "
-            "precision. The sweep's samples in its PatchClampSeries start at this time."
+    irt_column_descriptions = {
+        "cell_id": "Cell number within this file (the cells recorded from this mouse on this day).",
+        "dendrite_type": (
+            "Dendritic region imaged during the sweep (Proximal or Distal); Soma for somatic sweeps, which have no "
+            "imaging. The recording electrode is always at the cell body."
         ),
-    )
-    irt.add_column(
-        name="stimulus_current_pA",
-        description=(
+        "dendrite_distance_um": (
+            "Approximate distance of the imaged site from the cell body in micrometers: 40 for Proximal and 90 for "
+            "Distal, as set in the lab protocol; 0 for somatic sweeps."
+        ),
+        "sweep_start_time": (
+            "Start of the sweep in seconds from session_start_time: the Sequence time in the master Prairie View XML "
+            "plus the offset of the voltage recording in it, as NeuroConv's Bruker interface reads it. The sweep's "
+            "samples in its PatchClampSeries start at this time."
+        ),
+        "stimulus_current_pA": (
             "Commanded current amplitude in picoamperes for this sweep: the step for a somatic sweep, each of the "
             "three pulses for a dendritic one. Parsed from the Bruker VoltageOutput XML alongside each sweep "
             "(PulsePotentialStart × UnitScaleFactor)."
         ),
-    )
-    irt.add_column(
-        name="stimulus_protocol_name",
-        description="Stimulus protocol label from Bruker VoltageOutput XML (e.g., 'Step 5_-40 pA').",
-    )
-    irt.add_column(
-        name="condition",
-        description=(
+        "stimulus_protocol_name": "Stimulus protocol label from Bruker VoltageOutput XML (e.g., 'Step 5_-40 pA').",
+        "condition": (
             "Experimental condition, named as in the paper's figure legends (e.g., 'LID on-state', "
             "'LID on-state with sulpiride'). Where a cell was recorded before and after a drug, its sweeps "
             "differ here."
         ),
-    )
-    irt.add_column(
-        name="site",
-        description=(
+        "site": (
             "Recording site, named like the line-scan series: 'Soma', or 'Proximal'/'Distal' with the site number "
             "(e.g., 'Proximal1'). Sites the lab imaged at two spots on the dendrite, moving the microscope in "
             "between, add 'Spot1' or 'Spot2' (e.g., 'Proximal1Spot2'); the lab's files mark the second spot 'real'."
         ),
-    )
+    }
+    irt_values: dict[int, dict] = {}
+    sweep_per_row: dict[int, SweepRecord] = {}
 
     # Process each cell.
     for cell_index in bundle.cell_indices():
         # One pipette per cell, at the cell body, for both the somatic and the dendritic sweeps.
         cell_electrode = _build_electrode(nwbfile, cell_index, amp)
         # Somatic block (one PatchClampSeries for all somatic sweeps of this cell).
-        soma_result = _build_concatenated_series(
-            nwbfile,
-            bundle,
-            cell_index,
-            "soma_excitability",
-            cell_electrode,
-            session_start_time_naive,
-        )
-        if soma_result is not None:
-            response, stim, sweep_slices = soma_result
-            sorted_soma = sorted(bundle.sweeps_for(cell_index, "soma_excitability"), key=lambda s: s.pv_scan_date)
-            for sw, (idx_start, count, sweep_start_time, protocol, stimulus_start, stimulus_count) in zip(
-                sorted_soma, sweep_slices
+        soma_sweeps = bundle.sweeps_for(cell_index, "soma_excitability")
+        if soma_sweeps:
+            for sw, row_index, sweep_start_time, protocol in _add_patch_clamp_series(
+                nwbfile, soma_sweeps, cell_index, "soma_excitability", cell_electrode, session_start_time
             ):
                 condition = _CONDITION_LABEL[sw.condition_subfolder]
-                row_index = nwbfile.add_intracellular_recording(
-                    electrode=cell_electrode,
-                    stimulus=stim,
-                    stimulus_start_index=stimulus_start,
-                    stimulus_index_count=stimulus_count,
-                    response=response,
-                    response_start_index=idx_start,
-                    response_index_count=count,
-                    cell_id=cell_index,
-                    dendrite_type="Soma",
-                    dendrite_distance_um=0.0,
-                    sweep_start_time=sweep_start_time,
-                    stimulus_current_pA=protocol.amplitude_pA,
-                    stimulus_protocol_name=protocol.name,
-                    condition=condition,
-                    site="Soma",
-                )
+                irt_values[row_index] = {
+                    "cell_id": cell_index,
+                    "dendrite_type": "Soma",
+                    "dendrite_distance_um": 0.0,
+                    "sweep_start_time": sweep_start_time,
+                    "stimulus_current_pA": protocol.amplitude_pA,
+                    "stimulus_protocol_name": protocol.name,
+                    "condition": condition,
+                    "site": "Soma",
+                }
+                sweep_per_row[row_index] = sw
                 irt_rows_per_sequential[(cell_index, "soma_fi_curve", condition)].append(row_index)
                 # Per-row metadata for the RecordingsIndexTable (built post-chain).
                 index_row_metadata[row_index] = {
@@ -950,44 +881,20 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     "dendrite_distance_um": 0.0,
                     "site": "Soma",
                     "stimulus_current_pA": protocol.amplitude_pA,
-                    "sweep_start_time_s": float(sweep_start_time),
+                    "sweep_start_time_s": sweep_start_time,
                 }
 
-        # Dendritic block: group sweeps by (compartment, location_number) so each
-        # location becomes one SequentialRecordings row.
+        # Dendritic block: one series for all dendritic sweeps of the cell (Pattern B), each row tagged with its site;
+        # each site and condition becomes one SequentialRecordings row.
         dend_sweeps = bundle.sweeps_for(cell_index, "dend_excitability")
         if not dend_sweeps:
             continue
-        # Build per-location series. To preserve Pattern B (one series per
-        # (cell, modality)), concatenate ALL dendritic sweeps but tag the IRT row
-        # with the per-recording compartment.
-        dend_subbundle = MouseDayBundle(
-            subject_entry=bundle.subject_entry,
-            figure_code=bundle.figure_code,
-            cells={cell_index: dend_sweeps},
-        )
-        # Single concatenated dendritic series for the whole cell.
-        dend_result = _build_concatenated_series(
-            nwbfile,
-            dend_subbundle,
-            cell_index,
-            "dend_excitability",
-            cell_electrode,
-            session_start_time_naive,
-        )
-        if dend_result is None:
-            continue
-        dend_response, dend_stim, dend_sweep_slices = dend_result
-        # Add IRT rows.
-        # The sweep order in dend_sweep_slices matches the chronological order used
-        # in _build_concatenated_series (which sorts by pv_scan_date).
-        sorted_sweeps = sorted(dend_sweeps, key=lambda s: s.pv_scan_date)
         # Sites the lab imaged at two spots on the dendrite; the second spot's folders say "real".
         sites_with_two_spots = {
             (sw.dendrite_location, sw.location_number) for sw in dend_sweeps if "real" in sw.site_label
         }
-        for sw, (idx_start, count, sweep_start_time, protocol, stimulus_start, stimulus_count) in zip(
-            sorted_sweeps, dend_sweep_slices
+        for sw, row_index, sweep_start_time, protocol in _add_patch_clamp_series(
+            nwbfile, dend_sweeps, cell_index, "dend_excitability", cell_electrode, session_start_time
         ):
             dendrite_type = "Proximal" if sw.dendrite_location == "prox" else "Distal"
             dendrite_distance = 40.0 if sw.dendrite_location == "prox" else 90.0
@@ -999,23 +906,17 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             if sw.suffix == "oxoM":
                 condition += " with oxo-M"
 
-            row_index = nwbfile.add_intracellular_recording(
-                electrode=cell_electrode,
-                stimulus=dend_stim,
-                stimulus_start_index=stimulus_start,
-                stimulus_index_count=stimulus_count,
-                response=dend_response,
-                response_start_index=idx_start,
-                response_index_count=count,
-                cell_id=cell_index,
-                dendrite_type=dendrite_type,
-                dendrite_distance_um=dendrite_distance,
-                sweep_start_time=sweep_start_time,
-                stimulus_current_pA=protocol.amplitude_pA,
-                stimulus_protocol_name=protocol.name,
-                condition=condition,
-                site=site,
-            )
+            irt_values[row_index] = {
+                "cell_id": cell_index,
+                "dendrite_type": dendrite_type,
+                "dendrite_distance_um": dendrite_distance,
+                "sweep_start_time": sweep_start_time,
+                "stimulus_current_pA": protocol.amplitude_pA,
+                "stimulus_protocol_name": protocol.name,
+                "condition": condition,
+                "site": site,
+            }
+            sweep_per_row[row_index] = sw
             protocol_label = f"dend_{sw.dendrite_location}{sw.location_number}"
             irt_rows_per_sequential[(cell_index, protocol_label, condition)].append(row_index)
             index_row_metadata[row_index] = {
@@ -1025,7 +926,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 "dendrite_distance_um": dendrite_distance,
                 "site": site,
                 "stimulus_current_pA": protocol.amplitude_pA,
-                "sweep_start_time_s": float(sweep_start_time),
+                "sweep_start_time_s": sweep_start_time,
             }
 
             # Both channels share the scan line. Each spot of a site imaged at two spots is a location of its own.
@@ -1034,10 +935,14 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             scan_line_number = scan_lines.setdefault(
                 BrukerLineScanInterface.get_scan_line(sw.recording_path), len(scan_lines) + 1
             )
-            line_scan_trials[(*location, scan_line_number)].append((row_index, sw, float(sweep_start_time)))
+            line_scan_trials[(*location, scan_line_number)].append((row_index, sw, sweep_start_time))
             trial_number_at_location[row_index] = sum(
                 len(trials) for key, trials in line_scan_trials.items() if key[:4] == location
             )
+
+    _label_protocol_runs(irt, irt_rows_per_sequential.values(), sweep_per_row)
+    for name, description in irt_column_descriptions.items():
+        irt.add_column(name=name, description=description, data=[irt_values[row][name] for row in range(len(irt))])
 
     # ---- Line scans ---------------------------------------------------------------
     # One line scan and one fluorescence series per (cell, location, scan line, channel), each trial at its own
@@ -1109,7 +1014,7 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 _add_line_scan(
                     nwbfile,
                     sweeps=[sw],
-                    sweep_start_times=[(sw.pv_scan_date - session_start_time_naive).total_seconds()],
+                    sweep_start_times=[_recording_start(sw, session_start_time)],
                     channel=chan_name,
                     name=f"Background{dye}Cell{cell_index}{site}",
                     roi_name=f"BackgroundCell{cell_index}{site}",
@@ -1541,27 +1446,6 @@ def _read_light_evoked_protocol(sweep_path: Path) -> LightEvokedProtocol:
     )
 
 
-def _read_sweep_current(sweep_path: Path) -> tuple[np.ndarray, float]:
-    """Read the current of one voltage-clamp sweep in amperes, and its sample rate.
-
-    The VoltageRecording XML gives the recorded signal's unit and gain: pA = value * multiplier / divisor.
-    """
-    xml_candidates = list(sweep_path.glob("*_VoltageRecording_001.xml"))
-    csv_candidates = list(sweep_path.glob("*_VoltageRecording_001.csv"))
-    if len(xml_candidates) != 1 or len(csv_candidates) != 1:
-        raise FileNotFoundError(f"Expected one VoltageRecording XML and CSV in {sweep_path}")
-    signals = [s for s in ET.parse(xml_candidates[0]).getroot().iter("VRecSignal") if s.findtext("Enabled") == "true"]
-    if len(signals) != 1 or signals[0].findtext("Unit/UnitName") != "pA":
-        raise ValueError(f"Expected one recorded signal, in pA, in {xml_candidates[0]}")
-    multiplier = float(signals[0].findtext("Unit/Multiplier"))
-    divisor = float(signals[0].findtext("Unit/Divisor"))
-    frame = pd.read_csv(csv_candidates[0], header=0)
-    time_ms = frame.iloc[:, 0].to_numpy()
-    current_amperes = frame.iloc[:, 1].to_numpy() * multiplier / divisor * 1e-12
-    sample_rate = round(1000.0 / (time_ms[1] - time_ms[0]))
-    return current_amperes.astype(np.float32), float(sample_rate)
-
-
 def _add_optogenetics_metadata(nwbfile: NWBFile) -> OptogeneticSitesTable:
     """The LED, the ChR2 virus and its injection, from the paper's Methods; returns the sites table."""
     led_model = ExcitationSourceModel(
@@ -1711,47 +1595,20 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     )
     nwbfile.add_time_intervals(pulses_table)
 
+    session_start_time = session_start_time_naive.replace(tzinfo=TIMEZONE)
     irt = nwbfile.get_intracellular_recordings()
-    irt.add_column(
-        name="cell_id", description="Cell number within this file (the cells recorded from this mouse on this day)."
-    )
-    irt.add_column(name="condition", description="Experimental condition, named as in the paper's figure legends.")
-    irt.add_column(name="site", description="Recording site: 'Soma', the cell body, where the pipette was.")
-    irt.add_column(
-        name="sweep_start_time",
-        description=(
-            "Start of the sweep in seconds from session_start_time, from the Prairie View XML at 1-second precision. "
-            "The sweep's samples in its voltage-clamp series start at this time."
-        ),
-    )
-
+    irt_values: dict[int, dict] = {}
+    sweep_per_row: dict[int, SweepRecord] = {}
     irt_rows_per_cell: dict[int, list[int]] = defaultdict(list)
     for cell_index in bundle.cell_indices():
         electrode = _build_electrode(nwbfile, cell_index, amplifier)
         sweeps = bundle.sweeps_for(cell_index)
-        currents, commands, sweep_slices = [], [], []
-        sample_rate = None
-        cumulative = 0
-        for sw in sweeps:
-            current, rate = _read_sweep_current(sw.recording_path)
-            if sample_rate is None:
-                sample_rate = rate
-            elif rate != sample_rate:
-                raise ValueError(f"{sw.recording_path} is sampled at {rate} Hz, the other sweeps at {sample_rate} Hz")
-            protocol = _read_light_evoked_protocol(sw.recording_path)
-            command = np.zeros(len(current), dtype=np.float32)
-            step_start = round(protocol.step_delay_ms * 1e-3 * rate)
-            command[step_start : step_start + round(protocol.step_width_ms * 1e-3 * rate)] = (
-                protocol.step_amplitude_volts
-            )
-            sweep_start_time = (sw.pv_scan_date - session_start_time_naive).total_seconds()
-            currents.append(current)
-            commands.append(command)
-            sweep_slices.append((cumulative, len(current), sweep_start_time, protocol, sw))
-            cumulative += len(current)
-
-        response = VoltageClampSeries(
+        rows_and_starts = _add_sweeps_through_neuroconv(
+            nwbfile,
+            sweeps=sweeps,
+            electrode=electrode,
             name=f"VoltageClampSeriesCell{cell_index}",
+            stimulus_name=f"VoltageClampStimulusSeriesCell{cell_index}",
             description=(
                 f"Whole-cell voltage-clamp current from cell {cell_index}, held at -70 mV (paper Methods). Each 1 s "
                 "sweep has one blue LED flash at 20 ms (see the optogenetic pulses table) and a -5 mV, 50 ms command "
@@ -1759,44 +1616,24 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 "each at its start time (the sweep_start_time column of the intracellular recordings table), so the "
                 "pauses between sweeps are kept in the timestamps."
             ),
-            data=np.concatenate(currents),
-            electrode=electrode,
-            timestamps=_sweep_timestamps(
-                [sweep_start for _, _, sweep_start, *_ in sweep_slices],
-                [count for _, count, *_ in sweep_slices],
-                float(sample_rate),
-                f"VoltageClampSeriesCell{cell_index}",
+            stimulus_description=(
+                f"Command potential Prairie View sent to the amplifier during the sweeps of cell {cell_index}, drawn "
+                "from each sweep's VoltageOutput file over the command's span: 0, then a -5 mV step of 50 ms at "
+                "920 ms. The amplifier added it to the -70 mV holding potential (paper Methods), which the files do "
+                "not record."
             ),
+            session_start_time=session_start_time,
         )
-        nwbfile.add_acquisition(response)
-        stimulus = VoltageClampStimulusSeries(
-            name=f"VoltageClampStimulusSeriesCell{cell_index}",
-            description=(
-                f"Command potential Prairie View sent to the amplifier during the sweeps of cell {cell_index}, read "
-                "from each sweep's VoltageOutput file: 0, then a -5 mV step of 50 ms at 920 ms. The amplifier added "
-                "it to the -70 mV holding potential (paper Methods), which the files do not record."
-            ),
-            data=np.concatenate(commands),
-            electrode=electrode,
-            timestamps=response,
-        )
-        nwbfile.add_stimulus(stimulus)
-
-        for start_index, count, sweep_start_time, protocol, sw in sweep_slices:
-            row_index = nwbfile.add_intracellular_recording(
-                electrode=electrode,
-                stimulus=stimulus,
-                stimulus_start_index=start_index,
-                stimulus_index_count=count,
-                response=response,
-                response_start_index=start_index,
-                response_index_count=count,
-                cell_id=cell_index,
-                condition=condition,
-                site="Soma",
-                sweep_start_time=sweep_start_time,
-            )
+        for sw, (row_index, sweep_start_time) in zip(sweeps, rows_and_starts, strict=True):
+            irt_values[row_index] = {
+                "cell_id": cell_index,
+                "condition": condition,
+                "site": "Soma",
+                "sweep_start_time": sweep_start_time,
+            }
+            sweep_per_row[row_index] = sw
             irt_rows_per_cell[cell_index].append(row_index)
+            protocol = _read_light_evoked_protocol(sw.recording_path)
             flash_start = sweep_start_time + protocol.flash_delay_ms * 1e-3
             pulses_table.add_row(
                 start_time=flash_start,
@@ -1807,6 +1644,20 @@ def merge_oepsc_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 cell_id=cell_index,
                 led_setting=sw.led_setting,
             )
+
+    _label_protocol_runs(irt, irt_rows_per_cell.values(), sweep_per_row)
+    irt_column_descriptions = {
+        "cell_id": "Cell number within this file (the cells recorded from this mouse on this day).",
+        "condition": "Experimental condition, named as in the paper's figure legends.",
+        "site": "Recording site: 'Soma', the cell body, where the pipette was.",
+        "sweep_start_time": (
+            "Start of the sweep in seconds from session_start_time: the Sequence time in the master Prairie View XML "
+            "plus the offset of the voltage recording in it, as NeuroConv's Bruker interface reads it. The sweep's "
+            "samples in its voltage-clamp series start at this time."
+        ),
+    }
+    for name, description in irt_column_descriptions.items():
+        irt.add_column(name=name, description=description, data=[irt_values[row][name] for row in range(len(irt))])
 
     # One sequential recording and one repetition per cell, all under the mouse-day's one condition.
     repetitions_table = nwbfile.get_icephys_repetitions()

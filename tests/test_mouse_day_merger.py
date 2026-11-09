@@ -208,10 +208,23 @@ def test_background_scans_are_kept_out_of_the_trials(tmp_path):
         assert [name for cell, name in zip(cell_id, site) if cell == 2].count("Proximal1") == 3
 
 
+def test_sweeps_start_at_the_sequence_time(tmp_path):
+    # Sweep starts used to come from the master XML's date, which has whole seconds, so each sweep started up to 1 s
+    # early. The first sweep of 2016-05-24, somatic sweep 1 of cell 1, starts 0.985 s after the date (13:55:20).
+    bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20160524LIDOFFeGFP")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        assert nwbfile.session_start_time.strftime("%H:%M:%S.%f") == "13:55:20.000000"
+        assert nwbfile.intracellular_recordings["sweep_start_time"].data[0] == pytest.approx(0.985165)
+
+
 def test_stimulus_is_the_commanded_current(tmp_path):
     # The dendritic stimulus used to be all zero: only the command's first part, 0 pA for 100 ms, was read. The three
-    # 2 ms, 2 nA pulses follow 900 ms after it; a somatic step starts 200 ms in and lasts 500 ms. Two dendritic trials
-    # of cell 3 were recorded for only 1 s, before the pulses; their stimulus is the whole 1.152 s command.
+    # 2 ms, 2 nA pulses follow 900 ms after it; a somatic step starts 200 ms in and lasts 500 ms. Each stimulus spans
+    # its command, 0.9 s for a somatic sweep and 1.152 s for a dendritic one. Two dendritic trials of cell 3 were
+    # recorded for only 1 s, before the pulses, so their stimulus is longer than their recording.
     bundle = next(b for b in build_figure_bundles("F3") if b.subject_entry.subject_id == "Subject20160524LIDOFFeGFP")
     nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
 
@@ -233,10 +246,12 @@ def test_stimulus_is_the_commanded_current(tmp_path):
                 assert current_pA[row] == 2000
                 for start_ms in (1000, 1020, 1040):
                     expected_pA[round(start_ms * samples_per_ms) : round((start_ms + 2) * samples_per_ms)] = 2000
-            if response_count != count:
+            assert count == round((900 if dendrite_type[row] == "Soma" else 1152) * samples_per_ms)
+            if response_count < count:
                 short_trials += 1
-                assert (response_count, count) == (round(1000 * samples_per_ms), round(1152 * samples_per_ms))
-            np.testing.assert_allclose(series.data[start_index : start_index + count], expected_pA * 1e-12, rtol=1e-6)
+                assert response_count == round(1000 * samples_per_ms)
+            stimulus_amperes = series.data[start_index : start_index + count] * series.conversion
+            np.testing.assert_allclose(stimulus_amperes, expected_pA * 1e-12, rtol=1e-6)
         assert short_trials == 2
 
 
@@ -313,7 +328,8 @@ def test_sr_oepsc_file_holds_every_cell_of_the_mouse_day(tmp_path):
         nwbfile = io.read()
         irt = nwbfile.intracellular_recordings
         assert sorted(set(irt["cell_id"].data[:])) == [1, 2, 3]
-        assert nwbfile.acquisition["VoltageClampSeriesCell3"].data[0] == pytest.approx(-1.48315430e-11)
+        cell_3 = nwbfile.acquisition["VoltageClampSeriesCell3"]
+        assert cell_3.data[0] * cell_3.conversion == pytest.approx(-1.48315430e-11)
         # Every sweep links its amplifier command and has one 0.3 ms flash 20 ms after it starts.
         stimuli = irt.category_tables["stimuli"]["stimulus"].data[:]
         assert all(start_index >= 0 for start_index, _count, _series in stimuli)

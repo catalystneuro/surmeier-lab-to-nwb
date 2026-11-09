@@ -68,7 +68,7 @@ def _get_ts_slice_in_si_units(ts, idx_start: int, count: int) -> Tuple[np.ndarra
 
     Handles both explicit `timestamps` and implicit `starting_time` + `rate`.
     """
-    data = np.asarray(ts.data[idx_start : idx_start + count])
+    data = np.asarray(ts.data[idx_start : idx_start + count]) * ts.conversion
     if ts.timestamps is not None:
         t = np.asarray(ts.timestamps[idx_start : idx_start + count])
     else:
