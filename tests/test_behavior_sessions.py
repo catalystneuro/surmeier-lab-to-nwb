@@ -32,9 +32,12 @@ def test_every_mouse_and_session_of_the_aim_sheets_is_read():
 def test_every_video_belongs_to_its_mouse_and_session():
     # The published videos were filed under 7 mice; mouse 549's are named 449 and 548 in the share.
     sessions = build_behavior_sessions("Figure 7")
-    assert sum(len(session.videos) for session in sessions) == 434
+    assert sum(len(session.videos) for session in sessions) == 433
     first = next(s for s in sessions if s.subject.mouse_number == 549 and s.aim.session_number == 1)
     assert sorted(video.minutes for video in first.videos) == [20, 40, 60, 80, 100]
+    # Mouse 1590's 80 min video of session 1 was a copy of its 20 min video of session 2
+    copied = next(s for s in sessions if s.subject.mouse_number == 1590 and s.aim.session_number == 1)
+    assert sorted(video.minutes for video in copied.videos) == [20, 40, 60]
     assert sum(len(session.videos) for session in build_behavior_sessions("Figure 8")) == 464
 
 

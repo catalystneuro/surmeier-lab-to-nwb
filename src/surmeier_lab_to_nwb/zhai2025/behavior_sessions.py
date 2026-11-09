@@ -110,6 +110,14 @@ _VIDEO_NAMES = (
 _MOUSE_NUMBER_TYPOS = {("12152017-", 449): 549, ("12152017-", 548): 549}
 # A video named for session 5 in the session 4 folder, which has no other 40 min video of the mouse
 _SESSION_NUMBER_TYPOS = {"12152017-/4th session/0465_5_40min.mp4"}
+# The lab's 80 min video of mouse 1590's session 1 has the same video as its 20 min video of session 2, and shows the
+# cage label of session 2: the session 1 label also gives the weight of that day, "BW24.5". So session 1 has no 80 min
+# video.
+_COPIED_VIDEOS = {"02232018-/1st session/1590_1_80min.mov"}
+_MISSING_VIDEO_NOTES = {
+    (1590, 1): "This file has no 80 min video: the lab's file for it is a copy of the mouse's 20 min video of "
+    "session 2 and shows the cage label of that session."
+}
 
 _LEVODOPA_DOSE_MG_PER_KG = {1: 6, 2: 6, 3: 12, 4: 12, 5: 12}
 _GROUP = {"CONT": "control", "ko": "CDGI knockout", "M1R CRSPR": "M1R CRISPR"}
@@ -300,6 +308,8 @@ def find_videos(figure: str) -> list[Video]:
                     raise ValueError(f"Unrecognized video name: {path}")
                 fields = match.groupdict()
                 relative = path.relative_to(root).as_posix()
+                if relative in _COPIED_VIDEOS:
+                    continue
                 named_mouse = int(fields["mouse"])
                 mouse_number = _MOUSE_NUMBER_TYPOS.get((cohort.name, named_mouse), named_mouse)
                 note = ""
@@ -397,6 +407,8 @@ def write_behavior_session(session: BehaviorSession, output_path: Path, video_fo
     if aim.notes:
         description += " The lab's notes in its AIM sheet: " + ", ".join(f"'{note}'" for note in aim.notes) + "."
     description = " ".join([description, *aim.remarks])
+    if (subject.mouse_number, aim.session_number) in _MISSING_VIDEO_NOTES:
+        description += " " + _MISSING_VIDEO_NOTES[(subject.mouse_number, aim.session_number)]
     surgery = nwb_meta["surgery"]
     if aim.figure == "Figure 8":
         surgery += _CRISPR_INJECTION.format(viruses=_CRISPR_VIRUSES[subject.category])
