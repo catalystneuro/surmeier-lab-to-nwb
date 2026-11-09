@@ -400,11 +400,10 @@ def _patch_clamp_session_description(bundle: MouseDayBundle, cell_type: str) -> 
     n_cells = len(bundle.cell_indices())
     conditions: list[str] = []
     for sweep in sorted((sw for sweeps in bundle.cells.values() for sw in sweeps), key=lambda sw: sw.pv_scan_date):
-        condition = _CONDITION_LABEL[sweep.condition_subfolder]
-        if sweep.suffix == "oxoM":
-            condition += " with oxo-M"
+        condition = _sweep_condition(sweep)
         if condition not in conditions:
             conditions.append(condition)
+    drugs = {_STATE_AND_DRUG[condition][1] for condition in conditions}
     somatic = [cell for cell in bundle.cell_indices() if bundle.sweeps_for(cell, "soma_excitability")]
     dendritic = [cell for cell in bundle.cell_indices() if bundle.sweeps_for(cell, "dend_excitability")]
 
@@ -423,6 +422,12 @@ def _patch_clamp_session_description(bundle: MouseDayBundle, cell_type: str) -> 
             f" Dendritic excitability of {len(dendritic)} {'cell' if len(dendritic) == 1 else 'cells'}: spikes evoked "
             "by brief current injections at the cell body, imaged with two-photon line scans across proximal and "
             "distal dendrites filled with Alexa Fluor 568 and Fluo-4."
+        )
+    if "none" in drugs and drugs & {"SCH 23390", "sulpiride", "oxo-M"}:
+        added = " and ".join(sorted(drugs - {"none"}))
+        description += (
+            f" {added} was added to the bath partway through the recordings, so the file holds sweeps with and without "
+            "it; the drug column of the intracellular recordings table gives each sweep's."
         )
     return (
         description + " The cell, condition and site of each sweep are in the intracellular recordings table and the "
@@ -460,13 +465,49 @@ _CONDITION_LABEL = {
     "KO": "CDGI knockout, naive",
 }
 
+# Each condition split into the state of the mouse and the drug in the bath during the sweep. The condition adds the
+# genotype or treatment group. SCH 23390, sulpiride and oxo-M were added during the recordings; the M1R-antagonist
+# mice's slices were kept in VU 0255035 throughout.
+_STATE_AND_DRUG = {
+    "LID off-state": ("LID off-state", "none"),
+    "LID on-state": ("LID on-state", "none"),
+    "LID on-state with SCH 23390": ("LID on-state", "SCH 23390"),
+    "LID on-state with sulpiride": ("LID on-state", "sulpiride"),
+    "CDGI knockout, LID off-state": ("LID off-state", "none"),
+    "CDGI knockout, LID on-state": ("LID on-state", "none"),
+    "LID off-state, vehicle control": ("LID off-state", "none"),
+    "LID off-state with M1R antagonists": ("LID off-state", "VU 0255035"),
+    "LID off-state, control (gRNA only)": ("LID off-state", "none"),
+    "LID off-state, M1R deletion": ("LID off-state", "none"),
+    "naive": ("naive", "none"),
+    "naive with oxo-M": ("naive", "oxo-M"),
+    "CDGI knockout, naive": ("naive", "none"),
+    "CDGI knockout, naive with oxo-M": ("naive", "oxo-M"),
+}
+# The drugs added to the bath partway through a day's recordings, as general/pharmacology describes them.
+_ADDED_DRUG_PHARMACOLOGY = {
+    "SCH 23390": " During recording, the D1 receptor antagonist SCH 23390 (3 µM) was applied in the bath; each sweep's "
+    "drug column says whether it was present.",
+    "sulpiride": " During recording, the D2 receptor antagonist sulpiride (10 µM) was applied in the bath; each sweep's "
+    "drug column says whether it was present.",
+}
+
+
+def _sweep_condition(sweep: SweepRecord) -> str:
+    """The sweep's condition, named as in the paper's figure legends."""
+    condition = _CONDITION_LABEL[sweep.condition_subfolder]
+    if sweep.suffix == "oxoM":
+        condition += " with oxo-M"
+    return condition
+
+
 # Figure 7E: the paper calls the mice of the oxo-M experiment naive; the lab's Data Connections sheet labels their days
 # "LID ON". We follow the paper and say so in the subject description.
 _NAIVE_SURGERY = "None: naive mouse, with no 6-OHDA lesion, as the paper describes the mice of Figure 7D-E."
 _OXO_M_PHARMACOLOGY = (
     "No levodopa. During recording, the muscarinic receptor agonist oxotremorine M (oxo-M, 10 µM) was applied in the "
     "bath: each cell was recorded at all its dendritic sites, then again at the same sites after oxo-M was added (the "
-    "lab's ReadMe: trials 1 to 3 at a site are before oxo-M, trials 4 to 6 or 7 to 9 after). Each trial's condition "
+    "lab's ReadMe: trials 1 to 3 at a site are before oxo-M, trials 4 to 6 or 7 to 9 after). Each trial's drug column "
     "says whether oxo-M was present."
 )
 # Figure 6: the M1R antagonist or saline, injected in the off-state; the antagonist mice's slices were kept in a second
@@ -757,6 +798,9 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
     elif bundle.figure_code == "F8":
         viruses = _CRISPR_VIRUSES[subject_entry.category]
         surgery = surgery.rstrip() + _CRISPR_INJECTION.format(viruses=viruses) + _CRISPR_REPORTER
+    drugs = {_STATE_AND_DRUG[_sweep_condition(sw)][1] for sweeps in bundle.cells.values() for sw in sweeps}
+    for drug in sorted(drugs & _ADDED_DRUG_PHARMACOLOGY.keys()):
+        pharmacology = pharmacology.rstrip() + _ADDED_DRUG_PHARMACOLOGY[drug]
     nwbfile = NWBFile(
         session_description=session_description,
         experiment_description=nwb_meta.get(
@@ -841,6 +885,15 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
             "'LID on-state with sulpiride'). Where a cell was recorded before and after a drug, its sweeps "
             "differ here."
         ),
+        "state": (
+            "State of the mouse: 'LID off-state', 'LID on-state' or 'naive' (the Figure 7E mice, with no lesion and no "
+            "levodopa). The condition adds the genotype or treatment group and the drug."
+        ),
+        "drug": (
+            "Drug in the bath during the sweep, or 'none': SCH 23390 (3 µM), sulpiride (10 µM) or oxo-M (10 µM), "
+            "added partway through a day's recordings, or VU 0255035 (5 µM), in which the slices of the M1R-antagonist "
+            "mice were kept throughout. See general/pharmacology."
+        ),
         "site": (
             "Recording site, named like the line-scan series: 'Soma', or 'Proximal'/'Distal' with the site number "
             "(e.g., 'Proximal1'). Sites the lab imaged at two spots on the dendrite, moving the microscope in "
@@ -869,6 +922,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                     "stimulus_current_pA": protocol.amplitude_pA,
                     "stimulus_protocol_name": protocol.name,
                     "condition": condition,
+                    "state": _STATE_AND_DRUG[condition][0],
+                    "drug": _STATE_AND_DRUG[condition][1],
                     "site": "Soma",
                 }
                 sweep_per_row[row_index] = sw
@@ -914,6 +969,8 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
                 "stimulus_current_pA": protocol.amplitude_pA,
                 "stimulus_protocol_name": protocol.name,
                 "condition": condition,
+                "state": _STATE_AND_DRUG[condition][0],
+                "drug": _STATE_AND_DRUG[condition][1],
                 "site": site,
             }
             sweep_per_row[row_index] = sw

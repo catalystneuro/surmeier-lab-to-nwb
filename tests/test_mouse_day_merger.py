@@ -152,6 +152,23 @@ def test_sulpiride_folders_are_one_condition(tmp_path):
         assert set(nwbfile.intracellular_recordings["condition"].data[:]) == {"LID on-state with sulpiride"}
 
 
+def test_drug_named_files_give_each_sweeps_drug(tmp_path):
+    # The file of 2019-04-11 is named for SCH 23390 (D1RaSch) but also holds sweeps recorded before the drug was added.
+    bundle = next(b for b in build_figure_bundles("F1") if b.subject_entry.subject_id == "Subject20190411LIDONtDTomato")
+    nwbfile_path = merge_one_mouse_day(bundle, tmp_path / "mouse_day.nwb")
+
+    with NWBHDF5IO(nwbfile_path, "r") as io:
+        nwbfile = io.read()
+        irt = nwbfile.intracellular_recordings
+        rows = set(zip(irt["condition"].data[:], irt["state"].data[:], irt["drug"].data[:]))
+        assert rows == {
+            ("LID on-state", "LID on-state", "none"),
+            ("LID on-state with SCH 23390", "LID on-state", "SCH 23390"),
+        }
+        assert "SCH 23390 (3 µM) was applied in the bath" in nwbfile.pharmacology
+        assert "SCH 23390 was added to the bath partway through the recordings" in nwbfile.session_description
+
+
 def test_one_electrode_per_cell_at_the_cell_body(tmp_path):
     # Each cell had one whole-cell pipette at the cell body; the dendritic sites were only imaged.
     bundle = next(
