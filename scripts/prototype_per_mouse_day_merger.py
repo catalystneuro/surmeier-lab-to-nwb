@@ -944,10 +944,11 @@ def merge_one_mouse_day(bundle: MouseDayBundle, output_path: Path) -> Path:
         dend_sweeps = bundle.sweeps_for(cell_index, "dend_excitability")
         if not dend_sweeps:
             continue
-        # Sites the lab imaged at two spots on the dendrite; the second spot's folders say "real".
+        # Sites the lab imaged at two spots on the dendrite: the second spot's folders say "real". A "real" site without
+        # plain folders of the same site is the region the lab meant after naming a folder after the wrong one.
         sites_with_two_spots = {
             (sw.dendrite_location, sw.location_number) for sw in dend_sweeps if "real" in sw.site_label
-        }
+        } & {(sw.dendrite_location, sw.location_number) for sw in dend_sweeps if "real" not in sw.site_label}
         for sw, row_index, sweep_start_time, protocol in _add_patch_clamp_series(
             nwbfile, dend_sweeps, cell_index, "dend_excitability", cell_electrode, session_start_time
         ):

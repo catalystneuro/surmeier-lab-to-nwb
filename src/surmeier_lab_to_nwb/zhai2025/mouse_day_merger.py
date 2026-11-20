@@ -200,7 +200,8 @@ _RE_YYYYMMDD_LETTER_OUTER = re.compile(r"^(\d{4})(\d{2})(\d{2})([a-d])$")
 #   - "Cell" or "cell" (case-insensitive)
 #   - "trio" or "Trio" (case-insensitive)
 #   - Location: prox, dist, with "real" before or after the site (realprox1, dist1real) for a
-#     second patch of dendrite the lab recorded at that site after moving the microscope
+#     second patch of dendrite the lab recorded at that site after moving the microscope, or for
+#     the site the lab meant after naming a folder after the wrong region (see below)
 #   - Optional trailing pharm suffix: `_trio_SCH-NNN`, `_trio_sul-NNN`
 #   - "Cell<N>_<loc><N>_trio[_pharm]" OR "cell<N>_trio_<loc><N>" (lab swapped order in 2023)
 #   - Optional trailing digit on the location (some leaves have `trio_dist` without digit)
@@ -218,22 +219,36 @@ _RE_DENDRITIC_LEAF_FLEX = re.compile(
 )
 
 
-def _match_dendritic_leaf(name: str):
+# In three cells the lab named a site's folders after the wrong region and recorded the region it meant next, marked
+# "real": prox1 then realprox1 (2016-06-08 cell 1 and 2017-02-04 cell 1), dist1 then realdist1 (2016-05-26 cell 3).
+# Read as the other region, the plain folders give the paper's dendritic excitability index for these cells. Keyed by
+# the cell's folder too, as the lab named the folders of 2016-05-25 cell 3 (0525c) 05262016_Cell3 as well.
+_SITE_NAMED_AFTER_THE_WRONG_REGION = {
+    "0608a/20160608_Cell1_prox1_trio": "dist",
+    "0204a1/02042017_Cell1_prox1_trio": "dist",
+    "0526c/05262016_Cell3_dist1_trio": "prox",
+}
+
+
+def _match_dendritic_leaf(leaf: Path):
     """Match a dendritic leaf folder name across all observed lab naming variations.
 
     Returns a tuple (cell_in_name, loc_type, loc_num, site_label, modality) or None if no match;
     modality is "dend_background" for a `_bsl` background scan and "dend_excitability" otherwise.
     The loc_type is normalized: "realprox" -> "prox", "realdist" -> "dist". The lab's
     "real" marks a second patch of dendrite recorded at the site after moving the
-    microscope; it is kept in site_label, the site as written in the folder name.
+    microscope, or the site the lab meant after naming a folder after the wrong region;
+    it is kept in site_label, the site as written in the folder name.
     """
     # The lab misspelled prox2 as proxt2 in the folders of 2019-05-08 cell 3 (Figure 3, on-state with sulpiride).
+    name = leaf.name
     m = _RE_DENDRITIC_LEAF_FLEX.match(name.replace("_proxt2_", "_prox2_"))
     if m:
         cell = int(m.group("cell"))
         raw_loc = m.group("loc1") or m.group("loc2")
         # Normalize "realprox"/"realdist" -> "prox"/"dist"
         loc_type = raw_loc.replace("real", "")
+        loc_type = _SITE_NAMED_AFTER_THE_WRONG_REGION.get(f"{leaf.parent.name}/{name.rsplit('-', 1)[0]}", loc_type)
         num_str = m.group("num1") or m.group("num2") or "1"
         loc_num = int(num_str) if num_str else 1
         site_label = m.group("site1") or m.group("site2")
@@ -591,7 +606,7 @@ def _walk_oxo_m(figure_root: Path, oxo_m_subdir: str, genotype_folders: Iterable
             month, day, cell, dendrite = outer.groups()
             cell_index = _OXO_M_FOLDER_CELL_FIXES.get(dendrite_dir.name, int(cell))
             for leaf in sorted(p for p in dendrite_dir.iterdir() if p.is_dir()):
-                parsed = _match_dendritic_leaf(leaf.name)
+                parsed = _match_dendritic_leaf(leaf)
                 if parsed is None or parsed[4] != "dend_excitability":
                     raise ValueError(f"Unrecognized dendritic recording folder: {leaf}")
                 cell_in_name, loc_type, loc_num, site_label, modality = parsed
@@ -649,7 +664,7 @@ def _walk_dendritic_mmdd_letter(
                 # The cell-day is implicit; walk leaves directly via the same _emit_leaf
                 # logic used below. Skip the standard _RE_LETTER_OUTER check.
                 def _emit_leaf(leaf_dir: Path):
-                    parsed = _match_dendritic_leaf(leaf_dir.name)
+                    parsed = _match_dendritic_leaf(leaf_dir)
                     if parsed is None:
                         raise ValueError(f"Unrecognized dendritic recording folder: {leaf_dir}")
                     cell_in_name, loc_type, loc_num, site_label, modality = parsed
@@ -689,7 +704,7 @@ def _walk_dendritic_mmdd_letter(
             # if it matches the leaf pattern directly, treat it as a leaf;
             # if it matches the location pattern, recurse into it.
             def _emit_leaf(leaf_dir: Path):
-                parsed = _match_dendritic_leaf(leaf_dir.name)
+                parsed = _match_dendritic_leaf(leaf_dir)
                 if parsed is None:
                     raise ValueError(f"Unrecognized dendritic recording folder: {leaf_dir}")
                 cell_in_name, loc_type, loc_num, site_label, modality = parsed
@@ -722,7 +737,7 @@ def _walk_dendritic_mmdd_letter(
             for child in sorted(cell_day_dir.iterdir()):
                 if not child.is_dir():
                     continue
-                if _match_dendritic_leaf(child.name) is not None:
+                if _match_dendritic_leaf(child) is not None:
                     # Layout B (Fig 3+): leaf directly under cell-day folder.
                     _emit_leaf(child)
                 elif _RE_DENDRITIC_LOCATION.match(child.name):
