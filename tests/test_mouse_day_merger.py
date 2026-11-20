@@ -1,6 +1,5 @@
 """Tests for the per-mouse-day patch-clamp merger. They read the lab's raw data through link_to_raw_data."""
 
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -8,25 +7,23 @@ import pytest
 import tifffile
 from pynwb import NWBHDF5IO
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
-
-from prototype_per_mouse_day_merger import (  # noqa: E402
-    _build_session_id,
-    _general_metadata,
-    _parse_voltage_output,
-    merge_grab_ach_mouse_day,
-    merge_oepsc_mouse_day,
-    merge_one_mouse_day,
-)
-
-from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (  # noqa: E402
+from surmeier_lab_to_nwb.zhai2025.grab_ach_sessions import merge_grab_ach_mouse_day
+from surmeier_lab_to_nwb.zhai2025.metadata import shared_metadata
+from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (
     _walk_dendritic_mmdd_letter,
     _walk_grab_ach,
     _walk_oepsc_mmddyyyy_letter,
     _walk_oxo_m,
     build_figure_bundles,
 )
+from surmeier_lab_to_nwb.zhai2025.oepsc_sessions import merge_oepsc_mouse_day
+from surmeier_lab_to_nwb.zhai2025.patch_clamp_sessions import (
+    _build_session_id,
+    _parse_voltage_output,
+    merge_one_mouse_day,
+)
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 pytestmark = pytest.mark.skipif(not (REPO_ROOT / "link_to_raw_data").exists(), reason="needs the lab's raw data")
 
@@ -543,7 +540,7 @@ def test_stimulus_current_has_no_float_noise():
 def test_lesion_is_in_the_left_medial_forebrain_bundle():
     # The surgery and pharmacology text said the right one. The lesion protocol's ML -1.2 mm is left in the paper's
     # convention (it injects "the left DLS" at ML -2.35), and the protocol keeps mice that rarely use the right paw.
-    general = _general_metadata()["NWBFile"]
+    general = shared_metadata()["NWBFile"]
     for field in ("surgery", "pharmacology"):
         text = " ".join(general[field].split())
         assert "into the left medial forebrain bundle" in text

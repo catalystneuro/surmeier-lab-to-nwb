@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
-from neuroconv.utils import dict_deep_update, load_dict_from_file
+from neuroconv.utils import dict_deep_update
 from pynwb import NWBFile
 from pynwb.device import Device
 
@@ -29,6 +29,11 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
     surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_olympus_fv10i_model
+from surmeier_lab_to_nwb.zhai2025.metadata import (
+    device_metadata,
+    session_metadata,
+    shared_metadata,
+)
 from surmeier_lab_to_nwb.zhai2025.subjects import SUBJECTS
 
 
@@ -132,9 +137,9 @@ def extract_z_info_from_filename(tiff_file: Path) -> Dict[str, Any]:
         "z_slice_number": z_slice_num,
         "z_depth_um": z_depth_um,
         "image_name": f"ImageZ{z_slice_num:03d}",
-        "description": f"Z-slice {z_slice_num} at depth {z_depth_um:.3f} μm. "
-        f"Acquired with Olympus confocal microscopy at 0.125 μm z-steps "
-        f"for high-resolution spine density analysis.",
+        "description": session_metadata("confocal_olympus")["z_slice"].format(
+            z_slice=z_slice_num, z_depth_um=z_depth_um
+        ),
     }
 
 
@@ -164,12 +169,7 @@ def parse_oif_stack_info(oif_folder: Path) -> Dict[str, Any]:
     return {
         "stack_id": stack_id,
         "container_name": f"Images{stack_id}",
-        "description": (
-            f"High-resolution confocal Z-stack {stack_id} from Olympus FV10i system. "
-            f"Acquired at 60x magnification (NA=1.35) with 0.125 μm z-steps and "
-            f"~0.207 μm pixels for spine density methodology validation. "
-            f"One tile of the image of Figure 4I."
-        ),
+        "description": session_metadata("confocal_olympus")["stack"].format(stack_id=stack_id),
     }
 
 
@@ -194,18 +194,18 @@ def create_olympus_confocal_device(nwbfile: NWBFile, pty_metadata: Dict[str, Any
     numerical_aperture = pty_metadata.get("numerical_aperture", 1.35)
     confocal_mode = pty_metadata.get("confocal_mode", "ON")
 
-    device_description = (
-        f"Olympus FV10i confocal laser scanning microscope with {objective_name} objective "
-        f"(NA={numerical_aperture}, {magnification}x magnification). "
-        f"Confocal mode: {confocal_mode}. Used for high-resolution spine density imaging "
-        f"with 0.125 μm z-steps and ~0.207 μm pixels. System optimized for detecting "
-        f"approximately 2x more spines compared to standard two-photon microscopy."
+    device = device_metadata("OlympusFV10iConfocal")
+    device_description = device["description"].format(
+        objective_name=objective_name,
+        numerical_aperture=numerical_aperture,
+        magnification=magnification,
+        confocal_mode=confocal_mode,
     )
 
     # Link to the shared Olympus FV10i-DUC DeviceModel rather than using the deprecated
     # Device.manufacturer attribute (pynwb 3.1+ pattern).
     olympus_model = get_or_create_olympus_fv10i_model(nwbfile)
-    device = Device(name="OlympusFV10iConfocal", description=device_description, model=olympus_model)
+    device = Device(name=device["name"], description=device_description, model=olympus_model)
 
     nwbfile.add_device(device)
     return device
@@ -257,14 +257,11 @@ def convert_session_to_nwbfile(session_folder: Path, verbose: bool = False) -> N
     )
 
     # Load general and session-specific metadata from YAML files
-    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
-    general_metadata = load_dict_from_file(general_metadata_path)
+    general_metadata = shared_metadata()
 
-    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
-    session_metadata_template = load_dict_from_file(session_metadata_path)
-    script_template = session_metadata_template["figure_4h_confocal_spine_density_olympus"]
+    script_template = session_metadata("figure_4h_confocal_spine_density_olympus")
     # The mouse, its surgery and its sections are those of the Figure 4J confocal mice
-    confocal_template = session_metadata_template["figure_4_confocal_spine_density_nikon"]
+    confocal_template = session_metadata("figure_4_confocal_spine_density_nikon")
     surgery, pharmacology = surgery_and_pharmacology("UnlesionedControl", general_metadata)
     subject = next(subject for subject in SUBJECTS if subject.mouse_number == mouse_number)
 
@@ -386,7 +383,7 @@ if __name__ == "__main__":
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "confocal_spine_density" / "figure_4"
-    general_metadata = load_dict_from_file(Path(__file__).parent.parent.parent / "general_metadata.yaml")
+    general_metadata = shared_metadata()
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     # Get all session folders

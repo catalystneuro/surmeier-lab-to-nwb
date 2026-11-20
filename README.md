@@ -132,7 +132,6 @@ Each conversion is organized in a directory of its own in the `src` directory:
     ├── scripts/                         # Conversion runners and validation
     │   ├── convert_behavior_sessions.py # Behaviour sessions runner
     │   ├── full_per_mouse_day_merge.py  # Production patch-clamp merger
-    │   ├── prototype_per_mouse_day_merger.py  # Merger core (library)
     │   ├── validate_against_dandi_streaming.py  # Cross-validation vs DANDI
     │   └── wipe_dandiset.py             # Bulk-delete DANDI assets (re-upload)
     └── src/
@@ -156,12 +155,12 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
 - Two-photon calcium imaging with patch-clamp electrophysiology
 - Back-propagating action potential measurements, including before and after oxo-M (Figure 7E)
 - Cell-type specific analysis (dSPNs vs iSPNs)
-- **Script**: `merge_one_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
+- **Script**: `merge_one_mouse_day` in [patch_clamp_sessions.py](src/surmeier_lab_to_nwb/zhai2025/patch_clamp_sessions.py), run by `uv run poe merge_patch_clamp`
 
 ### Somatic Excitability (Figures 1, 3, 6, 7, 8), merged into per-mouse-day files
 - Patch-clamp electrophysiology recordings
 - Current injection protocols and F-I curves
-- **Script**: `merge_one_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
+- **Script**: `merge_one_mouse_day` in [patch_clamp_sessions.py](src/surmeier_lab_to_nwb/zhai2025/patch_clamp_sessions.py), run by `uv run poe merge_patch_clamp`
 
 ### Spine Density Analysis (Figures 2, 4, 6, 7, 8)
 - Two-photon and confocal microscopy
@@ -180,7 +179,7 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
 - GRABACh3.0 fluorescent sensor recordings
 - Two-photon line scans and full-field imaging
 - Real-time acetylcholine dynamics
-- **Script**: `merge_grab_ach_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
+- **Script**: `merge_grab_ach_mouse_day` in [grab_ach_sessions.py](src/surmeier_lab_to_nwb/zhai2025/grab_ach_sessions.py), run by `uv run poe merge_patch_clamp`
 
 ### Behavioral Analysis (Figures 7, 8, Supplementary Figure 3), one file per mouse and levodopa session
 - AIM (Abnormal Involuntary Movement) scores, one row per one-minute observation
@@ -190,4 +189,4 @@ The `zhai2025` conversion includes specialized scripts for each figure in the pa
 ### Optogenetics (Figures 2, 4), merged into per-mouse-day files
 - Light-evoked postsynaptic currents (oEPSCs)
 - Stimulus timing and metadata
-- **Script**: `merge_oepsc_mouse_day` in [scripts/prototype_per_mouse_day_merger.py](scripts/prototype_per_mouse_day_merger.py), run by `uv run poe merge_patch_clamp`
+- **Script**: `merge_oepsc_mouse_day` in [oepsc_sessions.py](src/surmeier_lab_to_nwb/zhai2025/oepsc_sessions.py), run by `uv run poe merge_patch_clamp`

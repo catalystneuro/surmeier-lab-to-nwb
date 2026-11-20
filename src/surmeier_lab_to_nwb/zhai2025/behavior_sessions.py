@@ -24,15 +24,13 @@ from ndx_hed import HedLabMetaData, HedTags, HedValueVector
 from ndx_hed.utils.hed_nwb_validator import HedNWBValidator
 from neuroconv.datainterfaces import ExternalVideoInterface
 from neuroconv.tools import configure_and_write_nwbfile
-from neuroconv.utils import load_dict_from_file
-from pynwb import NWBFile
-from pynwb.file import Subject
+from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
 
+from surmeier_lab_to_nwb.zhai2025.metadata import session_metadata, shared_metadata
 from surmeier_lab_to_nwb.zhai2025.subjects import SUBJECTS, SubjectEntry
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RAW_DATA_ROOT = REPO_ROOT / "link_to_raw_data"
-GENERAL_METADATA = Path(__file__).parent / "general_metadata.yaml"
 TIMEZONE = ZoneInfo("America/Chicago")
 
 AIM_WORKBOOKS = {
@@ -43,9 +41,8 @@ VIDEO_FOLDERS = {
     "Figure 7": RAW_DATA_ROOT / "Figure 7" / "contralateral rotations" / "CDGI KO videos",
     "Figure 8": RAW_DATA_ROOT / "Sup. Figure 3" / "M1R CRISPR videos",
 }
-# The lab's folders follow the preprint's figure numbers; the published paper (Science Advances) has the behaviour of the
-# CDGI knockout mice in Figure 8 and of the M1R deletion mice in Figure 10
-_PUBLISHED_FIGURE = {"Figure 7": "Figure 8", "Figure 8": "Figure 10"}
+_BEHAVIOR = session_metadata("behavior")
+_PUBLISHED_FIGURE = _BEHAVIOR["published_figure"]
 
 _RE_MOUSE = re.compile(r"ET#\s*0*(\d+)")
 _RE_MINUTES = re.compile(r"^\s*(\d+)\s*min\s*$")
@@ -54,47 +51,11 @@ _RE_COMPACT_DATE = re.compile(r"(?<!\d)(\d{2})(\d{2})(\d{4})(?!\d)")
 _RE_SLASH_DATE = re.compile(r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?")
 _RE_ORDINAL = re.compile(r"(\d)[a-z]{2}\b")  # "1st", "2nd", ...
 _LABELS = {"Ax": "axial", "Li": "limb", "Ol": "orolingual"}
-_SCALE = (
-    "rated from 0 to 4 over a one-minute observation: 0 normal movement; 1 abnormal movement for less than half the "
-    "time; 2 for more than half; 3 for the whole time but interrupted by external stimuli such as tapping on the cage; "
-    "4 continuous and unsuppressible. Half scores are allowed. The scale of Cenci and Lundblad (2007), as the lab's "
-    "protocol (dx.doi.org/10.17504/protocols.io.5jyl8dm8rg2w/v1) states it."
-)
-# The AIM rating scheme, one entry per scored category and the lab's total
-_AIM_CATEGORIES = {
-    "axial": f"Axial abnormal involuntary movement, {_SCALE}",
-    "limb": f"Limb abnormal involuntary movement, {_SCALE}",
-    "orolingual": f"Orolingual abnormal involuntary movement, {_SCALE}",
-    "total": "The lab's total of the axial, limb and orolingual scores at one time, from 0 to 12, as its AIM sheet "
-    "writes it.",
-}
-# HED tags of each category, on the values of the AIM events' behavior column: the experimenter's one-minute observation
-# of the mouse moving the category's body parts involuntarily and abnormally, or the lab's sum for the total. The body
-# parts are those of the AIM definitions of Cenci's group (Lerner et al. 2017, Sci Rep, doi:10.1038/s41598-017-16228-1):
-# axial is the neck and upper body, limb the forelimb, orolingual the jaw and tongue. HED has no forelimb or rating, so
-# limb is the upper extremity and the score a parameter. The score's tags take in the category's, so each rating is one
-# group and the ratings taken at one time stay apart.
-_HED_SCHEMA_VERSION = "8.5.0"
-_AIM_AGENT = "(Animal-agent, Experiment-participant)"
-_AIM_HED = {
-    "axial": (
-        "Experiment-procedure, (Observation, Label/Experimenter_Axial-AIM), "
-        f"({_AIM_AGENT}, (Move-torso, Involuntary, Abnormal), (Move-body-part, Neck, Involuntary, Abnormal))"
-    ),
-    "limb": (
-        "Experiment-procedure, (Observation, Label/Experimenter_Limb-AIM), "
-        f"({_AIM_AGENT}, (Move-upper-extremity, Involuntary, Abnormal))"
-    ),
-    "orolingual": (
-        "Experiment-procedure, (Observation, Label/Experimenter_Orolingual-AIM), "
-        f"({_AIM_AGENT}, (Move-face, Involuntary, Abnormal), (Move-body-part, Tongue, Involuntary, Abnormal))"
-    ),
-    "total": (
-        "Experiment-procedure, (Computed-feature, Label/Sum_Total-AIM), "
-        f"({_AIM_AGENT}, (Move-body-part, Involuntary, Abnormal))"
-    ),
-}
-_AIM_SCORE_HED = "({behavior}, (Parameter-label/AIM-score, Parameter-value/#))"
+# The AIM rating scheme, one entry per scored category and the lab's total, and the HED tags of each category
+_AIM_CATEGORIES = {name: text.format(scale=_BEHAVIOR["scale"]) for name, text in _BEHAVIOR["categories"].items()}
+_HED_SCHEMA_VERSION = _BEHAVIOR["HED"]["schema_version"]
+_AIM_HED = _BEHAVIOR["HED"]["categories"]
+_AIM_SCORE_HED = _BEHAVIOR["HED"]["score"]
 # Cells the lab used as column headers or left empty, which say nothing about a session
 _HEADER_CELLS = {"cage", "cage#", "date:", "(wt)", "(ko)", "g"}
 
@@ -115,23 +76,16 @@ _SESSION_NUMBER_TYPOS = {"12152017-/4th session/0465_5_40min.mp4"}
 # video.
 _COPIED_VIDEOS = {"02232018-/1st session/1590_1_80min.mov"}
 _MISSING_VIDEO_NOTES = {
-    (1590, 1): "This file has no 80 min video: the lab's file for it is a copy of the mouse's 20 min video of "
-    "session 2 and shows the cage label of that session."
+    (mouse, session): note
+    for mouse, notes in _BEHAVIOR["missing_video_notes"].items()
+    for session, note in notes.items()
 }
 
-_LEVODOPA_DOSE_MG_PER_KG = {1: 6, 2: 6, 3: 12, 4: 12, 5: 12}
-_GROUP = {"CONT": "control", "ko": "CDGI knockout", "M1R CRSPR": "M1R CRISPR"}
+_LEVODOPA_DOSE_MG_PER_KG = _BEHAVIOR["levodopa_dose_mg_per_kg_by_session"]
+_GROUP = _BEHAVIOR["group_by_category"]
 _SESSION_ID_GENOTYPE = {"CONT": "WT", "ko": "CDGIKO", "M1R CRSPR": "M1RCRISPR"}
-_CRISPR_INJECTION = (
-    " About a month before levodopa, {viruses} injected into the dorsolateral striatum on the side of the lesion "
-    "(0.5 µl) at six sites, at AP 0.9, ML -2.3, DV -3.4 and -2.8; AP 0.6, ML -1.5, DV -3.4 and -2.8; and AP 0.24, "
-    "ML -1.9, DV -3.3 and -2.7 mm relative to Bregma."
-)
-_CRISPR_VIRUSES = {
-    "M1R CRSPR": "AAV9-hSyn-DIO-saCAS-minWPRE and AAV9-U6-gRNA(M1R)_U6-gRNA2-hSyn-FusionRed (1:1), which delete M1R "
-    "from the Cre-expressing iSPNs, were",
-    "CONT": "the gRNA virus AAV9-U6-gRNA(M1R)_U6-gRNA2-hSyn-FusionRed mixed with saline (control, no Cas9) was",
-}
+_CRISPR_INJECTION = " " + _BEHAVIOR["NWBFile"]["crispr_injection"]
+_CRISPR_VIRUSES = _BEHAVIOR["NWBFile"]["crispr_viruses"]
 
 
 @dataclass
@@ -261,8 +215,7 @@ def _read_mouse_block(rows, index, time_columns, figure, sheet, session_number, 
         scores[name] = {minutes: _number(rows[index + offset][col]) for col, minutes in time_columns.items()}
     if extra_labels:
         remarks.append(
-            f"The lab wrote {', '.join(repr(cell) for cell in extra_labels)} in the label cells, scores at no time, "
-            "which its totals leave out."
+            _BEHAVIOR["remarks"]["extra_labels"].format(labels=", ".join(repr(cell) for cell in extra_labels))
         )
     for offset in range(1, 4):
         text = rows[index + offset][0]
@@ -285,7 +238,7 @@ def _read_mouse_block(rows, index, time_columns, figure, sheet, session_number, 
         totals[minutes] = lab_total
         if lab_total != sum(values):
             remarks.append(
-                f"At {minutes} min the lab's total ({lab_total:g}) is not the sum of its scores ({sum(values):g})."
+                _BEHAVIOR["remarks"]["total_not_sum"].format(minutes=minutes, total=lab_total, sum=sum(values))
             )
     return AimScores(figure, sheet, mouse_number, session_number, session_date, scores, totals, weight, notes, remarks)
 
@@ -314,14 +267,18 @@ def find_videos(figure: str) -> list[Video]:
                 mouse_number = _MOUSE_NUMBER_TYPOS.get((cohort.name, named_mouse), named_mouse)
                 note = ""
                 if mouse_number != named_mouse:
-                    note = f"The file name says mouse {named_mouse}, a typo for {mouse_number}."
+                    note = _BEHAVIOR["Video"]["wrong_mouse_note"].format(
+                        named_mouse=named_mouse, mouse_number=mouse_number
+                    )
                 named_session = fields.get("session")
                 if named_session is not None and int(named_session) != session_number:
                     if relative not in _SESSION_NUMBER_TYPOS:
                         raise ValueError(
                             f"{path} is named for session {named_session} in a session {session_number} folder"
                         )
-                    note = f"The file name says session {named_session}; it is in the lab's session {session_number} folder."
+                    note = _BEHAVIOR["Video"]["wrong_session_note"].format(
+                        named_session=named_session, session_number=session_number
+                    )
                 videos.append(
                     Video(path, mouse_number, session_number, int(fields["minutes"]), fields.get("date"), note)
                 )
@@ -390,94 +347,73 @@ def make_web_playable_copy(video_path: Path, copy_path: Path) -> Path:
 def write_behavior_session(session: BehaviorSession, output_path: Path, video_folder: Path) -> Path:
     """Write one mouse's session: its AIM scores as intervals and its videos as files the NWB file links to, by a path
     relative to it. The videos are web-playable copies without audio, made in `video_folder` when missing."""
-    general = load_dict_from_file(GENERAL_METADATA)
-    nwb_meta, subject_meta = general["NWBFile"], general["Subject"]
+    metadata = shared_metadata()
     subject, aim = session.subject, session.aim
     group = _GROUP[subject.category]
     dose = _LEVODOPA_DOSE_MG_PER_KG[aim.session_number]
+    text = _BEHAVIOR["NWBFile"]
 
-    description = (
-        f"Levodopa session {aim.session_number} of 5 of mouse {subject.mouse_number} ({group}, "
-        f"{_PUBLISHED_FIGURE[aim.figure]}): AIM "
-        "(abnormal involuntary movement) scores and the videos filmed to count contralateral rotations. After an "
-        f"i.p. injection of levodopa ({dose} mg/kg) with benserazide (12 mg/kg), axial, limb and orolingual "
-        "movements were each observed for one minute every 20 min and rated from 0 to 4. Times in this file count "
-        "from the levodopa injection, whose clock time the lab did not record; the session start is the date."
+    description = text["session_description"].format(
+        session_number=aim.session_number,
+        mouse_number=subject.mouse_number,
+        group=group,
+        figure=_PUBLISHED_FIGURE[aim.figure],
+        dose=dose,
     )
     if aim.notes:
-        description += " The lab's notes in its AIM sheet: " + ", ".join(f"'{note}'" for note in aim.notes) + "."
+        description += " " + text["lab_notes"].format(notes=", ".join(f"'{note}'" for note in aim.notes))
     description = " ".join([description, *aim.remarks])
     if (subject.mouse_number, aim.session_number) in _MISSING_VIDEO_NOTES:
         description += " " + _MISSING_VIDEO_NOTES[(subject.mouse_number, aim.session_number)]
-    surgery = nwb_meta["surgery"]
+    surgery = metadata["NWBFile"]["surgery"]
     if aim.figure == "Figure 8":
         surgery += _CRISPR_INJECTION.format(viruses=_CRISPR_VIRUSES[subject.category])
-    nwbfile = NWBFile(
+    metadata["NWBFile"].update(
         session_description=description,
         identifier=str(uuid.uuid4()),
         session_start_time=datetime.combine(aim.date, time(0), tzinfo=TIMEZONE),
         session_id=build_session_id(session),
-        experiment_description=(
-            "Levodopa-induced dyskinesia in 6-OHDA-lesioned mice: CDGI knockout and wild-type mice (Figure 8 and fig. "
-            "S2A), and mice with M1R deleted from iSPNs by CRISPR-Cas9 and their controls (Figure 10)."
-        ),
-        experimenter=nwb_meta["experimenter"],
-        institution=nwb_meta["institution"],
-        lab=nwb_meta["lab"],
-        keywords=nwb_meta["keywords"],
-        related_publications=nwb_meta["related_publications"],
+        experiment_description=text["experiment_description"],
         surgery=surgery,
-        pharmacology=nwb_meta["pharmacology"],
     )
-    nwbfile.subject = Subject(
+    # The behaviour was recorded in the animal, so the slice preparation does not apply
+    del metadata["NWBFile"]["slices"]
+    metadata["Subject"].update(
         subject_id=subject.subject_id,
-        species=subject_meta["species"],
-        sex=subject_meta["sex"],
-        age=subject_meta["age"],
         strain=subject.strain,
         genotype=subject.genotype,
         weight=None if aim.weight_g is None else f"{aim.weight_g:g} g",
-        description=(
-            f"Mouse {subject.mouse_number} in the lab's numbering, {group} group. Unilateral 6-OHDA lesion, then five "
-            "levodopa sessions every other day."
-        ),
+        description=_BEHAVIOR["Subject"]["description"].format(mouse_number=subject.mouse_number, group=group),
     )
+    # The subjects table gives no strain or genotype for some lines, which the file then leaves out
+    metadata["Subject"] = {key: value for key, value in metadata["Subject"].items() if value is not None}
+    nwbfile = make_nwbfile_from_metadata(metadata)
 
     # The rating scheme as an ethogram catalogue and each rating as an event, the layout of NeuroConv's manual
     # scoring interfaces: a rating is taken over a one-minute observation, and a 0 is a rating too.
-    ethogram = Ethogram(
-        name="AimEthogram",
-        description="The AIM (abnormal involuntary movement) rating scheme: the categories rated and the lab's total.",
-        exclusive=False,
-    )
+    ethogram_text, events_text = _BEHAVIOR["Ethogram"], _BEHAVIOR["Events"]
+    ethogram = Ethogram(name=ethogram_text["name"], description=ethogram_text["description"], exclusive=False)
     for behavior, definition in _AIM_CATEGORIES.items():
         ethogram.add_row(behavior=behavior, definition=definition, behavior_type="point")
-    nwbfile.create_processing_module(name="behavior", description="The AIM rating scheme.").add(ethogram)
-    aim_scores = nwbfile.create_events_table(
-        name="aim_scores",
-        description=(
-            "AIM ratings, one row per category and observation: the timestamp is the start of the one-minute "
-            "observation, at the time after the levodopa injection the lab's sheet gives, and the duration is the "
-            "observation. Categories the lab did not rate at a time have no row."
-        ),
-        source_description="Rated by eye by the experimenter, following the lab's protocol.",
+    nwbfile.create_processing_module(name="behavior", description=ethogram_text["processing_module_description"]).add(
+        ethogram
     )
-    aim_scores.add_column(name="behavior", description="The category rated, a behavior of the AimEthogram catalogue.")
+    aim_scores = nwbfile.create_events_table(
+        name=events_text["name"],
+        description=events_text["description"],
+        source_description=events_text["source_description"],
+    )
+    aim_scores.add_column(name="behavior", description=events_text["columns"]["behavior"])
     aim_scores.add_column(
-        name="score",
-        description="The rating, as the AimEthogram defines it for the category.",
-        col_cls=HedValueVector,
-        hed=_AIM_SCORE_HED,
+        name="score", description=events_text["columns"]["score"], col_cls=HedValueVector, hed=_AIM_SCORE_HED
     )
     for minutes, total in sorted(aim.totals.items()):
         ratings = {name: aim.scores[name][minutes] for name in _LABELS.values()}
         for behavior, score in [*ratings.items(), ("total", total)]:
             if not math.isnan(score):
                 aim_scores.add_row(timestamp=minutes * 60.0, duration=60.0, behavior=behavior, score=score)
-    behavior_meanings = MeaningsTable(target=aim_scores["behavior"], description="Meaning of each category.")
-    behavior_meanings.add_column(
-        name="HED", description="HED (Hierarchical Event Descriptors) tags of each category.", col_cls=HedTags
-    )
+    behavior_meanings = MeaningsTable(target=aim_scores["behavior"], description=events_text["meanings_description"])
+    behavior_meanings.add_column(name="HED", description=events_text["hed_column_description"], col_cls=HedTags)
     for behavior, definition in _AIM_CATEGORIES.items():
         behavior_meanings.add_row(value=behavior, meaning=definition, HED=_AIM_HED[behavior])
     aim_scores.add_meanings_table(behavior_meanings)
@@ -501,14 +437,11 @@ def write_behavior_session(session: BehaviorSession, output_path: Path, video_fo
         video_metadata = metadata["Behavior"]["ExternalVideos"][interface.metadata_key]
         del video_metadata["device_metadata_key"]
         video_metadata.update(
-            name=f"Video{video.minutes}Min",
-            description=(
-                f"Video of the mouse from {video.minutes} min after the levodopa injection, filmed to count its "
-                f"contralateral rotations. A copy of the lab's video without its audio track. {video.note}"
-            ).strip(),
+            name=_BEHAVIOR["Video"]["name"].format(minutes=video.minutes),
+            description=_BEHAVIOR["Video"]["description"].format(minutes=video.minutes, note=video.note).strip(),
         )
         interface.add_to_nwbfile(nwbfile, metadata=metadata)
 
     # Writes each video's path relative to the NWB file
-    configure_and_write_nwbfile(nwbfile, nwbfile_path=output_path, metadata=general)
+    configure_and_write_nwbfile(nwbfile, nwbfile_path=output_path, metadata=shared_metadata())
     return output_path

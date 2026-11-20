@@ -5,8 +5,8 @@ and F5 (GRAB-ACh).
 Writes outputs to nwb_files/merged/<figure>/<subject_id>.nwb and reports a
 summary plus nwbinspector check on a sample of the produced files.
 
-This is the production runner; the prototype script
-(`scripts/prototype_per_mouse_day_merger.py`) is the per-cell test harness.
+The writers are in src/surmeier_lab_to_nwb/zhai2025: `patch_clamp_sessions`, `oepsc_sessions` and
+`grab_ach_sessions`.
 """
 
 from __future__ import annotations
@@ -18,15 +18,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from surmeier_lab_to_nwb.zhai2025.grab_ach_sessions import (  # noqa: E402
+    merge_grab_ach_mouse_day,
+)
 from surmeier_lab_to_nwb.zhai2025.mouse_day_merger import (
     build_figure_bundles,  # noqa: E402
 )
-
-# Import the merger function from the prototype script.
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
-from prototype_per_mouse_day_merger import (  # noqa: E402
-    merge_grab_ach_mouse_day,
+from surmeier_lab_to_nwb.zhai2025.oepsc_sessions import (  # noqa: E402
     merge_oepsc_mouse_day,
+)
+from surmeier_lab_to_nwb.zhai2025.patch_clamp_sessions import (  # noqa: E402
     merge_one_mouse_day,
 )
 

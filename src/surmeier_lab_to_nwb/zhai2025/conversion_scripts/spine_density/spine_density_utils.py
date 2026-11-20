@@ -17,17 +17,20 @@ from zoneinfo import ZoneInfo
 import xmltodict
 from neuroconv.datainterfaces import ImageInterface
 from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
-from neuroconv.utils import dict_deep_update, load_dict_from_file
+from neuroconv.utils import dict_deep_update
 from pynwb import NWBFile
 from pynwb.device import Device
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    PHARMACOLOGY_ADDITIONS,
-    format_condition,
     generate_canonical_session_id,
     surgery_and_pharmacology,
 )
 from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_bruker_ultima_model
+from surmeier_lab_to_nwb.zhai2025.metadata import (
+    device_metadata,
+    session_metadata,
+    shared_metadata,
+)
 from surmeier_lab_to_nwb.zhai2025.subjects import find_subject
 
 
@@ -262,10 +265,7 @@ def extract_z_slice_info(tiff_file: Path) -> Dict[str, Any]:
     image_name = f"ImageZ{z_slice_num:03d}"
 
     # The stack's description names the cell and the site; the lab's file names give the wrong cell for four cells
-    description = (
-        f"Z-slice {z_slice_num} at depth {z_depth_um:.1f} μm. Acquired with two-photon microscopy "
-        f"using 0.15 μm pixels and 0.3 μm z-steps for spine density analysis."
-    )
+    description = _SPINE_TEXT["z_slice"].format(z_slice=z_slice_num, z_depth_um=z_depth_um)
 
     return {
         "z_slice_number": z_slice_num,
@@ -317,20 +317,19 @@ def create_image_metadata(
     resolution = (resolution_x + resolution_y) / 2  # Average resolution
 
     # Create comprehensive description with acquisition parameters
-    detailed_description = (
-        f"{container_info['description']} "
-        f"This Z-stack contains {len(tiff_files_with_z)} individual images acquired at 0.3 μm intervals. "
-        f"Acquisition parameters: pixel_size_x={xml_metadata.get('pixel_size_x', 0.15):.6f} μm, "
-        f"pixel_size_y={xml_metadata.get('pixel_size_y', 0.15):.6f} μm, "
-        f"pixel_size_z=0.3 μm, "
-        f"dwell_time={xml_metadata.get('dwell_time', 10.0)} μs, "
-        f"optical_zoom={xml_metadata.get('optical_zoom', 5.2)}, "
-        f"scan_mode={xml_metadata.get('scan_mode', 'Galvo')}, "
-        f"bit_depth={xml_metadata.get('bit_depth', 12)}, "
-        f"objective_lens='{xml_metadata.get('objective_lens', 'Olympus 60X')}', "
-        f"numerical_aperture={xml_metadata.get('numerical_aperture', 1.0)}, "
-        f"magnification={xml_metadata.get('magnification', 60)}x, "
-        f"system_version={xml_metadata.get('system_version', 'PVScan')}."
+    detailed_description = _SPINE_TEXT["acquisition"].format(
+        stack_description=container_info["description"],
+        n_images=len(tiff_files_with_z),
+        pixel_size_x=xml_metadata.get("pixel_size_x", 0.15),
+        pixel_size_y=xml_metadata.get("pixel_size_y", 0.15),
+        dwell_time=xml_metadata.get("dwell_time", 10.0),
+        optical_zoom=xml_metadata.get("optical_zoom", 5.2),
+        scan_mode=xml_metadata.get("scan_mode", "Galvo"),
+        bit_depth=xml_metadata.get("bit_depth", 12),
+        objective_lens=xml_metadata.get("objective_lens", "Olympus 60X"),
+        numerical_aperture=xml_metadata.get("numerical_aperture", 1.0),
+        magnification=xml_metadata.get("magnification", 60),
+        system_version=xml_metadata.get("system_version", "PVScan"),
     )
 
     # Create metadata structure for ImageInterface
@@ -370,17 +369,18 @@ def create_microscope_device(nwbfile: NWBFile, xml_metadata: Dict[str, Any]) -> 
     magnification = xml_metadata.get("magnification", 60)
     system_version = xml_metadata.get("system_version", "PVScan")
 
-    device_description = (
-        f"Two-photon laser scanning microscope with {objective_lens} objective "
-        f"(NA={numerical_aperture}, {magnification}x magnification). "
-        f"System: {system_version} (Bruker/Prairie View). "
-        f"Used for spine density imaging with 0.15 μm pixels and 0.3 μm z-steps."
+    device = device_metadata("TwoPhotonMicroscope")
+    device_description = device["description"].format(
+        objective_lens=objective_lens,
+        numerical_aperture=numerical_aperture,
+        magnification=magnification,
+        system_version=system_version,
     )
 
     # Link to the shared Bruker Ultima DeviceModel rather than using the deprecated
     # Device.manufacturer attribute (pynwb 3.1+ pattern).
     bruker_model = get_or_create_bruker_ultima_model(nwbfile)
-    microscope_device = Device(name="TwoPhotonMicroscope", description=device_description, model=bruker_model)
+    microscope_device = Device(name=device["name"], description=device_description, model=bruker_model)
 
     nwbfile.add_device(microscope_device)
     return microscope_device
@@ -510,11 +510,8 @@ _STACK_NAME_CELL_MISMATCHES = {
     "control/08122020b",  # stacks say Cell3, the sheet lists cells 1 and 2
 }
 _LOCATION = {"prox": "Proximal", "dist": "Distal", "medium": "Medium"}
-_DISTANCE = {
-    "Proximal": "proximal (~40 μm from soma)",
-    "Medium": "medium (~60 μm from soma)",
-    "Distal": "distal (>80 μm from soma)",
-}
+_SPINE_TEXT = session_metadata("spine_density")
+_DISTANCE = _SPINE_TEXT["distance"]
 
 
 def cell_number_of(cell_folder: Path) -> int:
@@ -599,11 +596,11 @@ def parse_container_info(subfolder_name: str, cell_number: int) -> Dict[str, str
     dendrites = dendrites.upper() if dendrites.isalpha() else dendrites
     container_name = f"ImagesCell{cell_number}{location}{dendrites}"
 
-    description = (
-        f"Image stack of {location.lower()} dendrite {dendrites or '(not numbered)'} from SPN cell {cell_number} "
-        f"for spine density analysis. Location: {_DISTANCE[location]}. "
-        f"Acquired with 0.15 μm pixels, 0.3 μm z-steps using two-photon microscopy. "
-        f"Images deconvolved in AutoQuant X3.0.4 and analyzed using NeuronStudio."
+    description = _SPINE_TEXT["stack_description"].format(
+        location=location.lower(),
+        dendrites=dendrites or _SPINE_TEXT["unnumbered_dendrite"],
+        cell=cell_number,
+        distance=_DISTANCE[location],
     )
 
     return {
@@ -635,7 +632,7 @@ def convert_spine_density_mouse_day_to_nwbfile(
         Experimental condition (e.g., "LID off-state dSPN", "control iSPN", etc.)
     figure_config : Dict[str, Any]
         Figure-specific configuration containing:
-        - metadata_key: str, key for session_specific_metadata.yaml
+        - metadata_key: str, key of the session in the Sessions section of metadata.yaml
         - animal: str, the mouse line as the Data Connections sheet writes it (e.g., "tD-Tomato")
         - category: str, the group as the Data Connections sheet writes it (e.g., "CONT", "LID OFF")
     session_id_parameters : Dict[str, Any]
@@ -682,15 +679,12 @@ def convert_spine_density_mouse_day_to_nwbfile(
     )
 
     # Load general and session-specific metadata from YAML files
-    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
-    general_metadata = load_dict_from_file(general_metadata_path)
+    general_metadata = shared_metadata()
 
-    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
-    session_metadata_template = load_dict_from_file(session_metadata_path)
-    script_template = session_metadata_template[metadata_key]
+    script_template = session_metadata(metadata_key)
 
     # Get condition formatting for description
-    condition_human_readable = format_condition[condition]["human_readable"]
+    condition_human_readable = condition
     cell_numbers = sorted(cells)
     cells_text = ", ".join(map(str, cell_numbers[:-1])) + " and " if len(cell_numbers) > 1 else ""
     cells_text += str(cell_numbers[-1])
@@ -700,13 +694,8 @@ def convert_spine_density_mouse_day_to_nwbfile(
     # Surgery and pharmacology follow the group: controls had no levodopa, unlesioned controls no lesion either
     state = session_id_parameters["state"]
     surgery, pharmacology_base = surgery_and_pharmacology(state, general_metadata)
-    pharm_token = session_id_parameters["pharm"]
 
-    # Add pharmacology-specific text if applicable
-    if pharm_token != "none" and pharm_token in PHARMACOLOGY_ADDITIONS:
-        pharmacology_text = pharmacology_base + " " + PHARMACOLOGY_ADDITIONS[pharm_token]
-    else:
-        pharmacology_text = pharmacology_base
+    pharmacology_text = pharmacology_base
 
     # Create session-specific metadata from template with runtime substitutions
     session_specific_metadata = {
@@ -757,16 +746,14 @@ def convert_spine_density_mouse_day_to_nwbfile(
         if len(same_site) == 2 and {info["real"] for info in same_site} == {False, True}:
             spot = 2 if container_info["real"] else 1
             container_info["container_name"] = f"{base_name}Spot{spot}"
-            container_info[
-                "description"
-            ] += f" The lab imaged this site at two spots of the dendrite; this is spot {spot}" + (
-                ", which the lab's files mark 'real'." if spot == 2 else "."
+            container_info["description"] += " " + _SPINE_TEXT["spot"].format(
+                spot=spot, real=_SPINE_TEXT["spot_real"] if spot == 2 else "."
             )
         elif len(same_site) > 1:
             number = [s for (s, _), name in zip(stacks, base_names) if name == base_name].index(subfolder) + 1
             container_info["container_name"] = f"{base_name}Stack{number}"
         elif container_info["real"]:
-            container_info["description"] += " The lab's files mark this stack 'real'."
+            container_info["description"] += " " + _SPINE_TEXT["real"]
 
         # Create TiffImageStackInterface (handles file filtering, XML parsing, and device creation)
         interface = TiffImageStackInterface(subfolder=subfolder, container_info=container_info, verbose=verbose)

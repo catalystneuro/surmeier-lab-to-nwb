@@ -64,23 +64,15 @@ class NikonImageStackInterface(BaseDataInterface):
         from pynwb.device import Device
 
         from surmeier_lab_to_nwb.zhai2025.devices import get_or_create_nikon_axr_model
+        from surmeier_lab_to_nwb.zhai2025.metadata import (
+            device_metadata,
+            session_metadata,
+        )
 
         # Create confocal microscope device if not already present
-        device_name = "NikonAXRConfocal"
-        if device_name not in nwbfile.devices:
-            device_description = (
-                "Nikon AXR confocal laser scanning microscope with 60x oil immersion objective "
-                "(NA=1.49, magnification=60x). Used for high-resolution spine density imaging "
-                "with 0.09 μm pixels and 0.125 μm z-steps. Images acquired with Nikon NIS-Elements "
-                "AR 5.41.02 software, de-noised and deconvolved, then analyzed with Imaris 10.0.0 "
-                "using supervised learning algorithms for automated spine detection and manual validation."
-            )
-
-            # Link to the shared Nikon AXR DeviceModel rather than using the deprecated
-            # Device.manufacturer attribute (pynwb 3.1+ pattern).
-            nikon_model = get_or_create_nikon_axr_model(nwbfile)
-            confocal_device = Device(name=device_name, description=device_description, model=nikon_model)
-            nwbfile.add_device(confocal_device)
+        device = device_metadata("NikonAXRConfocal")
+        if device["name"] not in nwbfile.devices:
+            nwbfile.add_device(Device(**device, model=get_or_create_nikon_axr_model(nwbfile)))
 
         image_array = self.file_handle.asarray()
 
@@ -88,25 +80,10 @@ class NikonImageStackInterface(BaseDataInterface):
         assert depth_axis == 0
         number_of_images = image_array.shape[0]
 
-        # Use metadata to get custom container name and description if provided
-        if metadata and "Images" in metadata:
-            # Find the first Images container in metadata (should be only one)
-            images_metadata = next(iter(metadata["Images"].values()))
-            container_name = images_metadata.get("name", "ZStackImagesContainer")
-            description = images_metadata.get(
-                "description",
-                "High-resolution confocal images are captured from fixed brain sections "
-                "using a 60× oil immersion objective (NA = 1.49), with z-steps of 0.125 μm "
-                "and a pixel size of 0.09 μm.",
-            )
-        else:
-            # Default container name and description
-            container_name = "ZStackImagesContainer"
-            description = (
-                "High-resolution confocal images are captured from fixed brain sections "
-                "using a 60× oil immersion objective (NA = 1.49), with z-steps of 0.125 μm "
-                "and a pixel size of 0.09 μm."
-            )
+        # The stack's container name and description, which the conversion script gives
+        images_metadata = next(iter(metadata["Images"].values()))
+        container_name = images_metadata["name"]
+        description = images_metadata["description"]
 
         images_container = Images(
             name=container_name,
@@ -119,7 +96,9 @@ class NikonImageStackInterface(BaseDataInterface):
             nwb_image = GrayscaleImage(
                 name=f"ZStackImage{image_frame_index:03d}",
                 data=image_data,
-                description=f"Z-slice {image_frame_index} at {image_frame_index * 0.125:.3f} μm depth",
+                description=session_metadata("confocal_nikon")["z_slice"].format(
+                    index=image_frame_index, depth=image_frame_index * 0.125
+                ),
             )
             images_container.add_image(nwb_image)
 

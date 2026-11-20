@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 from neuroconv.tools import configure_and_write_nwbfile
 from neuroconv.tools.nwb_helpers import make_nwbfile_from_metadata
-from neuroconv.utils import dict_deep_update, load_dict_from_file
+from neuroconv.utils import dict_deep_update
 from pynwb import NWBFile
 
 from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
@@ -28,6 +28,7 @@ from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
 from surmeier_lab_to_nwb.zhai2025.interfaces.image_stack_interfaces import (
     NikonImageStackInterface,
 )
+from surmeier_lab_to_nwb.zhai2025.metadata import session_metadata, shared_metadata
 from surmeier_lab_to_nwb.zhai2025.subjects import SUBJECTS
 
 # "3824-slide 2-slice 2-cell 2 proxi", "5108-slice 2-cell 1 den3 proxi", "5104-slice 3-cell 1 proxi3",
@@ -38,12 +39,8 @@ _RE_STACK_NAME = re.compile(
     r"proxi(?:3|_0001)?$"
 )
 _STATE = {"control": "UnlesionedControl", "6-OHDA": "LesionedControl", "off-state": "OffState", "on-state": "OnState"}
-_GROUP_TEXT = {
-    "UnlesionedControl": "unlesioned control: no 6-OHDA lesion and no levodopa",
-    "LesionedControl": "6-OHDA lesioned, without levodopa",
-    "OffState": "6-OHDA lesioned and given levodopa until dyskinetic, perfused in the LID off-state",
-    "OnState": "6-OHDA lesioned and given levodopa until dyskinetic, perfused in the LID on-state",
-}
+_CONFOCAL_TEXT = session_metadata("confocal_nikon")
+_GROUP_TEXT = _CONFOCAL_TEXT["group"]
 TIMEZONE = ZoneInfo("America/Chicago")
 # Stacks whose clocks disagree: the text NIS-Elements writes gives 2024-02-23 and the frame clock 2024-06-04, but the
 # data share dates the files 2024-01-03, before both, so when they were acquired is uncertain
@@ -69,7 +66,7 @@ def parse_nd2_filename(nd2_file: Path) -> Dict[str, Any]:
     return {
         "mouse_number": int(match.group("mouse")),
         "container_name": f"Images{f'Slide{slide}' if slide else ''}Slice{slice_number}Cell{cell}Dendrite{dendrite}",
-        "description": f"Confocal z-stack of proximal dendrite {dendrite} of cell {cell} ({location})",
+        "description": _CONFOCAL_TEXT["stack"].format(dendrite=dendrite, cell=cell, location=location),
     }
 
 
@@ -129,12 +126,9 @@ def convert_mouse_to_nwbfile(nd2_files: List[Path], condition: str) -> NWBFile:
     )
 
     # Load general and session-specific metadata from YAML files
-    general_metadata_path = Path(__file__).parent.parent.parent / "general_metadata.yaml"
-    general_metadata = load_dict_from_file(general_metadata_path)
+    general_metadata = shared_metadata()
 
-    session_metadata_path = Path(__file__).parent.parent.parent / "session_specific_metadata.yaml"
-    session_metadata_template = load_dict_from_file(session_metadata_path)
-    script_template = session_metadata_template["figure_4_confocal_spine_density_nikon"]
+    script_template = session_metadata("figure_4_confocal_spine_density_nikon")
     surgery, pharmacology = surgery_and_pharmacology(state, general_metadata)
     if state == "OnState":
         pharmacology += " " + script_template["NWBFile"]["on_state_pharmacology"]
@@ -175,15 +169,11 @@ def convert_mouse_to_nwbfile(nd2_files: List[Path], condition: str) -> NWBFile:
 
     for (nd2_file, info, interface), acquisition_time in zip(stacks, acquisition_times):
         if acquisition_time is None:
-            acquired = (
-                "whose clocks disagree (2024-02-23 in the text NIS-Elements writes, 2024-06-04 from its frames) while "
-                "the data share dates it 2024-01-03, so when it was acquired is uncertain; acquired"
-            )
+            acquired = _CONFOCAL_TEXT["acquired_uncertain"]
         else:
-            acquired = f"acquired {acquisition_time:%Y-%m-%d %H:%M} (Chicago time)"
-        description = (
-            f"{info['description']}, the lab's file '{nd2_file.name}', {acquired} on a Nikon AXR confocal with a 60x "
-            "oil immersion objective (NA 1.49), 0.09 µm pixels and 0.125 µm z steps."
+            acquired = _CONFOCAL_TEXT["acquired"].format(acquisition_time=acquisition_time)
+        description = _CONFOCAL_TEXT["description"].format(
+            stack=info["description"], file_name=nd2_file.name, acquired=acquired
         )
         interface_metadata = {
             "Images": {info["container_name"]: {"name": info["container_name"], "description": description}}
@@ -206,7 +196,7 @@ if __name__ == "__main__":
     # Create output directory
     root_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go up to repo root
     nwb_files_dir = root_dir / "nwb_files" / "confocal_spine_density" / "figure_4"
-    general_metadata = load_dict_from_file(Path(__file__).parent.parent.parent / "general_metadata.yaml")
+    general_metadata = shared_metadata()
     nwb_files_dir.mkdir(parents=True, exist_ok=True)
 
     for condition in _STATE:
