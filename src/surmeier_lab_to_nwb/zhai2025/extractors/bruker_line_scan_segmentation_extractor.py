@@ -1,22 +1,20 @@
-"""Segmentation extractor for Bruker Prairie View line scan recordings.
+"""Segmentation extractor for Bruker PrairieView line scans.
 
-Bruker line-scan (``<Sequence type="Linescan">``) acquisitions repeatedly scan a single
-user-drawn line through the imaging field, producing a 2D kymograph per channel
-(``<folder>_Cycle{N}_Ch{C}_000001.ome.tif``: rows = line repetitions, columns = pixels
-along the line) plus a processed CSV ``<folder>_Cycle{N}_LineProfileData.csv`` with the
-per-channel 1D fluorescence profile averaged along the line versus time.
+A PrairieView line scan (``<Sequence type="Linescan">``) scans one line, drawn on a snapshot of the field of view,
+over and over. Each trial is its own folder, holding the master ``<folder>.xml``, one kymograph TIFF per channel
+(one row per scan, one column per pixel along the line), a snapshot of the field of view per channel
+(``...Source.tif``) and a ``LineProfileData`` CSV. For each channel the CSV holds the time of every scan and the
+mean of the kymograph over pixels ``x0`` to ``x1`` of the line, the window of the channel's ``<Profile>``.
 
-This extractor reads the LineProfileData CSV and the XML ``<PVLinescanDefinition>``
-element to expose the line as a single pixel-mask ROI with its time trace. The raw
-kymograph TIFF is not loaded here; it is best handled by a separate imaging extractor.
+This extractor exposes those pixels as one ROI and the CSV as its trace, for a list of trials of the same line
+placed on one timeline by the start of each trial. The kymographs and snapshots are read by the interface.
 
-See https://github.com/catalystneuro/surmeier-lab-to-nwb obsidian docs
-``source_formats/bruker/line_scan_format.md`` for the format reference.
+See the vault note ``source_formats/bruker/line_scan_format.md`` for the format reference.
 """
 
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, time
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -34,179 +32,187 @@ from roiextractors.segmentationextractor import (
     _RoiResponse,
 )
 
-# Channel index in the XML (1-based) maps to "Prof N" column in the CSV.
-_PROFILE_COLUMN_FOR_CHANNEL = {"Ch1": (" Prof 1", "Prof 1 Time(ms)"), "Ch2": (" Prof 2", " Prof 2 Time(ms)")}
+
+@dataclass(frozen=True)
+class LineScanTrial:
+    """One trial of a line scan, read from the master XML of its folder."""
+
+    name: str  # the folder name, which PrairieView also puts at the start of every file in it
+    start_time: datetime  # the date of `PVScan` with the time of day of its `Sequence`, which has the microseconds
+    line: tuple[int, int, int, int]  # start x, start y, stop x and stop y, in pixels of the snapshot
+    profile_pixels: tuple[int, int]  # x0 and x1, the first and last pixel along the line that the profile averages
+    frame_shape: tuple[int, int]  # height and width of the snapshot
+    scan_line_period: float  # seconds
+    num_scans: int
+    profile_file_path: Path
+    profile_column: str  # "Prof N", the CSV column of the channel's profile
+    kymograph_file_path: Path
+    source_image_file_path: Path
+
+    @property
+    def num_pixels(self) -> int:
+        """The number of pixels along the line, which is the width of the kymograph."""
+        start_x, start_y, stop_x, stop_y = self.line
+        return max(abs(stop_x - start_x), abs(stop_y - start_y)) + 1
 
 
-def _find_csv_column(available_columns: list[str], template: str) -> str:
-    """Match a column name tolerating leading/trailing whitespace differences.
+def _as_list(value) -> list:
+    return value if isinstance(value, list) else [value]
 
-    Prairie View's LineProfileData CSV exports have inconsistent header whitespace
-    across versions (e.g. ``" Prof 2"`` vs ``"Prof 2"``).
-    """
-    template_stripped = template.strip()
-    for col in available_columns:
-        if col == template or col.strip() == template_stripped:
-            return col
-    raise ValueError(
-        f"Could not find column matching {template!r} (stripped: {template_stripped!r}). "
-        f"Available: {available_columns}"
+
+def _read_master_xml(folder_path: Path) -> dict:
+    """Return the ``PVScan`` element of a trial folder's master XML, which must hold one line scan."""
+    xml_path = folder_path / f"{folder_path.name}.xml"
+    pv_scan = xmltodict.parse(xml_path.read_text(encoding="utf-8-sig"))["PVScan"]
+    sequence = pv_scan["Sequence"]
+    if isinstance(sequence, list) or sequence["@type"] != "Linescan":
+        raise ValueError(f"'{xml_path}' does not hold one line scan.")
+    return pv_scan
+
+
+def _read_scan_line(pv_scan: dict) -> tuple[int, int, int, int]:
+    definition = pv_scan["Sequence"]["PVLinescanDefinition"]
+    if definition["@mode"] != "straightLine":
+        raise ValueError(f"Only straight lines are read, and this line scan is a {definition['@mode']!r}.")
+    line = definition["Line"]
+    start_x, start_y = int(line["@startPixelX"]), int(line["@startPixelY"])
+    # PrairieView leaves out a stop coordinate the line shares with its start, as stopPixelY on a horizontal line
+    return start_x, start_y, int(line.get("@stopPixelX", start_x)), int(line.get("@stopPixelY", start_y))
+
+
+def _read_line_scan_trial(folder_path: Path, channel_name: str) -> LineScanTrial:
+    pv_scan = _read_master_xml(folder_path)
+    sequence = pv_scan["Sequence"]
+    definition = sequence["PVLinescanDefinition"]
+    frames = _as_list(sequence["Frame"])
+    if len(frames) != 1:
+        raise ValueError(f"The line scan in '{folder_path}' has {len(frames)} frames, where a trial has one.")
+    files = _as_list(frames[0]["File"])
+    channel_file = next((entry for entry in files if entry["@channelName"] == channel_name), None)
+    if channel_file is None:
+        channel_names = [entry["@channelName"] for entry in files]
+        raise ValueError(f"The line scan in '{folder_path}' has no channel {channel_name!r}, only {channel_names}.")
+
+    profiles = [
+        profile
+        for profile in _as_list(definition["LineScanProfiles"]["Profile"])
+        if profile["@channel"] == channel_file["@channel"]
+    ]
+    windows = {(int(profile["@x0"]), int(profile["@x1"])) for profile in profiles}
+    if len(windows) != 1:
+        raise ValueError(f"The line scan in '{folder_path}' has {len(windows)} profile windows for {channel_name}.")
+
+    pv_scan_date = datetime.strptime(pv_scan["@date"], "%m/%d/%Y %I:%M:%S %p")
+    # `time.fromisoformat` takes up to six decimals and PrairieView writes seven
+    start_time = datetime.combine(pv_scan_date.date(), time.fromisoformat(sequence["@time"][:15]))
+    if not 0 <= (start_time - pv_scan_date).total_seconds() < 2:
+        raise ValueError(f"The line scan in '{folder_path}' starts at {start_time}, but its date is {pv_scan_date}.")
+
+    # Settings with one value per laser or detector hold them in child elements instead of a value attribute
+    frame_state = {
+        value["@key"]: value["@value"]
+        for value in _as_list(frames[0]["PVStateShard"]["PVStateValue"])
+        if "@value" in value
+    }
+    return LineScanTrial(
+        name=folder_path.name,
+        start_time=start_time,
+        line=_read_scan_line(pv_scan),
+        profile_pixels=windows.pop(),
+        frame_shape=(int(definition["@SourceLinesPerFrame"]), int(definition["@SourcePixelsPerLine"])),
+        scan_line_period=float(frame_state["scanLinePeriod"]),
+        num_scans=int(frame_state["linesPerFrame"]),
+        profile_file_path=folder_path / definition["LineScanProfiles"]["@DataFile"],
+        profile_column=f"Prof {profiles[0]['@number']}",
+        kymograph_file_path=folder_path / channel_file["@filename"],
+        source_image_file_path=folder_path / channel_file["@source"],
     )
 
 
 class BrukerLineScanSegmentationExtractor(SegmentationExtractor):
-    """A segmentation extractor for one channel of a Bruker line-scan recording.
+    """A segmentation extractor for one channel of a Bruker line scan, over the trials of one scan line.
 
-    The line itself is the single ROI. Its trace is the averaged fluorescence profile
-    along the line at each time point, read from ``LineProfileData.csv``.
+    The ROI is the pixels of the line that PrairieView averages into its line profile, and its trace is that
+    profile, read from the ``LineProfileData`` CSV of each trial. The trials are put in the order they were
+    recorded, and the time of each scan is the start of its trial, relative to the first trial, plus its time
+    in the CSV.
 
     Parameters
     ----------
-    folder_path : PathType
-        Folder containing a Prairie View line-scan recording with a master
-        ``<folder>.xml`` and a ``<folder>_Cycle{N}_LineProfileData.csv``.
-    cycle : int, default: 1
-        Cycle index to read.
+    folder_paths : list of PathType
+        The trial folders, each with its master XML and ``LineProfileData`` CSV. Their scan line, profile window
+        and snapshot size must be the same.
     channel_name : str, default: "Ch1"
-        Prairie View channel name to extract. Must be one of ``"Ch1"`` or ``"Ch2"``
-        (the channels Prairie View emits per-channel ``Prof N`` columns for).
-    frame_shape : tuple of int, optional
-        ``(height, width)`` of the source frame the scan line is drawn in. Defaults
-        to the ``SourcePixelsPerLine``/``SourceLinesPerFrame`` attributes on
-        ``<PVLinescanDefinition>``.
+        PrairieView channel, as the XML names it.
+    roi_id : str, default: "LineProfile"
+        ID of the ROI. Line scans whose ROIs share a table need different IDs.
     """
 
     extractor_name = "BrukerLineScanSegmentation"
-    mode = "folder"
 
-    def __init__(
-        self,
-        folder_path: PathType,
-        cycle: int = 1,
-        channel_name: str = "Ch1",
-        frame_shape: tuple[int, int] | None = None,
-    ):
+    def __init__(self, folder_paths: list[PathType], channel_name: str = "Ch1", roi_id: str = "LineProfile"):
         SegmentationExtractor.__init__(self)
-        self.folder_path = Path(folder_path)
-        self.cycle = cycle
-        self.channel_name = channel_name
+        if not folder_paths:
+            raise ValueError("folder_paths is empty; give at least one trial folder.")
+        trials = sorted(
+            (_read_line_scan_trial(Path(folder_path), channel_name) for folder_path in folder_paths),
+            key=lambda trial: trial.start_time,
+        )
+        first = trials[0]
+        for trial in trials[1:]:
+            for field in ("line", "profile_pixels", "frame_shape"):
+                if getattr(trial, field) != getattr(first, field):
+                    raise ValueError(
+                        f"Trial '{trial.name}' has {field} {getattr(trial, field)} and trial '{first.name}' has "
+                        f"{getattr(first, field)}. The trials of one line scan share their line, profile window and "
+                        "snapshot; group the folders by scan line."
+                    )
+        self._trials = trials
 
-        if channel_name not in _PROFILE_COLUMN_FOR_CHANNEL:
-            raise ValueError(
-                f"channel_name={channel_name!r} not supported. " f"Available: {sorted(_PROFILE_COLUMN_FOR_CHANNEL)}"
-            )
+        profiles, timestamps = [], []
+        for trial in trials:
+            profile = pd.read_csv(trial.profile_file_path)
+            profile.columns = profile.columns.str.strip()
+            values = profile[trial.profile_column].to_numpy(dtype=float)
+            if len(values) != trial.num_scans or np.isnan(values).any():
+                raise ValueError(
+                    f"'{trial.profile_file_path}' has {len(values)} rows for {trial.num_scans} scans, or empty values."
+                )
+            profiles.append(values)
+            start = (trial.start_time - first.start_time).total_seconds()
+            timestamps.append(start + profile[f"{trial.profile_column} Time(ms)"].to_numpy(dtype=float) / 1000)
+        self._timestamps = np.concatenate(timestamps)
+        self._sampling_frequency = 1 / first.scan_line_period
 
-        xml_path = self.folder_path / f"{self.folder_path.name}.xml"
-        if not xml_path.is_file():
-            raise FileNotFoundError(f"Bruker XML configuration file not found at '{xml_path}'.")
-        with open(xml_path, "r", encoding="utf-8") as f:
-            self._xml_metadata = xmltodict.parse(f.read())
-
-        sequence_metadata = self._xml_metadata["PVScan"]["Sequence"]
-        if isinstance(sequence_metadata, list):
-            try:
-                sequence_metadata = next(s for s in sequence_metadata if int(s.get("@cycle", 0)) == cycle)
-            except StopIteration:
-                raise ValueError(f"Cycle {cycle} not found in {xml_path}.") from None
-
-        sequence_type = sequence_metadata.get("@type", "")
-        if sequence_type.lower() != "linescan":
-            raise ValueError(f"Sequence in {xml_path} has type {sequence_type!r}; expected 'Linescan'.")
-
-        line_definition = sequence_metadata["PVLinescanDefinition"]
-        line_metadata = line_definition["Line"]
-        self._line_start_x = int(line_metadata["@startPixelX"])
-        self._line_start_y = int(line_metadata["@startPixelY"])
-        self._line_stop_x = int(line_metadata.get("@stopPixelX", line_metadata["@startPixelX"]))
-        self._line_stop_y = int(line_metadata.get("@stopPixelY", line_metadata["@startPixelY"]))
-        self._line_length_microns = float(line_metadata.get("@lineLength", 0.0))
-
-        if frame_shape is None:
-            source_h = int(line_definition.get("@SourceLinesPerFrame", 512))
-            source_w = int(line_definition.get("@SourcePixelsPerLine", 512))
-            self._frame_shape = (source_h, source_w)
-        else:
-            self._frame_shape = tuple(frame_shape)
-
-        # Load profile CSV
-        profile_csv_filename = line_definition["LineScanProfiles"]["@DataFile"]
-        profile_csv_path = self.folder_path / profile_csv_filename
-        if not profile_csv_path.is_file():
-            raise FileNotFoundError(f"Line scan profile CSV not found at '{profile_csv_path}'.")
-        self._profile_csv_path = profile_csv_path
-        profile_df = pd.read_csv(profile_csv_path)
-        available_cols = list(profile_df.columns)
-        profile_template, time_template = _PROFILE_COLUMN_FOR_CHANNEL[channel_name]
-        profile_col = _find_csv_column(available_cols, profile_template)
-        time_col = _find_csv_column(available_cols, time_template)
-
-        # Drop NaN rows that show up at the tail of some CSV exports
-        valid_mask = profile_df[profile_col].notna() & profile_df[time_col].notna()
-        profile_data = profile_df.loc[valid_mask, profile_col].to_numpy(dtype=float)
-        timestamps_ms = profile_df.loc[valid_mask, time_col].to_numpy(dtype=float)
-        self._timestamps = timestamps_ms / 1000.0  # seconds
-
-        # Single ROI: the line, identified by channel
-        roi_id = f"{channel_name}_Line"
         self._roi_ids = [roi_id]
-        # Shape (num_samples, num_rois=1)
-        traces = profile_data.reshape(-1, 1)
-        self._roi_responses.append(_RoiResponse("raw", traces, self._roi_ids))
+        self._roi_responses.append(_RoiResponse("raw", np.concatenate(profiles)[:, np.newaxis], self._roi_ids))
 
-        # Pixel mask: line endpoints' integer pixels along the line, weight=1.0 each
-        height, width = self._frame_shape
-        if self._line_start_y == self._line_stop_y:
-            xs = np.arange(min(self._line_start_x, self._line_stop_x), max(self._line_start_x, self._line_stop_x) + 1)
-            ys = np.full_like(xs, self._line_start_y)
-        elif self._line_start_x == self._line_stop_x:
-            ys = np.arange(min(self._line_start_y, self._line_stop_y), max(self._line_start_y, self._line_stop_y) + 1)
-            xs = np.full_like(ys, self._line_start_x)
-        else:
-            # Diagonal — Bresenham via linspace + rounding
-            num_steps = (
-                max(abs(self._line_stop_x - self._line_start_x), abs(self._line_stop_y - self._line_start_y)) + 1
-            )
-            xs = np.round(np.linspace(self._line_start_x, self._line_stop_x, num_steps)).astype(int)
-            ys = np.round(np.linspace(self._line_start_y, self._line_stop_y, num_steps)).astype(int)
-
-        image_mask = np.zeros((height, width, 1), dtype=bool)
-        ys_clipped = np.clip(ys, 0, height - 1)
-        xs_clipped = np.clip(xs, 0, width - 1)
-        image_mask[ys_clipped, xs_clipped, 0] = True
+        start_x, start_y, stop_x, stop_y = first.line
+        x0, x1 = first.profile_pixels
+        if x1 >= first.num_pixels:
+            raise ValueError(f"Trial '{first.name}' profiles pixels {x0} to {x1} of a line of {first.num_pixels}.")
+        line_xs = np.round(np.linspace(start_x, stop_x, first.num_pixels)).astype(int)
+        line_ys = np.round(np.linspace(start_y, stop_y, first.num_pixels)).astype(int)
+        image_mask = np.zeros((*first.frame_shape, 1), dtype=bool)
+        image_mask[line_ys[x0 : x1 + 1], line_xs[x0 : x1 + 1], 0] = True
         self._roi_masks = _ROIMasks(
             data=image_mask,
             mask_tpe="nwb-image_mask",
-            field_of_view_shape=(height, width),
+            field_of_view_shape=first.frame_shape,
             roi_id_map={roi_id: 0},
         )
 
-        # Sampling frequency: derive from line scan period if regular
-        if len(self._timestamps) > 1:
-            intervals = np.diff(self._timestamps)
-            mean_interval = float(np.mean(intervals))
-            if mean_interval > 0 and np.allclose(intervals, mean_interval, rtol=1e-3):
-                self._sampling_frequency = 1.0 / mean_interval
-            else:
-                self._times = self._timestamps
-
-    def get_session_start_time(self, tz: ZoneInfo | None = None) -> datetime:
-        """Return ``<PVScan @date>`` parsed to a datetime, optionally tz-aware."""
-        date_str = self._xml_metadata["PVScan"]["@date"]
-        dt = datetime.strptime(date_str, "%m/%d/%Y %I:%M:%S %p")
-        if tz is not None:
-            dt = dt.replace(tzinfo=tz)
-        return dt
-
-    def get_line_length_microns(self) -> float:
-        """Return the physical line length in microns from ``<Line lineLength=...>``."""
-        return self._line_length_microns
+    def get_trials(self) -> list[LineScanTrial]:
+        """Return the trials in the order they were recorded, which is the order of their samples."""
+        return list(self._trials)
 
     def get_native_timestamps(self, start_sample: int | None = None, end_sample: int | None = None) -> np.ndarray:
-        """Return per-sample timestamps in seconds from ``Prof N Time(ms)`` column."""
-        start = start_sample or 0
-        end = end_sample if end_sample is not None else len(self._timestamps)
-        return self._timestamps[start:end]
+        """Return the time of each scan, in seconds from the start of the first trial."""
+        return self._timestamps[start_sample:end_sample]
+
+    def _has_native_timestamps(self) -> bool:
+        return True
 
     def get_frame_shape(self) -> tuple[int, int]:
-        """Return ``(height, width)`` of the source frame the scan line was drawn in."""
-        return self._frame_shape
+        """Return ``(height, width)`` of the snapshot the scan line is drawn on."""
+        return self._trials[0].frame_shape

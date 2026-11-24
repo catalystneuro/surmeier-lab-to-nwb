@@ -178,10 +178,10 @@ Figure 3/Dendritic excitability/
 **File Bundle per Recording**:
 ```
 05232016_Cell1_dist1_trio-001/
-├── *_Cycle00001_Ch1_000001.ome.tif          # Fluo-4 calcium channel kymograph
-├── *-Cycle00001_Ch1Source.tif               # Field of view with scan line overlay
-├── *_Cycle00001_Ch2_000001.ome.tif          # Alexa Fluor 568 structural channel
-├── *-Cycle00001_Ch2Source.tif               # Structural channel field of view
+├── *_Cycle00001_Ch1_000001.ome.tif          # Alexa Fluor 568 structural channel kymograph
+├── *-Cycle00001_Ch1Source.tif               # Structural channel field of view (scan line not drawn on it)
+├── *_Cycle00001_Ch2_000001.ome.tif          # Fluo-4 calcium channel kymograph
+├── *-Cycle00001_Ch2Source.tif               # Calcium channel field of view (scan line not drawn on it)
 ├── *_Cycle00001_LineProfileData.csv         # Averaged fluorescence traces
 ├── *_Cycle00001_VoltageOutput_001.xml       # Stimulus protocol definition
 ├── *_Cycle00001_VoltageRecording_001.csv    # Raw electrophysiology data
@@ -197,8 +197,8 @@ Figure 3/Dendritic excitability/
 Same as Figure 1 - three 2 nA current injections, 2 ms each, at ~50 Hz frequency.
 
 ### Channel Assignments
-- **Channel 1 (Ch1)**: Fluo-4 calcium-sensitive dye (green, 490-560 nm)
-- **Channel 2 (Ch2)**: Alexa Fluor 568 structural dye (red, 580-620 nm)
+- **Channel 1 (Ch1)**: Alexa Fluor 568 structural dye (red, 580-620 nm)
+- **Channel 2 (Ch2)**: Fluo-4 calcium-sensitive dye (green, 490-560 nm)
 
 ### Line Scan Parameters
 - **Pixels per line**: 64

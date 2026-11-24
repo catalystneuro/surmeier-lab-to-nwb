@@ -471,8 +471,8 @@ A complete line scan bundle contains these files:
 
 | File | Description | Purpose |
 |------|-------------|---------|
-| `*_Cycle00001_Ch1_000001.ome.tif`<br>`*_Cycle00001_Ch2_000001.ome.tif` | Raw kymograph TIFF files (one per channel) | Contains the raw spatiotemporal fluorescence data with dimensions (C, T, X) where C=channels, T=time/lines, X=pixels along scan line |
-| `*-Cycle00001_Ch1Source.tif`<br>`*-Cycle00001_Ch2Source.tif` | Full field-of-view snapshots | Shows where the line scan was positioned on the cell with the scan line overlay |
+| `*_Cycle00001_Ch1_000001.ome.tif`<br>`*_Cycle00001_Ch2_000001.ome.tif` | Raw kymograph TIFF files (one per channel) | Contains the raw spatiotemporal fluorescence data of one channel, with dimensions (T, X) where T=time/lines, X=pixels along scan line |
+| `*-Cycle00001_Ch1Source.tif`<br>`*-Cycle00001_Ch2Source.tif` | Full field-of-view snapshots | Show the field of view the line was scanned on. The scan line is not drawn on them; its end points, in snapshot pixels, are in the master XML (`PVLinescanDefinition/Line`) |
 | `*_Cycle00001_LineProfileData.csv` | Averaged fluorescence traces | Contains the mean intensity of the scan line segment for each channel over time |
 | `*_Cycle00001_VoltageOutput_001.xml` | Stimulus protocol definition | Defines timing, amplitude, and waveforms for stimulation |
 | `*_Cycle00001_VoltageRecording_001.csv` | Raw electrophysiology data | Contains the recorded voltage/current signals |
@@ -483,17 +483,18 @@ A complete line scan bundle contains these files:
 
 ### Understanding the Raw Data for LineScans
 
-The OME-TIFF kymograph files (`*_Cycle00001_Ch#_000001.ome.tif`) have a 3D structure with dimensions:
-- First dimension (C): Channels (typically 2 - one for each PMT detector)
-- Second dimension (T): Time/line index (number of consecutive line scans, e.g., 2500)
-- Third dimension (X): Pixels along the scan line (e.g., 64 pixels)
+The OME-TIFF kymograph files (`*_Cycle00001_Ch#_000001.ome.tif`) hold one channel each, as a 2D image with dimensions:
+- First dimension (T): Time/line index (number of consecutive line scans, 2500 in every trial of this dataset)
+- Second dimension (X): Pixels along the scan line (16 to 99 pixels in this dataset, most often about 20)
+
+The OME metadata in the Ch1 file describes the files of both channels, so a reader that follows it (`tifffile.imread` by default) returns a 3D array (2, T, X) for Ch1 in most trials. Read each file on its own (`tifffile.imread(path, is_ome=False)`) to get one channel.
 
 The data is essentially a stack of line scans over time, where:
 - Each row represents one sweep of the laser along the defined line
 - The X-axis represents position along the scan line
 - The intensity at each pixel represents fluorescence at that position and time
 
-Very importantly, the line scans oversample pixels of the source image so it is not straightforward to map it.
+The pixels along the line are pixels of the source snapshot: the kymograph has `stopPixelX - startPixelX + 1` columns, from the line in the master XML (`PVLinescanDefinition/Line`). Every line in this dataset is horizontal, so column i is the snapshot pixel at x = `startPixelX` + i, y = `startPixelY`.
 
 
 ### Key Metadata in .env Files

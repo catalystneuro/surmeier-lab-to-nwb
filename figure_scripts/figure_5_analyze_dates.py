@@ -51,7 +51,7 @@ def analyze_recording_dates_to_json(root_directory, output_file):
         json.dump(output_json, f, indent=4)
 
 
-parent_directory = "/media/heberto/One Touch/Surmeier-CN-data-share/consolidated_data/LID_paper_Zhai_2025/Raw data for Figs/Figure 5_SF2"
+parent_directory = "./link_to_raw_data/Figure 5_SF2"
 output_file_path = (
     "/home/heberto/development/surmeier-lab-to-nwb/figure_scripts/acetylcholien_biosensor_session_times.json"
 )

@@ -50,9 +50,35 @@ plt.rcParams["axes.spines.right"] = False
 plt.rcParams["axes.grid"] = False
 
 
+# The mouse's group, from the state in the session ID, named as in the paper's figure legends
+CONDITION_OF_STATE = {
+    "UnlesionedControl": "unlesioned control",
+    "LesionedControl": "6-OHDA-lesioned",
+    "OffState": "LID off-state",
+}
+# The drugs as the trials table names them, in the names the analysis uses
+TREATMENT_OF_DRUG = {
+    "control": "control",
+    "50 nM dopamine": "dopamine",
+    "10 µM quinpirole": "quinpirole",
+    "10 µM sulpiride": "sulpiride",
+    "10 µM tetrodotoxin": "TTX_calibration",
+    "100 µM acetylcholine": "ACh_calibration",
+}
+STIMULATION_OF_PROTOCOL = {
+    "single 1 ms pulse": "single_pulse",
+    "20 pulses of 1 ms at 20 Hz": "burst_stimulation",
+    "none": "calibration",
+}
+
+
 def load_nwb_trials_data(nwb_path: Path) -> List[Dict]:
     """
-    Load all trial data from an NWB file using trials table iteration.
+    Load all trial data from a per-mouse-day NWB file using trials table iteration.
+
+    Each file holds every region imaged in one mouse on one day. Each row of the trials table is one trial at one
+    region, with its drug, its stimulation, its stimulus time and a reference to its frames in the region's
+    GRAB-ACh3.0 RoiResponseSeries.
 
     Parameters
     ----------
@@ -69,63 +95,41 @@ def load_nwb_trials_data(nwb_path: Path) -> List[Dict]:
     with NWBHDF5IO(str(nwb_path), mode="r") as io:
         nwbfile = io.read()
 
-        # Get trials table and fluorescence module
         trials_df = nwbfile.trials.to_dataframe()
-        fluorescence_module = nwbfile.processing["ophys"]["Fluorescence"]
-
-        # Extract metadata from file name
-        filename_parts = nwb_path.stem.split("++")
-        condition = filename_parts[3] if len(filename_parts) > 3 else "unknown"
-
-        # Map conditions to paper nomenclature
-        condition_map = {"CTRL": "UL control", "PD": "6-OHDA", "OFF": "LID off"}
+        state = nwbfile.session_id.split("++")[1]
+        condition = CONDITION_OF_STATE[state]
+        subject_id = nwbfile.subject.subject_id
 
         # Iterate over trials table rows
         for _, trial in trials_df.iterrows():
-            # Get the corresponding fluorescence series
-            series_name = trial["roi_series_name"]
-            series = fluorescence_module.roi_response_series[series_name]
+            # The GRAB-ACh3.0 channel (acetylcholine sensor) of this trial
+            response_ref = trial["roi_response_grabach3"]
+            series_name = f"{response_ref.timeseries.name} trial {trial.name}"
 
-            # Only process GRABCh channel (acetylcholine sensor)
-            if "GRABCh" not in series_name:
-                continue
+            treatment = TREATMENT_OF_DRUG[trial["drug"]]
+            stimulation = "calibration" if "calibration" in treatment else STIMULATION_OF_PROTOCOL[trial["stimulation"]]
 
-            # Map treatment names
-            treatment_mapping = {
-                "control": "control",
-                "50nM_dopamine": "dopamine",
-                "quinpirole": "quinpirole",
-                "sulpiride": "sulpiride",
-                "TTX_calibration": "TTX_calibration",
-                "acetylcholine_calibration": "ACh_calibration",
-            }
-
-            treatment = treatment_mapping.get(trial["treatment"], trial["treatment"])
-            stimulation = "calibration" if "calibration" in trial["treatment"] else trial["stimulation"]
-
-            fluorescence = series.data[:]
-            timestamps = series.get_timestamps()
+            fluorescence = np.asarray(response_ref.data)
+            trial_timestamps = np.asarray(response_ref.timestamps)
             # Convert to relative timestamps starting at 0
-            timestamps = timestamps - timestamps[0]
+            timestamps = trial_timestamps - trial_timestamps[0]
 
             # Calculate relative stimulus time
-            abs_stim_time = trial["stimulus_start_time"]
-            orig_start = series.get_timestamps()[0]
-            stim_time = abs_stim_time - orig_start
+            stim_time = trial["stimulus_start_time"] - trial_timestamps[0]
 
             trials_data.append(
                 {
-                    "condition": condition_map.get(condition, condition),
+                    "condition": condition,
                     "treatment": treatment,
                     "stimulation": stimulation,
-                    "subject_id": nwbfile.subject.subject_id if nwbfile.subject else "unknown",
-                    "session_id": nwbfile.identifier,
+                    "subject_id": subject_id,
+                    "session_id": nwbfile.session_id,
                     "series_name": series_name,
                     "fluorescence": fluorescence,
                     "timestamps": timestamps,
                     "stim_time": stim_time,
                     "sampling_rate": 1.0 / np.mean(np.diff(timestamps)) if len(timestamps) > 1 else 1.0,
-                    "file": nwb_path.name,
+                    "region": f"{subject_id} {trial['region']}",
                 }
             )
 
@@ -292,12 +296,14 @@ def analyze_nwb_dataset(nwb_dir: Path, stimulation_type: str = "single_pulse") -
 
     # Process each file
     for nwb_file in nwb_files:
-        try:
-            # Load all trials from this file
-            trials_data = load_nwb_trials_data(nwb_file)
-            print(f"  Loaded {len(trials_data)} trials from {nwb_file.name}")
+        # Load all trials from this file
+        file_trials = load_nwb_trials_data(nwb_file)
+        print(f"  Loaded {len(file_trials)} trials from {nwb_file.name}")
 
-            # Get calibration values for this file
+        for region in dict.fromkeys(trial["region"] for trial in file_trials):
+            trials_data = [trial for trial in file_trials if trial["region"] == region]
+
+            # Get calibration values for this region
             Fmax, Fmin = get_calibration_values_from_trials(trials_data)
 
             # Process each trial
@@ -332,20 +338,16 @@ def analyze_nwb_dataset(nwb_dir: Path, stimulation_type: str = "single_pulse") -
                         "auc_normalized": trial_data["auc_normalized"],
                         "peak_unnormalized": trial_data["peak_response"],
                         "peak_normalized": trial_data["peak_normalized"],
-                        "file": trial["file"],
+                        "region": trial["region"],
                     }
                 )
-
-        except Exception as e:
-            print(f"  Error processing {nwb_file.name}: {e}")
-            continue
 
     return pd.DataFrame(results)
 
 
-def _collapse_first_two_trials_per_file(df: pd.DataFrame) -> pd.DataFrame:
+def _collapse_first_two_trials_per_region(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Collapse per-trial rows into one value per file×condition×treatment by
+    Collapse per-trial rows into one value per region×condition×treatment by
     averaging the first two trials' normalized AUCs.
 
     Parameters
@@ -356,35 +358,35 @@ def _collapse_first_two_trials_per_file(df: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        Collapsed dataset with columns: condition, treatment, file, auc_normalized
+        Collapsed dataset with columns: condition, treatment, region, auc_normalized
     """
     plot_data = df[df["treatment"].isin(["control", "dopamine", "quinpirole", "sulpiride"])].copy()
     plot_data = plot_data.dropna(subset=["auc_normalized"])  # remove invalid rows
 
     # Preserve original order as proxy for chronological ordering, then take first two
     plot_data = plot_data.reset_index().rename(columns={"index": "_row_order"})
-    first_two = plot_data.groupby(["condition", "treatment", "file"], sort=False, group_keys=False).apply(
+    first_two = plot_data.groupby(["condition", "treatment", "region"], sort=False, group_keys=False).apply(
         lambda g: g.nsmallest(2, columns=["_row_order"])
     )
-    collapsed = first_two.groupby(["condition", "treatment", "file"], as_index=False)["auc_normalized"].mean()
+    collapsed = first_two.groupby(["condition", "treatment", "region"], as_index=False)["auc_normalized"].mean()
     return collapsed
 
 
 def _collapse_trials(df: pd.DataFrame, selection: str = "first_two") -> pd.DataFrame:
     """
-    Collapse per-trial rows to per-file averages according to selection policy.
+    Collapse per-trial rows to per-region averages according to selection policy.
 
     selection:
-      - "first_two": first two rows per file×condition×treatment (default)
+      - "first_two": first two rows per region×condition×treatment (default)
       - "repetition12": pick rows whose series_name ends with Repetition1/2 if present,
                          else fall back to first_two
-      - "all": average all trials per file×condition×treatment
+      - "all": average all trials per region×condition×treatment
     """
     # Filter to experimental treatments only
     plot_data = df[df["treatment"].isin(["control", "dopamine", "quinpirole", "sulpiride"])].copy()
     plot_data = plot_data.dropna(subset=["auc_normalized"]).reset_index(drop=True)
 
-    grp = ["condition", "treatment", "file"]
+    grp = ["condition", "treatment", "region"]
     if selection == "all":
         return plot_data.groupby(grp, as_index=False)["auc_normalized"].mean()
 
@@ -426,26 +428,26 @@ def create_figure_5f_from_nwb(df: pd.DataFrame) -> plt.Figure:
     # Remove invalid data
     plot_data = plot_data.dropna(subset=["auc_normalized"])
 
-    # Collapse to per-file averages using the first two trials per file×treatment.
+    # Collapse to per-region averages using the first two trials per region×treatment.
     # Preserve original row order (proxy for chronological order) and average AUCs.
     plot_data = plot_data.reset_index().rename(columns={"index": "_row_order"})
-    first_two = plot_data.groupby(["condition", "treatment", "file"], sort=False, group_keys=False).apply(
+    first_two = plot_data.groupby(["condition", "treatment", "region"], sort=False, group_keys=False).apply(
         lambda g: g.nsmallest(2, columns=["_row_order"])
     )
-    collapsed = first_two.groupby(["condition", "treatment", "file"], as_index=False)["auc_normalized"].mean()
+    collapsed = first_two.groupby(["condition", "treatment", "region"], as_index=False)["auc_normalized"].mean()
 
     # Create single panel figure to match direct reproduction layout
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
     # Define condition order and styling to match paper exactly
-    conditions = ["UL control", "6-OHDA", "LID off"]
+    conditions = ["unlesioned control", "6-OHDA-lesioned", "LID off-state"]
     condition_labels = ["control", "6-OHDA", "LID off-state"]
 
     # Treatments by condition - add dopamine for 6-OHDA and LID off groups only
     treatments_by_condition = {
-        "UL control": ["control", "quinpirole", "sulpiride"],
-        "6-OHDA": ["control", "dopamine", "quinpirole", "sulpiride"],
-        "LID off": ["control", "dopamine", "quinpirole", "sulpiride"],
+        "unlesioned control": ["control", "quinpirole", "sulpiride"],
+        "6-OHDA-lesioned": ["control", "dopamine", "quinpirole", "sulpiride"],
+        "LID off-state": ["control", "dopamine", "quinpirole", "sulpiride"],
     }
 
     # Display labels for treatments (map dopamine to +DA)
@@ -629,8 +631,8 @@ def generate_nwb_report(df: pd.DataFrame, output_dir: Path) -> str:
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Collapse per-trial data to per-file averages (first two trials)
-    collapsed = _collapse_first_two_trials_per_file(df)
+    # Collapse per-trial data to per-region averages (first two trials)
+    collapsed = _collapse_first_two_trials_per_region(df)
 
     # Calculate summary statistics using collapsed control data
     stats = {}
@@ -645,7 +647,7 @@ def generate_nwb_report(df: pd.DataFrame, output_dir: Path) -> str:
             "mean": auc_values.mean(),
             "sem": auc_values.sem() if len(auc_values) > 1 else 0,
             "std": auc_values.std() if len(auc_values) > 1 else 0,
-            "files": len(condition_data["file"].unique()),
+            "regions": len(condition_data["region"].unique()),
         }
 
     markdown_content = f"""# Figure 5F NWB Reproduction Report
@@ -662,8 +664,8 @@ different experimental conditions.
 
 ### Key Findings
 
-- **Total Per-file Datapoints (all treatments):** {len(collapsed)}
-- **Control Condition Per-file Measurements:** {len(control_data)}
+- **Total Per-region Datapoints (all treatments):** {len(collapsed)}
+- **Control Condition Per-region Measurements:** {len(control_data)}
 - **Experimental Conditions (control):** {len(control_data['condition'].unique())}
 
 ## Summary Statistics
@@ -673,12 +675,12 @@ different experimental conditions.
 """
 
     # Add statistics for each condition
-    for condition in ["UL control", "6-OHDA", "LID off"]:
+    for condition in ["unlesioned control", "6-OHDA-lesioned", "LID off-state"]:
         if condition in stats:
             s = stats[condition]
             markdown_content += f"""
 #### {condition}
-- **N:** {s['n']} measurements from {s['files']} files
+- **N:** {s['n']} measurements from {s['regions']} regions
 - **Mean ± SEM:** {s['mean']:.3f} ± {s['sem']:.3f}
 - **Std Dev:** {s['std']:.3f}
 """
@@ -740,7 +742,7 @@ def run_discrepancy_analysis(output_dir: Path) -> Path:
     Writes a markdown report summarizing per-group means and differences.
     """
     base_dir = Path(__file__).parent.parent
-    nwb_dir = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/acetylcholine_biosensor/figure_5")
+    nwb_dir = base_dir / "nwb_files" / "merged" / "F5"
 
     # Load Excel reference
     excel_path = (
@@ -749,17 +751,17 @@ def run_discrepancy_analysis(output_dir: Path) -> Path:
     )
     df_x = pd.read_excel(excel_path, sheet_name="Fig 5F_GRAB-ACh_single-AUC")
     colmap = {
-        "UL_ctr": ("UL control", "control"),
-        "UL_quin": ("UL control", "+quinpirole"),
-        "UL_sul": ("UL control", "+sulpiride"),
-        "6-OHDA_ctr": ("6-OHDA", "control"),
-        "6-OHDA_50nMDA": ("6-OHDA", "+DA"),
-        "6-OHDA_quin": ("6-OHDA", "+quinpirole"),
-        "6-OHDA_sul": ("6-OHDA", "+sulpiride"),
-        "LID off_ctr": ("LID off", "control"),
-        "LID off_50nMDA": ("LID off", "+DA"),
-        "LID off_quin": ("LID off", "+quinpirole"),
-        "LID off_sul": ("LID off", "+sulpiride"),
+        "UL_ctr": ("unlesioned control", "control"),
+        "UL_quin": ("unlesioned control", "+quinpirole"),
+        "UL_sul": ("unlesioned control", "+sulpiride"),
+        "6-OHDA_ctr": ("6-OHDA-lesioned", "control"),
+        "6-OHDA_50nMDA": ("6-OHDA-lesioned", "+DA"),
+        "6-OHDA_quin": ("6-OHDA-lesioned", "+quinpirole"),
+        "6-OHDA_sul": ("6-OHDA-lesioned", "+sulpiride"),
+        "LID off_ctr": ("LID off-state", "control"),
+        "LID off_50nMDA": ("LID off-state", "+DA"),
+        "LID off_quin": ("LID off-state", "+quinpirole"),
+        "LID off_sul": ("LID off-state", "+sulpiride"),
     }
     rows = []
     for c, (cond, treat) in colmap.items():
@@ -781,9 +783,13 @@ def run_discrepancy_analysis(output_dir: Path) -> Path:
     for v in variants:
         df_trials = analyze_nwb_dataset(nwb_dir, stimulation_type="single_pulse")
         # Optionally, limit files here if needed for speed in ad-hoc runs
-        collapsed = _collapse_trials(df_trials, selection=v["sel"])  # per-file
+        collapsed = _collapse_trials(df_trials, selection=v["sel"])  # per-region
         labmap = {"dopamine": "+DA", "quinpirole": "+quinpirole", "sulpiride": "+sulpiride", "control": "control"}
-        condmap = {"UL control": "UL control", "6-OHDA": "6-OHDA", "LID off": "LID off"}
+        condmap = {
+            "unlesioned control": "unlesioned control",
+            "6-OHDA-lesioned": "6-OHDA-lesioned",
+            "LID off-state": "LID off-state",
+        }
         collapsed = collapsed.assign(
             condition=collapsed["condition"].map(condmap),
             treatment=collapsed["treatment"].map(labmap),
@@ -859,7 +865,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = Path("/home/heberto/development/surmeier-lab-to-nwb/nwb_files/acetylcholine_biosensor/figure_5")
+    nwb_dir = base_dir / "nwb_files" / "merged" / "F5"
     output_dir = base_dir / "analysis_outputs" / "figure_5f"
 
     # Ensure output directory exists
@@ -890,21 +896,21 @@ def main():
     report_path = generate_nwb_report(df, output_dir)
     print(f"  Saved: {report_path}")
 
-    # Print summary (collapsed per-file counts)
+    # Print summary (collapsed per-region counts)
     print("\n" + "=" * 80)
     print("ANALYSIS COMPLETED SUCCESSFULLY!")
     print("=" * 80)
 
     # Collapsed dataset for summary
-    collapsed = _collapse_first_two_trials_per_file(df)
+    collapsed = _collapse_first_two_trials_per_region(df)
     control_collapsed = collapsed[collapsed["treatment"] == "control"]
-    print("\nSummary by Condition (collapsed per-file, control):")
-    for condition in ["UL control", "6-OHDA", "LID off"]:
+    print("\nSummary by Condition (collapsed per-region, control):")
+    for condition in ["unlesioned control", "6-OHDA-lesioned", "LID off-state"]:
         condition_data = control_collapsed[control_collapsed["condition"] == condition]
         if len(condition_data) > 0:
             auc_values = condition_data["auc_normalized"]
             print(f"  {condition}: n={len(auc_values)}, mean={auc_values.mean():.3f}±{auc_values.sem():.3f}")
-    print(f"\nTotal per-file datapoints (all treatments): {len(collapsed)}")
+    print(f"\nTotal per-region datapoints (all treatments): {len(collapsed)}")
 
     print(f"\nOutput Files:")
     print(f"  - {fig_path}")

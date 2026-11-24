@@ -1,0 +1,1123 @@
+# The dataset's metadata, the one source the conversion reads. The top-level sections (NWBFile, Subject,
+# ExternalResources) are what every file shares. Sessions holds, per kind of session and by its metadata key, what
+# its files add: fields in braces are filled in for each file.
+NWBFile:
+  keywords:
+    - corticostriatal
+    - Parkinson disease
+    - PD
+    - neurodegeneration
+    - dopamine depletion
+    - striatum
+    - levodopa-induced dyskinesia
+    - dSPNs
+    - iSPNs
+    - indirect pathway
+    - direct pathway
+  related_publications:
+    - "https://doi.org/10.1126/sciadv.adv8224"
+  institution: Northwestern University
+  lab: Surmeier Lab
+  experimenter:
+    - Zhai, Shenyu
+    - Cui, Qiaoling
+    - Wokosin, David
+    - Sun, Linqing
+    - Tkatch, Tatiana
+    - Crittenden, Jill R.
+    - Graybiel, Ann M.
+    - Surmeier, D. James
+  surgery: |
+    Unilateral stereotaxic lesion: 1 µl of 6-hydroxydopamine
+    (≈3 µg in 0.02 % ascorbate-saline) injected into the left
+    medial forebrain bundle. Stereotaxic coordinates per the lab's
+    6-OHDA lesion protocol: AP -0.7 mm and ML -1.2 mm from bregma;
+    DV -4.75 mm from the dura surface (NOT from bregma; the protocol
+    specifies that the needle is zeroed at bregma for the AP and ML
+    axes but at the dura surface for the DV axis, so AP and ML are
+    referenced to skull landmarks while DV is referenced to the
+    brain surface). Procedure performed under isoflurane anaesthesia;
+    post-operative meloxicam, saline, and warming provided. Lesion
+    efficacy later confirmed by drug-free forelimb-asymmetry
+    (cylinder) test.
+  pharmacology: |
+    Induction anaesthesia with isoflurane (5 % v/v for induction,
+    2 % for maintenance). Pre-operative analgesia: meloxicam
+    0.1 mg kg⁻¹ s.c. Lesion: intracranial 6-hydroxydopamine, 1 µl
+    of 3.5 mg ml⁻¹ free-base 6-OHDA in 0.02 % ascorbate-saline
+    into the left medial forebrain bundle. L-DOPA priming for LID:
+    five i.p. injections every other day—6 mg kg⁻¹ for the first
+    two sessions, 12 mg kg⁻¹ thereafter—each co-administered with
+    benserazide 12 mg kg⁻¹ to inhibit peripheral decarboxylation.
+  slices: |
+    Sagittal slices (280-μm thick) were sectioned using a vibratome (Leica VT1200).
+    After cutting, slices were incubated at 34 °C for 30 min in ACSF containing
+    (in mM): 124 NaCl, 3 KCl, 1 NaH2PO4, 2.0 CaCl2, 1.0 MgCl2, 26 NaHCO3
+    and 13.89 glucose, after which they were stored at room temperature until
+    recording. External solutions were oxygenated with carbogen (95%CO2/5%O2)
+    at all time.
+Subject:
+  species: Mus musculus
+  strain: "C57BL/6"
+  sex: "M"
+  age: "P7W/P12W"  # Adult mice, 7-12 weeks in ISO 8601 format
+
+# Ontology terms for the values the files carry, written into each file as HERD references when
+# configure_and_write_nwbfile gets this metadata. Each map is keyed by the exact value it annotates.
+ExternalResources:
+  species:
+    Mus musculus:
+      id: "NCBITaxon:10090"
+      uri: "http://purl.obolibrary.org/obo/NCBITaxon_10090"
+  # The paper names a substrain only for the GRAB-ACh mice; the others are C57BL/6, which MGI keeps as a strain family
+  strain:
+    C57BL/6:
+      id: "MGI:2159769"
+      uri: "https://www.informatics.jax.org/strain/MGI:2159769"
+    C57BL/6J:
+      id: "RRID:IMSR_JAX:000664"
+      uri: "https://scicrunch.org/resolver/RRID:IMSR_JAX:000664"
+  anatomical_structures:
+    Caudoputamen:
+      - id: "MBA:672"
+        uri: "https://purl.brain-bican.org/ontology/mbao/MBA_672"
+      - id: "UBERON:0005383"
+        uri: "http://purl.obolibrary.org/obo/UBERON_0005383"
+    Primary motor area:
+      - id: "MBA:985"
+        uri: "https://purl.brain-bican.org/ontology/mbao/MBA_985"
+      - id: "UBERON:0001384"
+        uri: "http://purl.obolibrary.org/obo/UBERON_0001384"
+  experimenter:
+    "Zhai, Shenyu":
+      id: "orcid:0000-0002-7097-9387"
+      uri: "https://orcid.org/0000-0002-7097-9387"
+    "Cui, Qiaoling":
+      id: "orcid:0000-0002-2074-9655"
+      uri: "https://orcid.org/0000-0002-2074-9655"
+    "Wokosin, David":
+      id: "orcid:0000-0002-5497-6944"
+      uri: "https://orcid.org/0000-0002-5497-6944"
+    "Sun, Linqing":
+      id: "orcid:0000-0002-1217-277X"
+      uri: "https://orcid.org/0000-0002-1217-277X"
+    "Tkatch, Tatiana":
+      id: "orcid:0000-0001-6626-7435"
+      uri: "https://orcid.org/0000-0001-6626-7435"
+    "Crittenden, Jill R.":
+      id: "orcid:0000-0002-1981-1917"
+      uri: "https://orcid.org/0000-0002-1981-1917"
+    "Graybiel, Ann M.":
+      id: "orcid:0000-0002-4326-7720"
+      uri: "https://orcid.org/0000-0002-4326-7720"
+    "Surmeier, D. James":
+      id: "orcid:0000-0002-6376-5225"
+      uri: "https://orcid.org/0000-0002-6376-5225"
+  institution:
+    Northwestern University:
+      id: "ror:000e0be47"
+      uri: "https://ror.org/000e0be47"
+
+# Device models, by name; every device of the same instrument links to its model
+DeviceModels:
+  BrukerUltimaInVitroModel:
+    name: BrukerUltimaInVitroModel
+    manufacturer: Bruker Corporation
+    model_number: Ultima In Vitro
+    description: >-
+      Bruker Ultima In Vitro multiphoton microscope system (Bruker, Billerica, MA), mounted on an Olympus BX-51 upright
+      microscope chassis for ex vivo two-photon laser-scanning imaging. Used in conjunction with patch-clamp
+      electrophysiology and a Chameleon Ultra II (Coherent) tunable Ti:sapphire laser.
+  NikonAXRModel:
+    name: NikonAXRModel
+    manufacturer: Nikon
+    model_number: AXR
+    description: >-
+      Nikon AXR confocal laser microscope from the Center for Advanced Microscopy and Nikon Imaging Center at
+      Northwestern University. Used for high-resolution confocal imaging of dendritic spines in sparsely labeled iSPNs
+      at 60x oil immersion (NA=1.49) with 0.09 um pixels and 0.125 um z-steps.
+  OlympusFV10iDUCModel:
+    name: OlympusFV10iDUCModel
+    manufacturer: Olympus
+    model_number: FV10i-DUC
+    description: >-
+      Olympus FV10i-DUC confocal laser scanning microscope. Used for high-resolution confocal imaging of dendritic
+      spines at 60x magnification (NA=1.35) with 0.125 um z-steps and ~0.207 um pixels for spine density methodology
+      validation.
+
+# Devices that sessions of more than one kind add, by metadata key
+Devices:
+  MultiClamp700B:
+    name: MultiClamp700B
+    description: Molecular Devices MultiClamp 700B patch-clamp amplifier.
+  BrukerUltima:
+    name: BrukerUltima
+    description: Bruker Ultima In Vitro multiphoton microscope.
+  # The two-photon microscope of the spine stacks, with the objective and system its XML files give
+  TwoPhotonMicroscope:
+    name: TwoPhotonMicroscope
+    description: >-
+      Two-photon laser scanning microscope with {objective_lens} objective (NA={numerical_aperture},
+      {magnification}x magnification). System: {system_version} (Bruker/Prairie View). Used for spine density imaging
+      with 0.15 μm pixels and 0.3 μm z-steps.
+  NikonAXRConfocal:
+    name: NikonAXRConfocal
+    description: >-
+      Nikon AXR confocal laser scanning microscope with 60x oil immersion objective (NA=1.49, magnification=60x). Used
+      for high-resolution spine density imaging with 0.09 μm pixels and 0.125 μm z-steps. Images acquired with Nikon
+      NIS-Elements AR 5.41.02 software, de-noised and deconvolved, then analyzed with Imaris 10.0.0 using supervised
+      learning algorithms for automated spine detection and manual validation.
+  # The Olympus confocal of Figure 4H, with the objective and mode its PTY files give
+  OlympusFV10iConfocal:
+    name: OlympusFV10iConfocal
+    description: >-
+      Olympus FV10i confocal laser scanning microscope with {objective_name} objective (NA={numerical_aperture},
+      {magnification}x magnification). Confocal mode: {confocal_mode}. Used for high-resolution spine density imaging
+      with 0.125 μm z-steps and ~0.207 μm pixels. System optimized for detecting approximately 2x more spines
+      compared to standard two-photon microscopy.
+
+# What each kind of session adds, by metadata key
+Sessions:
+  # Figure 2 Scripts
+  figure_2_spine_density:
+    NWBFile:
+      session_description: >-
+        Dendritic spine density assessment in direct pathway spiny projection neurons (dSPNs) for condition {condition}.
+        Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+        proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+      experiment_description: >-
+        Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+        levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+        ex vivo brain slices.
+      keywords:
+        - "spine density"
+        - "dendritic spines"
+        - "two-photon microscopy"
+        - "dSPNs"
+        - "methodology validation"
+    Subject:
+      description: >-
+        Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+        Received dyskinesiogenic levodopa treatment for spine density analysis.
+        dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
+      # The control groups; the description above is for lesioned, levodopa-treated mice
+      description_by_state:
+        UnlesionedControl: >-
+          Adult Drd1-Tdtomato transgenic mouse, unlesioned control: no 6-OHDA lesion and no levodopa. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
+        LesionedControl: >-
+          Adult Drd1-Tdtomato transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. dSPNs identified by Drd1-Tdtomato expression. Session {session_id}.
+
+  # Figure 4 Scripts
+  figure_4_spine_density:
+    NWBFile:
+      session_description: >-
+        Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}.
+        Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+        proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+      experiment_description: >-
+        Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+        levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+        ex vivo brain slices.
+      keywords:
+        - "spine density"
+        - "dendritic spines"
+        - "two-photon microscopy"
+        - "iSPNs"
+        - "methodology validation"
+    Subject:
+      description: >-
+        Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+        Received dyskinesiogenic levodopa treatment for spine density analysis.
+        iSPNs identified by Drd2-EGFP expression. Session {session_id}.
+      # The control groups; the description above is for lesioned, levodopa-treated mice
+      description_by_state:
+        UnlesionedControl: >-
+          Adult Drd2-EGFP transgenic mouse, unlesioned control: no 6-OHDA lesion and no levodopa. iSPNs identified by Drd2-EGFP expression. Session {session_id}.
+        LesionedControl: >-
+          Adult Drd2-EGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease, without levodopa. iSPNs identified by Drd2-EGFP expression. Session {session_id}.
+
+  figure_4_confocal_spine_density_nikon:
+    NWBFile:
+      session_description: >-
+        High-resolution confocal z-stacks of {num_stacks} proximal dendrite segments of sparsely labeled iSPNs from
+        mouse {mouse_number} ({condition}), the data of Figure 4, J and K, and fig. S5. Fixed sagittal sections
+        were imaged on a Nikon AXR confocal with a 60x oil immersion objective (NA 1.49), 0.09 µm pixels and 0.125 µm z
+        steps, on {imaging_days}. The stacks are the raw acquisitions; the lab then denoised and deconvolved them in
+        NIS-Elements AR 5.41.02 and counted spines in Imaris 10.0.0 on segments about 30 µm long, about 30 µm from the
+        soma. The session start is the acquisition of the first stack.
+      experiment_description: >-
+        Dendritic spine density of indirect pathway spiny projection neurons (iSPNs) measured with high-resolution
+        confocal microscopy in fixed tissue, to compare with the two-photon estimates from brain slices.
+      surgery_addition: >-
+        To label a few iSPNs, AAV9-pCAG-flex-eGFP-WPRE (Addgene #51502; 0.45 µl, 5 x 10^10 viral genomes/ml), which
+        expresses eGFP only in cells with Cre, was injected into the left dorsolateral striatum at AP 0.7, ML -2.35 and
+        DV about 3.35 mm relative to Bregma, in Adora2-Cre mice about 2 months old.
+      on_state_pharmacology: >-
+        On-state mice received a sixth dose of levodopa (12 mg/kg, with 12 mg/kg benserazide) one hour before
+        anesthesia.
+      slices: >-
+        Mice were anesthetized with isoflurane and then a ketamine/xylazine mixture, and transcardially perfused with
+        PBS (about 20 ml) and then 4% paraformaldehyde (about 30 ml). Brains were post-fixed in 4% paraformaldehyde for
+        1.5 to 2 hours and stored at 4 °C in PBS with 0.1% sodium azide. Sagittal sections 60 µm thick containing the
+        dorsolateral striatum were cut on a Leica VT1200S vibratome and mounted on glass slides under No. 1.5 cover
+        glasses in ProLong Diamond Antifade Mountant (Thermo Fisher Scientific, P36961).
+      keywords:
+        - "confocal microscopy"
+        - "spine density"
+        - "dendritic spines"
+        - "sparse labeling"
+        - "Nikon AXR"
+        - "iSPN"
+    Subject:
+      description: >-
+        Adora2-Cre mouse {mouse_number} in the lab's numbering, {group}; iSPNs sparsely labeled with a Cre-dependent
+        eGFP virus, see surgery.
+
+  figure_4h_confocal_spine_density_olympus:
+    NWBFile:
+      session_description: >-
+        Overview of sparsely labeled iSPNs in the dorsolateral striatum of control mouse {animal_id}, the image of
+        Figure 4I: {num_stacks} z-stack tiles, which the lab stitched, taken on an Olympus confocal with a 60x oil
+        immersion objective (UPLSAP60xO, NA 1.35) and a 473 nm laser. The session start is the capture of the first
+        tile.
+      keywords:
+        - "confocal microscopy"
+        - "sparse labeling"
+        - "Olympus"
+        - "iSPN"
+
+  # Figure 6 Scripts
+  figure_6_spine_density:
+    NWBFile:
+      session_description: >-
+        Dendritic spine density assessment in indirect pathway spiny projection neurons (iSPNs) for condition {condition}.
+        Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+        proximal (~40 μm from soma) and distal (>80 μm from soma).
+        Testing M1R contribution to LID-induced spine density changes. Cells {cells} of this mouse.
+      experiment_description: >-
+        Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+        levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+        ex vivo brain slices.
+      pharmacology_conditions:
+        antagonist: "M1 muscarinic receptor antagonist: Trihexyphenidyl hydrochloride (THP, 3 mg/kg i.p.) administered to assess M1R contribution to LID-induced spine density changes."
+      keywords:
+        - "spine density"
+        - "dendritic spines"
+        - "two-photon microscopy"
+        - "iSPNs"
+        - "M1R"
+        - "muscarinic"
+    Subject:
+      description: >-
+        Adult Drd2-eGFP transgenic mouse with unilateral 6-OHDA lesion (>95% dopamine depletion) modeling Parkinson's disease.
+        Received dyskinesiogenic levodopa treatment and M1R antagonist treatment for spine density analysis.
+        iSPNs identified by Drd2-eGFP expression. Session {session_id}.
+
+  # Figure 7 Scripts (CDGI knockout)
+  figure_7_spine_density:
+    NWBFile:
+      session_description: >-
+        Dendritic spine density assessment in CDGI knockout mice for condition {condition}.
+        Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+        proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+      experiment_description: >-
+        Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+        levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+        ex vivo brain slices.
+      keywords:
+        - "spine density"
+        - "dendritic spines"
+        - "two-photon microscopy"
+        - "CDGI"
+        - "knockout"
+    Subject:
+      description: "CDGI knockout mouse for spine density assessment. Global CDGI deletion to investigate role in LID pathophysiology. Session {session_id}."
+
+  # Figure 8 Scripts (M1R CRISPR)
+  figure_8_spine_density:
+    NWBFile:
+      session_description: >-
+        Dendritic spine density assessment in M1R CRISPR mice for condition {condition}.
+        Two-photon laser scanning microscopy was used to acquire Z-stack images of dendritic segments at two locations:
+        proximal (~40 μm from soma) and distal (>80 μm from soma). Cells {cells} of this mouse.
+      experiment_description: >-
+        Dendritic spine density of striatal spiny projection neurons in unlesioned, 6-OHDA-lesioned and
+        levodopa-induced dyskinesia (LID) off- and on-state mice, measured with two-photon laser scanning microscopy in
+        ex vivo brain slices.
+      surgery_addition: "M1R knockout achieved via CRISPR-Cas9: AAV-Cas9 and AAV-gRNA-FusionRed injection into dorsolateral striatum for targeted M1 muscarinic receptor deletion in iSPNs."
+      keywords:
+        - "spine density"
+        - "dendritic spines"
+        - "two-photon microscopy"
+        - "iSPNs"
+        - "M1R"
+        - "CRISPR"
+    Subject:
+      description: "M1R CRISPR study mouse with unilateral 6-OHDA lesion and targeted M1R deletion in iSPNs via CRISPR-Cas9 gene editing for spine density analysis. Session {session_id}."
+
+  # Sr2+-oEPSC recordings (Figures 2 and 4), one file per mouse and recording day
+  oepsc:
+    # The figure and the recorded cells, by the mouse line as the lab's Data Connections sheet writes it
+    figure_by_line:
+      tD-Tomato: Figure 2
+      eGFP: Figure 4
+    cells_by_line:
+      tD-Tomato: direct-pathway spiny projection neurons (dSPNs)
+      eGFP: indirect-pathway spiny projection neurons (iSPNs)
+    analysis_window: >-
+      The paper counted asynchronous events from 40 ms to 400 ms after each flash onset (Methods, Data acquisition and
+      statistical analysis).
+    NWBFile:
+      session_description: >-
+        Sr2+-oEPSC recordings ({figure}): whole-cell voltage clamp of {n_cells} {cells} from one mouse in the
+        {condition}. In Ca2+-free solution with 3 mM SrCl2, a blue LED flash on motor cortex axons expressing ChR2
+        evokes asynchronous excitatory synaptic currents. One sweep per flash, most of them 30 s apart.
+      experiment_description: >-
+        Strength of cortical synapses onto striatal spiny projection neurons in 6-OHDA-lesioned mice in the off- and
+        on-states of levodopa-induced dyskinesia (LID).
+      # Added to the shared surgery and pharmacology
+      surgery: >-
+        {surgery}ChR2 virus (AAV5-hSyn-hChR2(H134R)-eYFP, 0.15 µl) injected into the M1 motor cortex on the side of
+        the lesion, at ML -1.60, AP 1.15 and DV 1.55 mm relative to Bregma; recordings about 3 to 4 weeks later.
+      pharmacology: >-
+        {pharmacology}During recording the slice was superfused with Ca2+-free ACSF containing 3 mM SrCl2 and 10 µM
+        gabazine (to block GABA-A currents), starting 25 min before recording.
+    Subject:
+      virus: >-
+        A channelrhodopsin-2 (ChR2) virus was injected into the motor cortex on the side of the lesion; see surgery.
+    Optogenetics:
+      stimulation_software: Prairie View 5.3
+      ExcitationSourceModel:
+        name: CoolLEDModel
+        manufacturer: CoolLED
+        model_number: p100-470
+        source_type: LED
+        excitation_mode: one-photon
+        description: CoolLED p100-470 blue LED (CoolLED, Andover, UK), as named in the paper's Methods.
+      ExcitationSource:
+        name: BlueLED
+        description: >-
+          Blue LED (470 nm) giving whole-field illumination of the slice. Prairie View sent it a 5 V pulse for each
+          flash; the paper does not report the light power.
+      ViralVector:
+        name: ChR2Virus
+        construct_name: AAV5-hSyn-hChR2(H134R)-eYFP
+        manufacturer: Addgene (#26973)
+        titer_in_vg_per_ml: .nan
+        description: >-
+          Expresses channelrhodopsin-2 (H134R) fused to eYFP under the human synapsin promoter. The paper does not
+          report the titer.
+      ViralVectorInjection:
+        name: ChR2VirusInjection
+        description: >-
+          0.15 µl injected into the M1 motor cortex on the side of the 6-OHDA lesion, at ML -1.60 mm, AP 1.15 mm and
+          DV 1.55 mm relative to Bregma as given in the paper (DV stored as -1.55, ventral). Recordings were made about
+          3 to 4 weeks after the injection.
+        location: Primary motor area
+        # In the paper negative ML is left (it injects "the left DLS" at ML -2.35), and the lesion protocol scores
+        # right-paw use, so the lesion and this injection are on the left.
+        hemisphere: left
+        reference: Bregma
+        ap_in_mm: 1.15
+        ml_in_mm: -1.60
+        dv_in_mm: -1.55
+        volume_in_uL: 0.15
+      Effector:
+        name: ChR2
+        label: hChR2(H134R)-eYFP
+        description: Channelrhodopsin-2 in motor cortex neurons; the LED activates their axons in the striatum.
+      OptogeneticSitesTable:
+        name: optogenetic_sites_table
+        description: >-
+          The one stimulation site: whole-field LED illumination of ChR2-expressing cortical axons in the slice.
+      OptogeneticPulsesTable:
+        name: optogenetic_pulses_table
+        description: >-
+          One row per LED flash: the start and end of the 5 V pulse Prairie View sent to the LED, 20 ms into each
+          sweep, at 470 nm. power_in_mW is NaN because the paper does not report the light power. {analysis_window}
+        columns:
+          cell_id: Cell recorded during this flash.
+          led_setting: >-
+            LED setting the lab wrote in the recording folder names (20 for 'cell1_LED20-001'); the files do not say
+            what it measures.
+    Icephys:
+      VoltageClampSeries:
+        name: VoltageClampSeriesCell{cell}
+        description: >-
+          Whole-cell voltage-clamp current from cell {cell}, held at -70 mV (paper Methods). Each 1 s sweep has one
+          blue LED flash at 20 ms (see the optogenetic pulses table) and a -5 mV, 50 ms command step at 920 ms.
+          {analysis_window} The {n_sweeps} sweeps are stored one after another, each at its start time (the
+          sweep_start_time column of the intracellular recordings table), so the pauses between sweeps are kept in
+          the timestamps.
+      VoltageClampStimulusSeries:
+        name: VoltageClampStimulusSeriesCell{cell}
+        description: >-
+          Command potential Prairie View sent to the amplifier during the sweeps of cell {cell}, drawn from each
+          sweep's VoltageOutput file over the command's span: 0, then a -5 mV step of 50 ms at 920 ms. The amplifier
+          added it to the -70 mV holding potential (paper Methods), which the files do not record.
+      intracellular_recordings_columns:
+        cell_id: Cell number within this file (the cells recorded from this mouse on this day).
+        condition: Experimental condition, named as in the paper's figure legends.
+        site: "Recording site: 'Soma', the cell body, where the pipette was."
+        sweep_start_time: >-
+          Start of the sweep in seconds from session_start_time: the Sequence time in the master Prairie View XML plus
+          the offset of the voltage recording in it, as NeuroConv's Bruker interface reads it. The sweep's samples in
+          its voltage-clamp series start at this time.
+      repetitions_columns:
+        cell_id: Cell this repetition belongs to.
+        protocol: Protocol of this repetition.
+        condition: Experimental condition of this repetition.
+      experimental_conditions_columns:
+        condition: Experimental condition, named as in the paper's figure legends.
+      stimulus_type: Sr2+-oEPSC
+
+  # GRAB-ACh3.0 imaging (Figure 5), one file per mouse and recording day
+  grab_ach:
+    # Prairie View channel number: the channel's name in the file and what it records
+    channels:
+      "2":
+        name: GRABACh3
+        description: >-
+          GRAB-ACh3.0 fluorescence (acetylcholine sensor), Hamamatsu H7422P-40 GaAsP detector with a 490 to 560 nm
+          filter (Prairie View channel 2)
+      "3":
+        name: Dodt
+        description: >-
+          laser light transmitted through the slice, recorded by the Dodt contrast detector (Prairie View channel 3);
+          it shows the tissue, not fluorescence
+    # The bath drug, by the words before the stimulus in each recording's name, at the paper's concentrations
+    drug_by_name:
+      ctr: control
+      50nMDA: 50 nM dopamine
+      quin: 10 µM quinpirole
+      sul: 10 µM sulpiride
+      TTX: 10 µM tetrodotoxin
+      sul_TTX: 10 µM tetrodotoxin  # 2024-04-12, after sulpiride, like every tetrodotoxin trial
+      ACh: 100 µM acetylcholine
+      ACh wash in: 100 µM acetylcholine
+    # The injection, on the side of the lesion in lesioned mice
+    injection_side:
+      CONT: ""
+      6-OHDA: " on the side of the lesion"
+      LID OFF: " on the side of the lesion"
+    injection: >-
+      GRAB-ACh3.0 virus (AAV5-hSyn-ACh3.0(ACh4.3), WZ Biosciences YL001003-AV5, 0.6 µl) injected into the
+      dorsolateral striatum{side} at ML -2.2, AP 0.8 and DV 3.3 mm relative to Bregma; slices were made about 3 weeks
+      later.
+    bath: >-
+      During imaging the slice was perfused with ACSF at 32 to 34 °C containing 50 µM sodium metabisulfite to slow
+      dopamine oxidation. Drugs were applied in the bath in this order, at least 5 min each: control, 50 nM dopamine
+      (lesioned mice only), 10 µM quinpirole (D2 receptor agonist) and 10 µM sulpiride (D2 receptor antagonist).
+      10 µM tetrodotoxin and 100 µM acetylcholine chloride were applied last, to find the sensor's lowest and highest
+      brightness. The paper does not say whether a drug was washed out before the next. Each trial's drug is in the
+      trials table.
+    # The group of the mouse, by the category of the lab's Data Connections sheet
+    group_by_category:
+      CONT: unlesioned control
+      6-OHDA: unilateral 6-OHDA lesion, no levodopa
+      LID OFF: unilateral 6-OHDA lesion and levodopa treatment, recorded in the off-state
+    NWBFile:
+      session_description: >-
+        GRAB-ACh3.0 imaging (Figure 5): two-photon movies of acetylcholine release in the dorsolateral striatum, evoked
+        by electrical stimulation, in {n_regions} regions of {n_slices} slices from one {condition} mouse. Each region
+        was filmed in a series of trials while the drug in the bath changed; the trials table gives each trial's
+        region, drug, stimulus and frames.
+      experiment_description: >-
+        Acetylcholine release in the striatum of unlesioned, 6-OHDA-lesioned and LID off-state mice, and its
+        suppression by dopamine D2 receptors.
+      # By the category of the mouse; {surgery} and {pharmacology} are the shared text, {pharmacology_before_levodopa}
+      # the shared pharmacology up to the levodopa priming
+      surgery:
+        CONT: "No 6-OHDA lesion (unlesioned control). {injection}"
+        6-OHDA: "{surgery}{injection}"
+        LID OFF: "{surgery}{injection}"
+      pharmacology:
+        CONT: "{bath}"
+        6-OHDA: "{pharmacology_before_levodopa}{bath}"
+        LID OFF: "{pharmacology}Slices were made 24 to 48 hours after the last levodopa dose (off-state). {bath}"
+    Subject:
+      description: >-
+        Wild-type C57BL/6J mouse, {group}; GRAB-ACh3.0 virus injected into the dorsolateral striatum, see surgery. The
+        lab gave these mice no number; its Data Connections sheet identifies each by date, line and condition.
+    StimulatingElectrode:
+      name: StimulatingElectrode
+      description: >-
+        Concentric bipolar stimulating electrode (CBAPD75, FHC) about 200 µm ventral to the imaged region, giving 1 ms,
+        0.3 mA pulses (paper Methods). Prairie View timed each pulse with a 5 V trigger.
+    Ophys:
+      processing_module_description: Prairie View's brightness of the whole frame for each region and channel.
+      ReferenceImages:
+        name: ImagesPrairieViewReferences
+        description: >-
+          Reference images Prairie View saved with each recording, 16-bit, one per channel and trial. They show the
+          field of view but are not frames of the trial, and consecutive trials often share the same image. Prairie
+          View's 8-bit screen captures of the same images are left out.
+      ReferenceImage:
+        name: Image{channel}{region}Trial{number}
+        description: >-
+          Prairie View's reference image, {what}, for {region} trial {number} of {n_trials} in recording order (row
+          {row} of the trials table, start time {start_time:.1f} s).
+      ImagingPlane:
+        name: ImagingPlane{region}
+        description: >-
+          Slice {slice}, ROI {roi}: a field of the dorsolateral striatum, with the stimulating electrode about 200 µm
+          ventral to it (paper Methods).
+        excitation_lambda: 920.0
+        indicator: GRAB-ACh3.0
+        location: Caudoputamen
+      # How the trials of a region are joined in one movie; a region filmed at several zooms has one movie per zoom
+      layout: >-
+        the {n_trials} trials at this region joined in recording order, {width} × {height} pixels at {rate:.2f} frames
+        per second. Each frame's time is in timestamps, so the gaps between trials are kept.
+      layout_with_zooms: >-
+        {layout} This region was filmed at {n_zooms} zooms, so its trials are split into {n_zooms} movies; this one
+        holds the trials at zoom {zoom:g}.
+      PlaneSegmentation:
+        name: PlaneSegmentation{name}
+        description: >-
+          Prairie View's brightness-over-time region for slice {slice} ROI {roi}: the whole frame, the same in every
+          trial.
+        roi_region_description: The whole frame.
+      TwoPhotonSeries:
+        name: TwoPhotonSeries{channel}{name}
+        description: >-
+          Movie of slice {slice} ROI {roi}, {what}: {layout} Each trial's frames are in the two_photon_{column} column
+          of the trials table.
+      RoiResponseSeries:
+        name: RoiResponseSeries{channel}{name}
+        description: >-
+          Brightness of the whole frame of slice {slice} ROI {roi}, {what}, computed by Prairie View during recording
+          (its botData file), one value per frame of TwoPhotonSeries{channel}{name}. It differs slightly from the mean
+          of the saved frame. The paper measured a 50 µm circle in the middle of the field instead (Methods).
+    trials_columns:
+      region: >-
+        Region filmed, as in the series names: slice and ROI within the slice (Slice1Roi2). The lab named the only ROI
+        of a slice 'A' in the May and June recordings; it is ROI 1 here.
+      drug: >-
+        Drug in the bath, from the recording's name, at the concentration the paper gives. 'control' is ACSF alone.
+        Tetrodotoxin and acetylcholine trials find the sensor's lowest and highest brightness.
+      stimulation: >-
+        Electrical stimulation in this trial, from the recording's Prairie View VoltageOutput file. The paper gives
+        0.3 mA per pulse.
+      stimulus_start_time: >-
+        Onset of the first pulse in seconds from session_start_time, NaN without stimulation: the start of Prairie
+        View's VoltageOutput plus its first-pulse delay (10 s, or 3 s on the May and June days).
+    # The trials table's columns of each trial's frames, one per series kind and channel
+    trials_series_column: The trial's frames in the {series_type}{channel} series of its region.
+
+  # Patch-clamp recordings (Figures 1, 3, 6, 7 and 9), one file per mouse and recording day
+  patch_clamp:
+    # The lab's figure folders follow the preprint's numbering. The published paper gave the behaviour of preprint
+    # Figures 7 and 8 figures of their own, so the M1R deletion recordings of the lab's Figure 8 are Figure 9.
+    published_figure:
+      F1: Figure 1
+      F3: Figure 3
+      F6: Figure 6
+      F7: Figure 7
+      F8: Figure 9
+    cells_of_type:
+      dSPN:
+        singular: direct-pathway spiny projection neuron (dSPN)
+        plural: direct-pathway spiny projection neurons (dSPNs)
+      iSPN:
+        singular: indirect-pathway spiny projection neuron (iSPN)
+        plural: indirect-pathway spiny projection neurons (iSPNs)
+    # The lab's condition folders, named as in the paper's figure legends. The lab named the sulpiride folders
+    # differently for somatic and dendritic recordings; both are one condition. A trial after oxo-M (Figure 7E) adds
+    # " with oxo-M".
+    condition_by_folder:
+      LID off-state: LID off-state
+      LID on-state: LID on-state
+      LID on-state with SCH: LID on-state with SCH 23390
+      LID on-state with sul: LID on-state with sulpiride
+      LID on-state with sul (iSPN): LID on-state with sulpiride
+      KO off-state: CDGI knockout, LID off-state
+      KO on-state: CDGI knockout, LID on-state
+      control: LID off-state, vehicle control
+      M1R antagonist: LID off-state with M1R antagonists
+      interleaved control: LID off-state, control (gRNA only)
+      M1R CRISPR: LID off-state, M1R deletion
+      UL control: unlesioned control
+      PD: 6-OHDA-lesioned
+      LID off: LID off-state
+      WT: naive
+      KO: CDGI knockout, naive
+    # Each condition split into the state of the mouse and the drug in the bath during the sweep. The condition adds
+    # the genotype or treatment group. SCH 23390, sulpiride and oxo-M were added during the recordings; the
+    # M1R-antagonist mice's slices were kept in VU 0255035 throughout.
+    state_and_drug:
+      LID off-state: {state: LID off-state, drug: none}
+      LID on-state: {state: LID on-state, drug: none}
+      LID on-state with SCH 23390: {state: LID on-state, drug: SCH 23390}
+      LID on-state with sulpiride: {state: LID on-state, drug: sulpiride}
+      CDGI knockout, LID off-state: {state: LID off-state, drug: none}
+      CDGI knockout, LID on-state: {state: LID on-state, drug: none}
+      LID off-state, vehicle control: {state: LID off-state, drug: none}
+      LID off-state with M1R antagonists: {state: LID off-state, drug: VU 0255035}
+      LID off-state, control (gRNA only): {state: LID off-state, drug: none}
+      LID off-state, M1R deletion: {state: LID off-state, drug: none}
+      naive: {state: naive, drug: none}
+      naive with oxo-M: {state: naive, drug: oxo-M}
+      CDGI knockout, naive: {state: naive, drug: none}
+      CDGI knockout, naive with oxo-M: {state: naive, drug: oxo-M}
+    NWBFile:
+      experiment_description: >-
+        Excitability and synaptic plasticity of striatal projection neurons in 6-OHDA-lesioned mice undergoing
+        levodopa-induced dyskinesia.
+      # What was recorded from the mouse that day; the parts apply as the file has somatic or dendritic cells and a
+      # drug added partway through the recordings
+      session_description:
+        recordings: >-
+          Patch-clamp recordings ({figure}): whole-cell current clamp of {n_cells} {cells} from one mouse.
+          {conditions_label}: {conditions}.
+        somatic: >-
+          Somatic excitability of {n_cells} {cells}: 500 ms current steps injected at the cell body.
+        dendritic: >-
+          Dendritic excitability of {n_cells} {cells}: spikes evoked by brief current injections at the cell body,
+          imaged with two-photon line scans across proximal and distal dendrites filled with Alexa Fluor 568 and
+          Fluo-4.
+        added_drug: >-
+          {drug} was added to the bath partway through the recordings, so the file holds sweeps with and without it;
+          the drug column of the intracellular recordings table gives each sweep's.
+        tables: >-
+          The cell, condition and site of each sweep are in the intracellular recordings table and the
+          RecordingsIndexTable.
+      # Figure 7E: the paper calls the mice of the oxo-M experiment naive; the lab's Data Connections sheet labels
+      # their days "LID ON". We follow the paper and say so in the subject description.
+      naive_surgery: "None: naive mouse, with no 6-OHDA lesion, as the paper describes the mice of Figure 7D-E."
+      oxo_m_pharmacology: >-
+        No levodopa. During recording, the muscarinic receptor agonist oxotremorine M (oxo-M, 10 µM) was applied in
+        the bath: each cell was recorded at all its dendritic sites, then again at the same sites after oxo-M was
+        added (the lab's ReadMe: trials 1 to 3 at a site are before oxo-M, trials 4 to 6 or 7 to 9 after). Each
+        trial's drug column says whether oxo-M was present.
+      # Figure 6: the M1R antagonist or saline, injected in the off-state; the antagonist mice's slices were kept in a
+      # second antagonist. Added to the shared pharmacology, by the category of the mouse.
+      m1r_antagonist_pharmacology:
+        M1R ant: >-
+          About 2 hours after the last levodopa dose, at the start of the off-state, the M1R antagonist
+          trihexyphenidyl hydrochloride (3 mg/kg) was injected i.p.; brain slices were made 16 hours later and kept in
+          the selective M1R antagonist VU 0255035 (5 µM) throughout the recordings.
+        CONT: >-
+          About 2 hours after the last levodopa dose, at the start of the off-state, saline was injected i.p. (the
+          control for the M1R antagonist trihexyphenidyl); brain slices were made 16 hours later.
+      # The drugs added to the bath partway through a day's recordings, added to the pharmacology
+      added_drug_pharmacology:
+        SCH 23390: >-
+          During recording, the D1 receptor antagonist SCH 23390 (3 µM) was applied in the bath; each sweep's drug
+          column says whether it was present.
+        sulpiride: >-
+          During recording, the D2 receptor antagonist sulpiride (10 µM) was applied in the bath; each sweep's drug
+          column says whether it was present.
+      # Figure 9: the CRISPR or control virus, as in the behaviour files, plus the reporter virus of the ex vivo
+      # experiments, added to the shared surgery
+      crispr_reporter: >-
+        As in all ex vivo experiments that needed the CRISPR-expressing iSPNs identified, a third virus,
+        AAV9-EF1a-DIO-eYFP (Addgene #27056), was mixed in (1:1:1).
+    # The subject description: the mouse line, then what was done to the mouse, in the paper's words. Keyed by the
+    # line and the group as the lab's Data Connections sheet writes them.
+    Subject:
+      line_description:
+        tD-Tomato: >-
+          Drd1-tdTomato BAC (bacterial artificial chromosome) transgenic mouse, whose direct-pathway spiny projection
+          neurons (dSPNs) express tdTomato.
+        eGFP: >-
+          Drd2-eGFP BAC (bacterial artificial chromosome) transgenic mouse, whose indirect-pathway spiny projection
+          neurons (iSPNs) express eGFP.
+        CDGIko X eGFP: >-
+          CalDAG-GEFI (CDGI) knockout mouse crossed with the Drd2-eGFP BAC (bacterial artificial chromosome)
+          transgenic line: it lacks CDGI, and its indirect-pathway spiny projection neurons (iSPNs) express eGFP.
+        Adora2-Cre: >-
+          Adora2a-Cre transgenic mouse, whose indirect-pathway spiny projection neurons (iSPNs) express Cre
+          recombinase.
+      group_description:
+        LID OFF: >-
+          It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle, then levodopa
+          (with benserazide) every other day for at least five sessions to induce dyskinesia; brain slices were made
+          24 to 48 hours after the last dose, in the off-state of levodopa-induced dyskinesia (LID).
+        LID ON: >-
+          It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle, then levodopa
+          (with benserazide) every other day for at least five sessions to induce dyskinesia; brain slices were made
+          30 min after the last dose, in the on-state of levodopa-induced dyskinesia (LID).
+        M1R ant: >-
+          It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle, then levodopa
+          (with benserazide) every other day for at least five sessions to induce dyskinesia. About 2 hours after the
+          last dose, at the start of the off-state, it was injected intraperitoneally with the M1 muscarinic receptor
+          (M1R) antagonist trihexyphenidyl (3 mg/kg); brain slices were made 16 hours later.
+        M1R CRSPR: >-
+          It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle and, after the
+          cylinder test, an injection of adeno-associated viruses (AAVs) carrying Cre-dependent Cas9 and guide RNAs
+          against Chrm1, the gene of the M1 muscarinic receptor (M1R), which delete M1R from iSPNs, into the
+          dorsolateral striatum on the side of the lesion. About a month later it was given levodopa (with
+          benserazide) every other day for at least five sessions to induce dyskinesia, and it was studied in the
+          off-state of levodopa-induced dyskinesia (LID).
+        NAIVE: >-
+          It is naive: no 6-hydroxydopamine (6-OHDA) lesion and no levodopa, as the paper describes the mice of
+          Figure 7D-E. The lab's Data Connections sheet labels this day 'LID ON' (lesioned and levodopa-treated)
+          instead; the recordings themselves do not say.
+      # The lab's "CONT" is a different control in each figure
+      control_description:
+        F6: >-
+          It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle, then levodopa
+          (with benserazide) every other day for at least five sessions to induce dyskinesia. About 2 hours after the
+          last dose, at the start of the off-state, it was injected intraperitoneally with saline (the control for the
+          M1 muscarinic receptor antagonist); brain slices were made 16 hours later.
+        F8: >-
+          It received a unilateral 6-hydroxydopamine (6-OHDA) lesion of the medial forebrain bundle and, after the
+          cylinder test, an injection of only the guide RNA virus, without Cas9 (control), into the dorsolateral
+          striatum on the side of the lesion. About a month later it was given levodopa (with benserazide) every other
+          day for at least five sessions to induce dyskinesia, and it was studied in the off-state of
+          levodopa-induced dyskinesia (LID).
+      identification: >-
+        The lab gave this mouse no number; its Data Connections sheet identifies it by date, line and condition.
+    Icephys:
+      IntracellularElectrode:
+        name: ElectrodeCell{cell}
+        description: Whole-cell patch pipette at the cell body of cell {cell}.
+        location: Caudoputamen
+        cell_id: Cell{cell}
+      CurrentClampSeries:
+        recording:
+          soma_excitability: >-
+            while current steps were injected at the cell body to measure its firing (F-I curve).
+          dend_excitability: during dendritic imaging.{dendritic_trial}
+        description: >-
+          Current-clamp recordings from cell {cell}, {recording} The {n_sweeps} sweeps are stored one after another,
+          each at its start time (the sweep_start_time column of the intracellular recordings table), so the pauses
+          between sweeps are kept in the timestamps.{short_sweeps}{numbering}
+        short_sweeps: >-
+          {n_short} of the sweeps were recorded for only {seconds} s, which ends before the current injections, so
+          their voltage holds no spikes; the injections were given, as the calcium signal in each of those trials'
+          line scans shows. Their stimulus is the whole command, so it is longer than their recording.
+      CurrentClampStimulusSeries:
+        description: >-
+          Commanded current paired with {series}: the 700B command Prairie View sent to the amplifier, drawn from each
+          sweep's VoltageOutput XML (every current pulse, with its amplitude, width and timing) over the command's
+          span, which can end before or after the sweep's recording. It adds to any holding current set on the
+          amplifier, which Prairie View does not record. The per-sweep amplitude is also in the stimulus_current_pA
+          column of the intracellular recordings table.{short_sweeps}
+      intracellular_recordings_columns:
+        cell_id: Cell number within this file (the cells recorded from this mouse on this day).
+        dendrite_type: >-
+          Dendritic region imaged during the sweep (Proximal or Distal); Soma for somatic sweeps, which have no
+          imaging. The recording electrode is always at the cell body.
+        dendrite_distance_um: >-
+          Approximate distance of the imaged site from the cell body in micrometers: 40 for Proximal and 90 for
+          Distal, as set in the lab protocol; 0 for somatic sweeps.
+        sweep_start_time: >-
+          Start of the sweep in seconds from session_start_time: the Sequence time in the master Prairie View XML plus
+          the offset of the voltage recording in it, as NeuroConv's Bruker interface reads it. The sweep's samples in
+          its PatchClampSeries start at this time.
+        stimulus_current_pA: >-
+          Commanded current amplitude in picoamperes for this sweep: the step for a somatic sweep, each of the three
+          pulses for a dendritic one. Parsed from the Bruker VoltageOutput XML alongside each sweep
+          (PulsePotentialStart × UnitScaleFactor).
+        stimulus_protocol_name: "Stimulus protocol label from Bruker VoltageOutput XML (e.g., 'Step 5_-40 pA')."
+        condition: >-
+          Experimental condition, named as in the paper's figure legends (e.g., 'LID on-state', 'LID on-state with
+          sulpiride'). Where a cell was recorded before and after a drug, its sweeps differ here.
+        state: >-
+          State of the mouse: 'LID off-state', 'LID on-state' or 'naive' (the Figure 7E mice, with no lesion and no
+          levodopa). The condition adds the genotype or treatment group and the drug.
+        drug: >-
+          Drug in the bath during the sweep, or 'none': SCH 23390 (3 µM), sulpiride (10 µM) or oxo-M (10 µM), added
+          partway through a day's recordings, or VU 0255035 (5 µM), in which the slices of the M1R-antagonist mice
+          were kept throughout. See general/pharmacology.
+        site: >-
+          Recording site, named like the line-scan series: 'Soma', or 'Proximal'/'Distal' with the site number (e.g.,
+          'Proximal1'). Sites the lab imaged at two spots on the dendrite, moving the microscope in between, add
+          'Spot1' or 'Spot2' (e.g., 'Proximal1Spot2'); the lab's files mark the second spot 'real'.
+      stimulus_type:
+        soma: F-I curve
+        dendritic: back-propagating spikes
+      # The protocol of a repetition: the F-I curve, or back-propagating spikes and the dendritic site imaged
+      protocol:
+        soma_fi_curve: F-I curve
+        dendritic: back-propagating spikes at {site}
+      repetitions_columns:
+        cell_id: Cell number within this file that this repetition belongs to.
+        protocol: >-
+          Protocol of this repetition: 'F-I curve' (current steps at the cell body) or 'back-propagating spikes'
+          followed by the dendritic site imaged (e.g., 'back-propagating spikes at Proximal1').
+        condition: >-
+          Experimental condition of this repetition, named as in the paper's figure legends. A cell recorded before
+          and after a drug has one repetition per condition for the same protocol.
+      experimental_conditions_columns:
+        condition: Experimental condition, named as in the paper's figure legends (e.g., 'LID off-state').
+      RecordingsIndexTable:
+        description: >-
+          One row per sweep, in the order of the intracellular recordings table, so a sweep can be looked up in one
+          place. Each row holds the sweep's details (cell_id, condition, dendrite_type, dendrite_distance_um, site,
+          stimulus_current_pA, sweep_start_time_s), its rows in the intracellular recordings, simultaneous
+          recordings, sequential recordings, repetitions and experimental conditions tables, and, for dendritic
+          sweeps, its slices of the line-scan and fluorescence series. The same information is also held in those
+          tables and series.
+        processing_module_description: >-
+          RecordingsIndexTable, which gathers for each sweep its details, its rows in the intracellular tables and
+          its slices of the line-scan and fluorescence series.
+        columns:
+          cell_id: Cell number within this file.
+          condition: Experimental condition of this sweep; see the same column in the intracellular recordings table.
+          dendrite_type: Dendritic region imaged during the sweep (Proximal or Distal); Soma for somatic sweeps.
+          dendrite_distance_um: >-
+            Approximate distance of the imaged site from the cell body in micrometers (0 for Soma, 40 for Proximal, 90
+            for Distal).
+          site: >-
+            Recording site (e.g., 'Soma', 'Proximal1', 'Proximal1Spot2'); see the same column in
+            IntracellularRecordingsTable.
+          stimulus_current_pA: >-
+            Commanded current amplitude in picoamperes for this sweep: the step for a somatic sweep, each of the three
+            pulses for a dendritic one.
+          sweep_start_time_s: Wall-clock start time of this sweep in seconds, relative to session_start_time.
+          irt_row: This sweep's row in the intracellular recordings table.
+          simultaneous_row: This sweep's row in the simultaneous recordings table.
+          sequential_row: This sweep's row in the sequential recordings table.
+          repetition_row: This sweep's row in the repetitions table.
+          experimental_condition_row: This sweep's row in the experimental conditions table.
+          line_scan_alexa568: >-
+            This sweep's slice of the Alexa Fluor 568 line scan (structural dye). Somatic sweeps have no line scan and
+            hold idx_start=-1.
+          line_scan_fluo4: >-
+            This sweep's slice of the Fluo-4 line scan (calcium indicator). Somatic sweeps have no line scan and hold
+            idx_start=-1.
+          roi_response_alexa568: >-
+            This sweep's slice of the Alexa Fluor 568 fluorescence (mean along the scan line). Somatic sweeps have no
+            imaging and hold idx_start=-1.
+          roi_response_fluo4: >-
+            This sweep's slice of the Fluo-4 fluorescence (mean along the scan line). Somatic sweeps have no imaging
+            and hold idx_start=-1.
+    # The two-photon line scans of the dendritic trials
+    LineScans:
+      # Ch1 and Ch2 are the microscope's detector numbers. Objects in the file are named after the dye instead; only
+      # Ch2 rises after the spikes, which confirms this assignment.
+      channels:
+        Ch1:
+          name: Alexa568
+          description: Alexa Fluor 568 (structural dye, red detector 580-620 nm)
+          indicator: Alexa Fluor 568
+          detector: Red detector, 580-620 nm.
+        Ch2:
+          name: Fluo4
+          description: Fluo-4 (calcium indicator, green detector 490-560 nm)
+          indicator: Fluo-4
+          detector: Green detector, 490-560 nm.
+      # What one dendritic trial is (lab protocol step 23 and the paper's methods); the lab calls it a "trio"
+      dendritic_trial: >-
+        In each trial, three 2 nA current injections of 2 ms at 50 Hz at the cell body make the cell fire spikes that
+        travel back into the dendrites.
+      # For a site the lab imaged at two spots of the dendrite
+      spot: >-
+        The lab imaged this site at two spots on the dendrite, moving the microscope in between; this series holds the
+        trials at spot {spot}{real}
+      spot_real: ", which the lab's files mark 'real'."
+      ImagingPlane:
+        name: ImagingPlane{dye}
+        description: Two-photon line scans of dendrites in the dorsolateral striatum, {dye_description}.
+        excitation_lambda: 810.0
+        location: Caudoputamen
+      OpticalChannel:
+        name: OpticalChannel{dye}
+      PlaneSegmentation:
+        name: PlaneSegmentation{dye}
+        description: >-
+          The ROIs of the line scans imaged with {dye_description}, one row per scan line: the pixels of the line,
+          counted from its start at 0, that Prairie View averaged into its line profile. The roi_name gives the cell,
+          site and line, as the name of the line's RoiResponseSeries does. The coordinates are pixels of the source
+          images.
+      RoiResponseSeries:
+        name: RoiResponseSeries{name}
+        description: >-
+          Fluorescence of {about}: the mean over pixels {x0} to {x1} along the scan line (the ROI) at each scan, from
+          Prairie View's LineProfileData file.{note}
+      LineScanKymograph:
+        name: LineScan{name}
+        description: >-
+          Bruker line scan of {about}: one row per scan of the line, one column per pixel along it, from pixel
+          ({start_x}, {start_y}) to ({stop_x}, {stop_y}) of the source images in ImageLineScanSource.{note}
+      about: Cell {cell} {region} location {site_number}, {dye_description}
+      series_note: >-
+        All trials at this site, in recording order and each at its own start time; each trial's samples are in the
+        {column} column of processing/icephys/RecordingsIndexTable.{site_note}
+      moved_line: >-
+        The scan line at this location was moved or changed length between trials, so its trials are split into
+        {n_lines} series; this one holds the trials recorded with line {line}.
+      source_image:
+        name: Image{dye}Cell{cell}{region}{site_number}{spot}Trial{trial}
+        description: >-
+          Source image (snapshot of the field of view) for Cell {cell} {region} location {site_number}{spot_note},
+          {dye_description}, trial {trial} of {n_trials} in recording order (row {row} of the intracellular recordings
+          table, start time {start_time:.1f} s).
+      spot_note: ", spot {spot} of 2"
+      # Background scans (`_bsl`): one line scan per site with the line moved off the dendrite and no stimulus
+      background:
+        about: the background scan for Cell {cell} {site}, {dye_description}
+        note: >-
+          One line scan with the scan line moved off the dendrite and no stimulus, recorded right after the trials at
+          this site. The paper subtracts background from both channels before analysis; the lab took such scans only
+          for this cell, on 2017-05-25 and 2017-05-26.
+        source_image:
+          name: Image{dye}Cell{cell}{site}Background
+          description: >-
+            Source image (snapshot of the field of view) for the background scan of Cell {cell} {site},
+            {dye_description}.
+
+  # Behaviour (Figures 8 and 10 of the published paper), one file per mouse and levodopa session
+  behavior:
+    # The lab's folders follow the preprint's figure numbers; the published paper has the behaviour of the CDGI
+    # knockout mice in Figure 8 and of the M1R deletion mice in Figure 10
+    published_figure:
+      Figure 7: Figure 8
+      Figure 8: Figure 10
+    # The group of the mouse, by the category of the lab's Data Connections sheet
+    group_by_category:
+      CONT: control
+      ko: CDGI knockout
+      M1R CRSPR: M1R CRISPR
+    levodopa_dose_mg_per_kg_by_session: {1: 6, 2: 6, 3: 12, 4: 12, 5: 12}
+    NWBFile:
+      session_description: >-
+        Levodopa session {session_number} of 5 of mouse {mouse_number} ({group}, {figure}): AIM (abnormal involuntary
+        movement) scores and the videos filmed to count contralateral rotations. After an i.p. injection of levodopa
+        ({dose} mg/kg) with benserazide (12 mg/kg), axial, limb and orolingual movements were each observed for one
+        minute every 20 min and rated from 0 to 4. Times in this file count from the levodopa injection, whose clock
+        time the lab did not record; the session start is the date.
+      lab_notes: "The lab's notes in its AIM sheet: {notes}."
+      experiment_description: >-
+        Levodopa-induced dyskinesia in 6-OHDA-lesioned mice: CDGI knockout and wild-type mice (Figure 8 and fig.
+        S2A), and mice with M1R deleted from iSPNs by CRISPR-Cas9 and their controls (Figure 10).
+      # The CRISPR or control virus of the M1R deletion mice (Figure 10), added to the shared surgery; the patch-clamp
+      # files of these mice (Figure 9) take it too
+      crispr_injection: >-
+        About a month before levodopa, {viruses} injected into the dorsolateral striatum on the side of the lesion
+        (0.5 µl) at six sites, at AP 0.9, ML -2.3, DV -3.4 and -2.8; AP 0.6, ML -1.5, DV -3.4 and -2.8; and AP 0.24,
+        ML -1.9, DV -3.3 and -2.7 mm relative to Bregma.
+      crispr_viruses:
+        M1R CRSPR: >-
+          AAV9-hSyn-DIO-saCAS-minWPRE and AAV9-U6-gRNA(M1R)_U6-gRNA2-hSyn-FusionRed (1:1), which delete M1R from the
+          Cre-expressing iSPNs, were
+        CONT: the gRNA virus AAV9-U6-gRNA(M1R)_U6-gRNA2-hSyn-FusionRed mixed with saline (control, no Cas9) was
+    Subject:
+      description: >-
+        Mouse {mouse_number} in the lab's numbering, {group} group. Unilateral 6-OHDA lesion, then five levodopa
+        sessions every other day.
+    # Where the lab's AIM sheet contradicts itself, said in the session description
+    remarks:
+      extra_labels: >-
+        The lab wrote {labels} in the label cells, scores at no time, which its totals leave out.
+      total_not_sum: At {minutes} min the lab's total ({total:g}) is not the sum of its scores ({sum:g}).
+    # Sessions with a video the lab's share lacks, by mouse and session number
+    missing_video_notes:
+      1590:
+        1: >-
+          This file has no 80 min video: the lab's file for it is a copy of the mouse's 20 min video of session 2 and
+          shows the cage label of that session.
+    # The AIM rating scheme, one entry per scored category and the lab's total. The scale is the one of Cenci and
+    # Lundblad (2007), as the lab's protocol states it.
+    scale: >-
+      rated from 0 to 4 over a one-minute observation: 0 normal movement; 1 abnormal movement for less than half the
+      time; 2 for more than half; 3 for the whole time but interrupted by external stimuli such as tapping on the cage;
+      4 continuous and unsuppressible. Half scores are allowed. The scale of Cenci and Lundblad (2007), as the lab's
+      protocol (dx.doi.org/10.17504/protocols.io.5jyl8dm8rg2w/v1) states it.
+    categories:
+      axial: Axial abnormal involuntary movement, {scale}
+      limb: Limb abnormal involuntary movement, {scale}
+      orolingual: Orolingual abnormal involuntary movement, {scale}
+      total: >-
+        The lab's total of the axial, limb and orolingual scores at one time, from 0 to 12, as its AIM sheet writes it.
+    # HED tags of each category, on the values of the AIM events' behavior column: the experimenter's one-minute
+    # observation of the mouse moving the category's body parts involuntarily and abnormally, or the lab's sum for the
+    # total. The body parts are those of the AIM definitions of Cenci's group (Lerner et al. 2017, Sci Rep,
+    # doi:10.1038/s41598-017-16228-1): axial is the neck and upper body, limb the forelimb, orolingual the jaw and
+    # tongue. HED has no forelimb or rating, so limb is the upper extremity and the score a parameter. The score's tags
+    # take in the category's, so each rating is one group and the ratings taken at one time stay apart.
+    HED:
+      schema_version: 8.5.0
+      categories:
+        axial: >-
+          Experiment-procedure, (Observation, Label/Experimenter_Axial-AIM), ((Animal-agent, Experiment-participant),
+          (Move-torso, Involuntary, Abnormal), (Move-body-part, Neck, Involuntary, Abnormal))
+        limb: >-
+          Experiment-procedure, (Observation, Label/Experimenter_Limb-AIM), ((Animal-agent, Experiment-participant),
+          (Move-upper-extremity, Involuntary, Abnormal))
+        orolingual: >-
+          Experiment-procedure, (Observation, Label/Experimenter_Orolingual-AIM), ((Animal-agent,
+          Experiment-participant), (Move-face, Involuntary, Abnormal), (Move-body-part, Tongue, Involuntary,
+          Abnormal))
+        total: >-
+          Experiment-procedure, (Computed-feature, Label/Sum_Total-AIM), ((Animal-agent, Experiment-participant),
+          (Move-body-part, Involuntary, Abnormal))
+      score: "({behavior}, (Parameter-label/AIM-score, Parameter-value/#))"
+    Ethogram:
+      name: AimEthogram
+      description: "The AIM (abnormal involuntary movement) rating scheme: the categories rated and the lab's total."
+      processing_module_description: The AIM rating scheme.
+    # The rating scheme as an ethogram catalogue and each rating as an event, the layout of NeuroConv's manual scoring
+    # interfaces: a rating is taken over a one-minute observation, and a 0 is a rating too.
+    Events:
+      name: aim_scores
+      description: >-
+        AIM ratings, one row per category and observation: the timestamp is the start of the one-minute observation,
+        at the time after the levodopa injection the lab's sheet gives, and the duration is the observation.
+        Categories the lab did not rate at a time have no row.
+      source_description: Rated by eye by the experimenter, following the lab's protocol.
+      columns:
+        behavior: The category rated, a behavior of the AimEthogram catalogue.
+        score: The rating, as the AimEthogram defines it for the category.
+      meanings_description: Meaning of each category.
+      hed_column_description: HED (Hierarchical Event Descriptors) tags of each category.
+    Video:
+      name: Video{minutes}Min
+      description: >-
+        Video of the mouse from {minutes} min after the levodopa injection, filmed to count its contralateral
+        rotations. A copy of the lab's video without its audio track. {note}
+      wrong_mouse_note: The file name says mouse {named_mouse}, a typo for {mouse_number}.
+      wrong_session_note: >-
+        The file name says session {named_session}; it is in the lab's session {session_number} folder.
+
+  # The two-photon spine stacks of Figures 2, 4, 6, 7 and 9, shared by the figure keys above
+  spine_density:
+    distance:
+      Proximal: proximal (~40 μm from soma)
+      Medium: medium (~60 μm from soma)
+      Distal: distal (>80 μm from soma)
+    stack_description: >-
+      Image stack of {location} dendrite {dendrites} from SPN cell {cell} for spine density analysis. Location:
+      {distance}. Acquired with 0.15 μm pixels, 0.3 μm z-steps using two-photon microscopy. Images deconvolved in
+      AutoQuant X3.0.4 and analyzed using NeuronStudio.
+    unnumbered_dendrite: (not numbered)
+    spot: The lab imaged this site at two spots of the dendrite; this is spot {spot}{real}
+    spot_real: ", which the lab's files mark 'real'."
+    real: The lab's files mark this stack 'real'.
+    acquisition: >-
+      {stack_description} This Z-stack contains {n_images} individual images acquired at 0.3 μm intervals.
+      Acquisition parameters: pixel_size_x={pixel_size_x:.6f} μm, pixel_size_y={pixel_size_y:.6f} μm, pixel_size_z=0.3
+      μm, dwell_time={dwell_time} μs, optical_zoom={optical_zoom}, scan_mode={scan_mode}, bit_depth={bit_depth},
+      objective_lens='{objective_lens}', numerical_aperture={numerical_aperture}, magnification={magnification}x,
+      system_version={system_version}.
+    z_slice: >-
+      Z-slice {z_slice} at depth {z_depth_um:.1f} μm. Acquired with two-photon microscopy using 0.15 μm pixels and 0.3
+      μm z-steps for spine density analysis.
+  # The Nikon confocal stacks of Figure 4J, beyond the figure_4_confocal_spine_density_nikon key above
+  confocal_nikon:
+    group:
+      UnlesionedControl: "unlesioned control: no 6-OHDA lesion and no levodopa"
+      LesionedControl: 6-OHDA lesioned, without levodopa
+      OffState: 6-OHDA lesioned and given levodopa until dyskinetic, perfused in the LID off-state
+      OnState: 6-OHDA lesioned and given levodopa until dyskinetic, perfused in the LID on-state
+    stack: Confocal z-stack of proximal dendrite {dendrite} of cell {cell} ({location})
+    acquired: acquired {acquisition_time:%Y-%m-%d %H:%M} (Chicago time)
+    acquired_uncertain: >-
+      whose clocks disagree (2024-02-23 in the text NIS-Elements writes, 2024-06-04 from its frames) while the data
+      share dates it 2024-01-03, so when it was acquired is uncertain; acquired
+    description: >-
+      {stack}, the lab's file '{file_name}', {acquired} on a Nikon AXR confocal with a 60x oil immersion objective (NA
+      1.49), 0.09 µm pixels and 0.125 µm z steps.
+    z_slice: Z-slice {index} at {depth:.3f} μm depth
+  # The Olympus confocal stacks of Figure 4H, beyond the figure_4h_confocal_spine_density_olympus key above
+  confocal_olympus:
+    stack: >-
+      High-resolution confocal Z-stack {stack_id} from Olympus FV10i system. Acquired at 60x magnification (NA=1.35)
+      with 0.125 μm z-steps and ~0.207 μm pixels for spine density methodology validation. One tile of the image of
+      Figure 4I.
+    z_slice: >-
+      Z-slice {z_slice} at depth {z_depth_um:.3f} μm. Acquired with Olympus confocal microscopy at 0.125 μm z-steps for
+      high-resolution spine density analysis.

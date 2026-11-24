@@ -28,10 +28,6 @@ import numpy as np
 import pandas as pd
 from pynwb import NWBHDF5IO
 
-from surmeier_lab_to_nwb.zhai2025.conversion_scripts.conversion_utils import (
-    extract_condition_from_session_id,
-)
-
 # Suppress expected warnings when calculating statistics on groups with no spikes
 warnings.filterwarnings("ignore", message="Mean of empty slice")
 warnings.filterwarnings("ignore", message="invalid value encountered in scalar divide")
@@ -211,14 +207,14 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
     Parameters
     ----------
     nwb_dir : Path
-        Directory containing Figure 1 somatic excitability NWB files
+        Directory containing the Figure 1 per-mouse-day NWB files
 
     Returns
     -------
     pd.DataFrame
         Combined dataframe with all recordings and analyses
     """
-    nwb_files = list(nwb_dir.glob("F1++SomExc++dSPN++*.nwb"))
+    nwb_files = sorted(nwb_dir.glob("*.nwb"))
 
     if not nwb_files:
         raise FileNotFoundError(f"No NWB files found in {nwb_dir}. " "Please check that the NWB files exist.")
@@ -231,31 +227,28 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
             nwb = io.read()
 
             # Get session info
-            session_id = nwb.session_id
             subject_id = nwb.subject.subject_id
 
-            # Extract condition from session ID using conversion utils
-            condition = extract_condition_from_session_id(session_id)
-
-            # Access intracellular recordings table directly
+            # Each file holds the cells recorded from one mouse on one day; the somatic sweeps are the rows of the
+            # intracellular recordings table whose site is the soma
             recordings_df = nwb.intracellular_recordings.to_dataframe()
+            somatic_df = recordings_df[recordings_df[("intracellular_recordings", "site")] == "Soma"]
 
             cell_data = []
-            for _, row in recordings_df.iterrows():
+            for _, row in somatic_df.iterrows():
                 # Get recording info
+                cell = f"{subject_id} cell {row[('intracellular_recordings', 'cell_id')]}"
+                condition = row[("intracellular_recordings", "condition")]
                 current_pA = row[("intracellular_recordings", "stimulus_current_pA")]
-                protocol_step = row[("intracellular_recordings", "protocol_step")]
+                protocol_step = row[("intracellular_recordings", "stimulus_protocol_name")]
 
-                # Get the current clamp series directly from acquisition
-                series_name = f"CurrentClampSeries{protocol_step}"
-                if series_name not in nwb.acquisition:
-                    continue  # Skip missing recordings
+                # The response is this sweep's slice of the cell's concatenated somatic series
+                response = row[("responses", "response")]
+                voltage_trace = response.data * response.timeseries.conversion * 1000  # Convert to mV
 
-                series = nwb.acquisition[series_name]
-                voltage_trace = series.data[:] * 1000  # Convert to mV
-
-                # Get timestamps using the built-in method
-                timestamps = series.get_timestamps()
+                # Time from the start of the sweep, from the sampling rate so the analysis windows fall on samples
+                sampling_rate = round(1 / (response.timestamps[1] - response.timestamps[0]))
+                timestamps = np.arange(response.count) / sampling_rate
 
                 # Count action potentials (during stimulus period)
                 spike_count = count_action_potentials(voltage_trace, timestamps)
@@ -267,12 +260,12 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
 
                 cell_data.append(
                     {
-                        "session_id": session_id,
+                        "cell": cell,
                         "subject_id": subject_id,
                         "condition": condition,
                         "current_pA": current_pA,
                         "protocol_step": protocol_step,
-                        "recording_id": f"{session_id}_{protocol_step}",
+                        "recording_id": f"{cell} {condition} {protocol_step}",
                         "spike_count": spike_count,
                         "vm_mv": mem_props["vm_mv"],
                         "rm_mohm": mem_props["rm_mohm"],
@@ -286,7 +279,7 @@ def load_somatic_excitability_data(nwb_dir: Path) -> pd.DataFrame:
         raise ValueError("No somatic excitability data could be loaded from NWB files")
 
     df = pd.DataFrame(all_data)
-    print(f"Loaded {len(df)} recordings from {len(df.session_id.unique())} cells")
+    print(f"Loaded {len(df)} recordings from {len(df.cell.unique())} cells")
     return df
 
 
@@ -306,7 +299,7 @@ def calculate_cell_summary_stats(df: pd.DataFrame) -> pd.DataFrame:
     """
     cell_summaries = []
 
-    for (session_id, condition), cell_data in df.groupby(["session_id", "condition"]):
+    for (cell, condition), cell_data in df.groupby(["cell", "condition"]):
         # Sort by current for rheobase calculation
         cell_data = cell_data.sort_values("current_pA")
 
@@ -327,7 +320,7 @@ def calculate_cell_summary_stats(df: pd.DataFrame) -> pd.DataFrame:
 
         cell_summaries.append(
             {
-                "session_id": session_id,
+                "cell": cell,
                 "condition": condition,
                 "subject_id": cell_data["subject_id"].iloc[0],
                 "rheobase_pA": rheobase,
@@ -360,7 +353,7 @@ def create_fi_curves(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
     condition_styles = {
         "LID off-state": {"color": "black", "marker": "o", "linestyle": "-", "label": "off-state"},
         "LID on-state": {"color": "black", "marker": "s", "linestyle": "-", "label": "on-state"},
-        "LID on-state with SCH": {
+        "LID on-state with SCH 23390": {
             "color": "gray",
             "marker": "^",
             "linestyle": "--",
@@ -368,7 +361,7 @@ def create_fi_curves(df: pd.DataFrame) -> Tuple[plt.Figure, plt.Axes]:
         },
     }
 
-    for condition in ["LID off-state", "LID on-state", "LID on-state with SCH"]:
+    for condition in ["LID off-state", "LID on-state", "LID on-state with SCH 23390"]:
         if condition not in df["condition"].unique():
             continue
 
@@ -457,7 +450,7 @@ def create_rheobase_comparison(cell_stats: pd.DataFrame) -> Tuple[plt.Figure, pl
     valid_data = cell_stats[cell_stats["rheobase_pA"].notna()]
 
     # Order conditions to match paper
-    condition_order = ["LID off-state", "LID on-state", "LID on-state with SCH"]
+    condition_order = ["LID off-state", "LID on-state", "LID on-state with SCH 23390"]
     condition_labels = ["off", "on", "on + SCH"]
 
     # Prepare data for box plot
@@ -626,7 +619,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "somatic_excitability" / "figure_1"
+    nwb_dir = base_dir / "nwb_files" / "merged" / "F1"
     output_dir = base_dir / "analysis_outputs" / "figure_1e"
 
     # Ensure output directory exists

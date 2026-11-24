@@ -16,29 +16,37 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from pynwb import NWBHDF5IO
 from scipy import stats
+
+# The group is the genotype token of the session ID: the control and CRISPR mice are all Adora2a-Cre mice, told apart by
+# the virus they received
+GROUP_OF_SESSION_ID_GENOTYPE = {"WT": "Control", "M1RCRISPR": "M1R CRISPR"}
 
 
 def load_figure8_data():
-    """Load and prepare Figure 8 data for analysis."""
-    # Load the processed data
-    data_path = (
-        Path(__file__).parent.parent
-        / "src/surmeier_lab_to_nwb/zhai2025/assets/processed_aim_behavioral_data/figure_8_aim_processed_data.csv"
-    )
+    """Load and prepare Figure 8 data for analysis, from the behaviour session files (one per mouse and session)."""
+    nwb_dir = Path(__file__).parent.parent / "nwb_files" / "behavior" / "figure_8"
+    nwb_files = sorted(nwb_dir.glob("*.nwb"))
+    if not nwb_files:
+        raise FileNotFoundError(f"No NWB files in {nwb_dir}; run `uv run poe convert_behavior` first")
 
-    if not data_path.exists():
-        raise FileNotFoundError(f"Data file not found: {data_path}")
+    dataframes = []
+    for nwb_file in nwb_files:
+        with NWBHDF5IO(str(nwb_file), "r") as io:
+            nwb = io.read()
+            events = nwb.events["aim_scores"].to_dataframe()
+            session = events.pivot(index="timestamp", columns="behavior", values="score")
+            session = session.reset_index().rename(columns={"timestamp": "timestamps", "total": "total_score"})
+            session["time_minutes"] = (session["timestamps"] / 60).round().astype(int)
+            session["animal_id"] = int(nwb.subject.subject_id.rsplit("M", 1)[1])
+            session["genotype"] = GROUP_OF_SESSION_ID_GENOTYPE[nwb.session_id.split("++")[3]]
+            session["session_date"] = pd.Timestamp(nwb.session_start_time.date())
+            dataframes.append(session)
+    df = pd.concat(dataframes, ignore_index=True)
 
-    df = pd.read_csv(data_path)
-
-    # Add session numbers based on chronological order
-    df["session_date"] = pd.to_datetime(df["session_date"])
-
-    # Map to session numbers 1-5 based on chronological order
-    unique_dates = sorted(df["session_date"].unique())
-    date_to_session = {date: i + 1 for i, date in enumerate(unique_dates)}
-    df["session_number"] = df["session_date"].map(date_to_session)
+    # Sessions 1 to 5 of each mouse, in the order of their dates
+    df["session_number"] = df.groupby("animal_id")["session_date"].rank(method="dense").astype(int)
 
     return df
 

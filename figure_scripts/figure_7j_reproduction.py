@@ -36,9 +36,17 @@ plt.rcParams["savefig.bbox"] = "tight"
 plt.rcParams["savefig.facecolor"] = "white"
 
 
+# The group is the genotype token of the session ID; the subject genotype also names the Drd2-EGFP transgene most mice
+# carry
+GENOTYPE_OF_SESSION_ID_TOKEN = {"WT": "Wild Type", "CDGIKO": "CDGI Knockout"}
+
+
 def load_aim_data_from_nwb(nwb_dir: Path) -> pd.DataFrame:
     """
-    Load AIM data from all NWB files using optimized DynamicTable structure.
+    Load AIM data from the behaviour session files, one per mouse and levodopa session.
+
+    Each file holds its ratings in the events table "aim_scores", one row per category (axial, limb, orolingual and
+    total) and time point, timed in seconds from the levodopa injection.
 
     Parameters
     ----------
@@ -48,41 +56,40 @@ def load_aim_data_from_nwb(nwb_dir: Path) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        Combined DataFrame with all AIM data
+        Combined DataFrame with all AIM data, one row per mouse, session and time point
     """
-    nwb_files = list(nwb_dir.glob("figure7_behavioral_*.nwb"))
+    nwb_files = sorted(nwb_dir.glob("*.nwb"))
     all_dataframes = []
 
     print(f"Loading data from {len(nwb_files)} NWB files...")
 
     for nwb_file in nwb_files:
-        try:
-            with NWBHDF5IO(str(nwb_file), "r") as io:
-                nwb = io.read()
+        with NWBHDF5IO(str(nwb_file), "r") as io:
+            nwb = io.read()
+            events = nwb.events["aim_scores"].to_dataframe()
 
-                # Extract the optimized DynamicTable - ONE LINE!
-                aim_table = nwb.processing["behavior"]["DynamicTableAIMScore"]
+            df = events.pivot(index="timestamp", columns="behavior", values="score").add_suffix("_score")
+            df = df.reset_index().rename(columns={"timestamp": "timestamps"})
+            df["time_minutes"] = (df["timestamps"] / 60).round().astype(int)
+            df["animal_id"] = int(nwb.subject.subject_id.rsplit("M", 1)[1])
+            df["genotype"] = GENOTYPE_OF_SESSION_ID_TOKEN[nwb.session_id.split("++")[3]]
+            df["session_date"] = nwb.session_start_time.strftime("%Y-%m-%d")
 
-                # Convert to DataFrame - ONE LINE!
-                df = aim_table.to_dataframe()
+            # Add metadata from NWB file
+            df["mouse_id"] = nwb.subject.subject_id
+            df["nwb_session_id"] = nwb.identifier
+            df["strain"] = nwb.subject.strain
+            df["sex"] = nwb.subject.sex
+            df["age"] = nwb.subject.age
 
-                # Add metadata from NWB file
-                df["mouse_id"] = nwb.subject.subject_id
-                df["nwb_session_id"] = nwb.identifier
-                df["strain"] = nwb.subject.strain
-                df["sex"] = nwb.subject.sex
-                df["age"] = nwb.subject.age
-
-                all_dataframes.append(df)
-
-        except Exception as e:
-            print(f"Warning: Could not load {nwb_file.name}: {e}")
-            continue
+            all_dataframes.append(df)
 
     if not all_dataframes:
         raise ValueError("No AIM data could be loaded from NWB files")
 
     combined_df = pd.concat(all_dataframes, ignore_index=True)
+    # Sessions 1 to 5 of each mouse, in the order of their dates
+    combined_df["session_number"] = combined_df.groupby("animal_id")["session_date"].rank(method="dense").astype(int)
     print(f"Loaded {len(combined_df)} observations from {len(all_dataframes)} files")
     return combined_df
 
@@ -796,7 +803,7 @@ def main():
 
     # Set up paths
     base_dir = Path(__file__).parent.parent
-    nwb_dir = base_dir / "nwb_files" / "figure_7" / "behavioral"
+    nwb_dir = base_dir / "nwb_files" / "behavior" / "figure_7"
     output_dir = base_dir / "analysis_outputs" / "figure_7j"
 
     # Ensure output directory exists
@@ -813,7 +820,7 @@ def main():
     # Check if NWB files exist
     if not nwb_dir.exists():
         print(f"ERROR: NWB directory not found: {nwb_dir}")
-        print("Please run the figure_7_behavioral_aim_experiments.py script first to generate NWB files.")
+        print("Please run `uv run poe convert_behavior` first to generate NWB files.")
         sys.exit(1)
 
     try:
